@@ -16,7 +16,7 @@ import {
   useToast,
   euro,
 } from "../../components/ui";
-import { AnswerField, TYPED_INTO, type Answers } from "./answers";
+import { AnswerField, DerivedFacts, TYPED_INTO, type Answers } from "./answers";
 import { postMultipart } from "./Bills";
 import { Check, EtappenRail, Preflight, type Etappe } from "./stages";
 import type { components } from "../../api/schema";
@@ -24,6 +24,7 @@ import type { components } from "../../api/schema";
 type StatementOut = components["schemas"]["StatementOut"];
 type StatementFormOut = components["schemas"]["StatementFormOut"];
 type InputDeclarationOut = components["schemas"]["InputDeclarationOut"];
+type FormStepOut = components["schemas"]["FormStepOut"];
 type TransferPartyOut = components["schemas"]["TransferPartyOut"];
 type ExcursionBrief = components["schemas"]["ExcursionBrief"];
 type ExcursionOut = components["schemas"]["ExcursionOut"];
@@ -104,17 +105,57 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
   const presetExcursion = params.get("excursion");
   const [draft, setDraft] = useState<Draft>(() => seed(statement, presetExcursion));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  // A receipt is only saved by the button that adds it. Its form is state on a
+  // panel this flow throws away whenever the leg changes (`key={step}`), so
+  // leaving the Belege leg with one open used to drop what had been typed
+  // without a word — and the leader who then saved the draft found no receipt
+  // in it. The flow stays put instead, and says what is in the way.
+  const [enteringBill, setEnteringBill] = useState(false);
 
-  const isExcursion = draft.mode === "excursion";
-  const steps: StepId[] = isExcursion
-    ? ["purpose", "receipts", "reimbursement", "submit"]
-    : ["purpose", "receipts", "submit"];
   const requested = (params.get("stage") ?? "purpose") as StepId;
+  // Whether this statement has an Erstattung leg, asked of the rules rather
+  // than of the excursion.
+  //
+  // The leg used to appear only for a statement that named a trip, from when it
+  // was four fields about a trip's allowances. It asks the *ruleset's*
+  // questions now, and a ruleset does not care whether there was a trip:
+  // Ludwigsburg's asks the same `regime` of a Fortbildung as of a Freizeit. So
+  // gating the leg on the excursion hid all eight questions the rules ask of a
+  // statement without one — among them the only place to say which part of the
+  // regulation applies.
+  //
+  // Unknown counts as "asks something", in both directions: the rail is drawn
+  // before the form lands, and neither a leg that appears late nor a
+  // `?stage=reimbursement` that bounces to Anlass while the form is in flight
+  // is something a person should see. The leg is retired only once the rules
+  // are known to ask nothing — and never out from under somebody standing on
+  // it, which is why `requested` counts as well.
+  const formQ = useStatementForm(statement);
+  const asksNothing = formQ.data !== undefined && formQ.data.inputs.length === 0;
+  const steps: StepId[] =
+    asksNothing && requested !== "reimbursement"
+      ? ["purpose", "receipts", "submit"]
+      : ["purpose", "receipts", "reimbursement", "submit"];
   // A statement that doesn't exist yet has nothing to hang the later legs on,
-  // and dropping the excursion retires the Erstattung leg — in both cases fall
+  // and a hand-written `?stage=` may name no leg at all — in both cases fall
   // back rather than render a leg that can't work.
   const step: StepId = !statement ? "purpose" : steps.includes(requested) ? requested : "purpose";
   const goto = (next: StepId) => setParams({ stage: next }, { replace: false });
+
+  /**
+   * Run `go`, unless something on this leg would be lost by moving.
+   *
+   * Every way out of a leg goes through here — Weiter, Zurück, a leg picked off
+   * the rail and the draft that ends the flow — because an unsaved receipt is
+   * lost by all four of them equally.
+   */
+  function leaving(go: () => void) {
+    if (enteringBill) {
+      toast.error("Der Beleg ist noch nicht hinzugefügt. Füge ihn hinzu oder verwirf ihn.");
+      return;
+    }
+    go();
+  }
 
   const excursionId = draft.excursion_id ? Number(draft.excursion_id) : null;
   const excursions = useExcursions();
@@ -242,7 +283,7 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
         }
       />
 
-      <EtappenRail etappen={etappen} onSelect={(id) => goto(id as StepId)} />
+      <EtappenRail etappen={etappen} onSelect={(id) => leaving(() => goto(id as StepId))} />
 
       <div className="flow-panel" key={step}>
         {step === "purpose" && (
@@ -256,7 +297,11 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
           />
         )}
         {step === "receipts" && statement && (
-          <BelegeStep statement={statement} excursion={excursion} />
+          <BelegeStep
+            statement={statement}
+            excursion={excursion}
+            onEntering={setEnteringBill}
+          />
         )}
         {step === "reimbursement" && statement && <ErstattungStep statement={statement} />}
         {step === "submit" && statement && <AbschlussStep statement={statement} />}
@@ -265,7 +310,10 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
       <div className="flow-nav">
         <div className="flow-nav-back">
           {steps.indexOf(step) > 0 && (
-            <Button variant="ghost" onClick={() => goto(steps[steps.indexOf(step) - 1])}>
+            <Button
+              variant="ghost"
+              onClick={() => leaving(() => goto(steps[steps.indexOf(step) - 1]))}
+            >
               Zurück
             </Button>
           )}
@@ -277,10 +325,12 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
                 variant="ghost"
                 busy={saveM.isPending}
                 onClick={() =>
-                  save(() => {
-                    toast.success("Entwurf gespeichert.");
-                    navigate(`${STATEMENTS}/${statement?.id}`);
-                  })
+                  leaving(() =>
+                    save((saved) => {
+                      toast.success("Entwurf gespeichert.");
+                      navigate(`${STATEMENTS}/${saved.id}`);
+                    }),
+                  )
                 }
               >
                 Als Entwurf speichern
@@ -304,16 +354,18 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
             <Button
               busy={saveM.isPending}
               onClick={() =>
-                save((saved) => {
-                  const next = steps[steps.indexOf(step) + 1];
-                  if (!statement) {
-                    navigate(`${STATEMENTS}/${saved.id}/edit?stage=receipts`, {
-                      replace: true,
-                    });
-                  } else {
-                    goto(next);
-                  }
-                })
+                leaving(() =>
+                  save((saved) => {
+                    const next = steps[steps.indexOf(step) + 1];
+                    if (!statement) {
+                      navigate(`${STATEMENTS}/${saved.id}/edit?stage=receipts`, {
+                        replace: true,
+                      });
+                    } else {
+                      goto(next);
+                    }
+                  }),
+                )
               }
             >
               Weiter
@@ -396,7 +448,7 @@ function AnlassStep({
           // the excursion, so an answer naming somebody goes with it.
           onSelect={() => setDraft({ ...draft, mode: "other", excursion_id: "" })}
           title="Sonstige Ausgabe"
-          hint="Material, Miete, Gebühren — nur Belege"
+          hint="Material, Miete, Gebühren, Fortbildung"
         />
       </div>
 
@@ -519,14 +571,27 @@ const emptyBillDraft: BillDraft = {
 function BelegeStep({
   statement,
   excursion,
+  onEntering,
 }: {
   statement: StatementOut;
   excursion: ExcursionOut | null;
+  /** Whether a receipt form is open, so the flow can refuse to throw it away. */
+  onEntering: (entering: boolean) => void;
 }) {
   const toast = useToast();
   const confirm = useConfirmDialog();
   const [adding, setAdding] = useState<BillDraft | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+
+  // Reported upwards rather than asked for from above, because the flow's nav
+  // is the only thing that needs to know and this step is the only thing that
+  // does. The unmount case matters as much as the open one: once the receipt is
+  // added the form closes, and the flow has to be let go of again.
+  const entering = adding !== null || editingId !== null;
+  useEffect(() => {
+    onEntering(entering);
+    return () => onEntering(false);
+  }, [entering, onEntering]);
 
   const members = useMembers();
   // The people who actually went are the plausible payers; everyone else stays
@@ -787,26 +852,58 @@ function BillForm({
  * earlier answer makes it moot (`relevant_inputs`).
  */
 function ErstattungStep({ statement }: { statement: StatementOut }) {
-  const formQ = useApiQuery(["finance", "statements", statement.id, "form"], () =>
-    unwrap(
-      client.GET("/api/finance/statements/{statement_id}/form", {
-        params: { path: { statement_id: statement.id } },
-      }),
-    ),
-  );
+  const formQ = useStatementForm(statement);
+  // Whether the rules are, for now, asking only the form's opening step.
+  //
+  // Read off the query rather than from inside the boundary below, because the
+  // two things it changes are this leg's rather than the form's: what the lead
+  // says, and whether there is a payout worth previewing.
+  const opening = formQ.data !== undefined && opensWithOneStep(formQ.data);
   return (
     <section className="flow-step">
       <h2 className="flow-title">Wer bekommt was?</h2>
       <p className="flow-lead">
-        Diese Fragen stellt die Finanzordnung der Sektion. Die Beträge rechnet Kompass daraus
-        selbst aus.
+        {opening
+          ? "Die erste Frage entscheidet, was die Finanzordnung der Sektion danach fragt."
+          : "Diese Fragen stellt die Finanzordnung der Sektion. Die Beträge rechnet Kompass daraus selbst aus."}
       </p>
       <QueryBoundary query={formQ}>
         {(form) => <AnswerForm statement={statement} form={form} />}
       </QueryBoundary>
-      <PayoutPreview statement={statement} />
+      {/* No preview while the rules have not been told which rules. Every
+          figure is a reading of an answer nobody has given yet, so "Noch
+          nichts zu erstatten." beside the one unanswered question reads as
+          "this statement pays nothing" rather than as "not yet". */}
+      {!opening && <PayoutPreview statement={statement} />}
     </section>
   );
+}
+
+/**
+ * Whether `form` is the **opening step** of a longer form rather than all of it.
+ *
+ * A ruleset may narrow its own form down to the one question that decides what
+ * else is worth asking: Ludwigsburg settles under one of two travel-cost
+ * policies, and until that is answered a night is neither a receipt nor a
+ * Pauschale and a kilometre has no rate — so `relevant_inputs` asks that and
+ * nothing else. The backend needs nothing extra to say so and this needs
+ * nothing extra to read it: `steps` already partitions the whole form into the
+ * groups the rules named, so **one named step is a form that has more groups
+ * than it is currently showing**.
+ *
+ * The label is what carries it. A ruleset that names no steps comes back as a
+ * single step labelled `""` (Heidelberg, and every form that was a flat list
+ * before there were steps), and that is emphatically *not* an opening step —
+ * it is the whole form, and it is laid out exactly as it always was. So the
+ * degenerate case needs no branch of its own: it simply never matches.
+ *
+ * What this is not: a second wizard. It changes the wording and takes away a
+ * preview of figures that cannot exist yet. Weiter still goes where it went,
+ * because what may be handed in is `/preflight`'s answer and not this
+ * client's — the rules already refuse a statement with no Regelwerk, by name.
+ */
+function opensWithOneStep(form: StatementFormOut): boolean {
+  return form.steps.length === 1 && form.steps[0].label !== "";
 }
 
 /** How long a typed-into field waits before it becomes a request. */
@@ -814,9 +911,74 @@ const TYPING_PAUSE = 500;
 
 function AnswerForm({ statement, form }: { statement: StatementOut; form: StatementFormOut }) {
   const toast = useToast();
+  // The leg's own query, read here for its *state* rather than its answer:
+  // whether a fetch is in flight is whether the questions in hand may already
+  // be history. One cache entry, so this is the same request and not a second.
+  const formQ = useStatementForm(statement);
   const [answers, setAnswers] = useState<Answers>(() => ({ ...form.answers }));
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Whether a typed-into control is still inside its pause. */
+  const pausing = useRef(false);
+  /** Bumped when the unsent edits are due to go out. */
+  const [due, setDue] = useState(0);
+  /**
+   * The edits the server has not been told about yet, by key.
+   *
+   * A `PATCH` carries these and nothing else. It used to carry the whole
+   * answerable subset on every edit, which is how an answer nobody had touched
+   * travelled with somebody else's — and a key the rules have since retired is
+   * refused (#579), so re-asserting one turned an unrelated edit into "Diese
+   * Regeln fragen Teilnehmerliste nicht ab.". `PATCH … {inputs}` merges by key,
+   * so one key is a whole request.
+   *
+   * An edit still waiting out a typing pause is in here too: a pick that
+   * arrives during the pause cancels the timer, and what had been typed goes
+   * out with the pick rather than being dropped.
+   */
+  const unsent = useRef<Answers>({});
+  // The keys a `PATCH` may carry, which is neither "everything answered" nor
+  // "everything declared".
+  //
+  // A ruleset may retire a question once an earlier answer makes it moot, and
+  // the API refuses a key the rules do not ask for — so an edit to a question
+  // that has since gone off the form is held back rather than sent.
+  //
+  // And a derived answer is refused too, keyed by that question: the figure is
+  // a reading of the excursion, resolved again on every evaluation, so a value
+  // sent for it would land where nothing reads it. Nothing renders a control
+  // for one, so nothing should ever put one in `unsent`; this is the second
+  // lock on the mistake the API refuses — echoing the form back as served.
+  const answerable = useMemo(
+    () =>
+      new Set(
+        form.inputs.filter((declared) => !declared.derived).map((declared) => declared.key),
+      ),
+    [form.inputs],
+  );
+  /**
+   * Take in the answer to a question the rules have just started asking.
+   *
+   * The draft is seeded once, from the form of the render this component was
+   * mounted on, and it has to be: it holds what has been typed and not sent,
+   * so re-seeding it from every fetch would overwrite an edit with the value
+   * it is an edit of. But a question the rules *reveal* — the Fahrten table
+   * that appears once the Regelwerk is chosen — arrives with an answer the
+   * draft has never heard of, and the control then renders as empty while the
+   * answer sits in storage. A seeded row looked eaten by the question that had
+   * not been asked yet.
+   *
+   * So keys are added and never replaced. A key the draft already has keeps
+   * what it has, which is exactly what makes this safe for the question that
+   * went away and came back: an answer given while the form was in flight is
+   * still the person's, not the server's.
+   */
+  useEffect(() => {
+    setAnswers((previous) => {
+      const arrived = Object.entries(form.answers).filter(([key]) => !(key in previous));
+      return arrived.length === 0 ? previous : { ...previous, ...Object.fromEntries(arrived) };
+    });
+  }, [form.answers]);
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
@@ -849,41 +1011,148 @@ function AnswerForm({ statement, form }: { statement: StatementOut; form: Statem
     },
   );
 
-  function change(declaration: InputDeclarationOut, value: unknown) {
-    const next = { ...answers, [declaration.key]: value };
-    setAnswers(next);
-    setErrors({});
-    if (timer.current) clearTimeout(timer.current);
-    // Only the questions this form still asks. A ruleset may retire one once an
-    // earlier answer makes it moot, and the API refuses a key the rules do not
-    // ask for — so sending back everything that was ever answered would turn
-    // `relevant_inputs` into a 422.
-    const asked = new Set(form.inputs.map((declared) => declared.key));
+  /**
+   * Hand the unsent edits over, once it is clear what the form still asks.
+   *
+   * The send sits in an effect rather than in `change` so that it reads the
+   * form of the render it goes from. Answering `regime` changes which questions
+   * the rules ask: the save retires some of them and the form is fetched again
+   * to find out which. Until that fetch lands the client is holding the
+   * previous set — so an edit made in that window **waits** (`settling`)
+   * instead of racing it, and one that was already waiting out a typing pause
+   * is weighed against the questions as they are by then, not as they were when
+   * it was typed. Both were a `PATCH` answering a question the rules had
+   * stopped asking, which is a 422 by design (#579).
+   *
+   * A key the form does not ask for **stays** in `unsent`: not sending is the
+   * right answer to "the rules have stopped asking this", and forgetting it is
+   * not — the Regelwerk can be switched back, and the answer then goes out
+   * with its question. A key that does go is dropped as it goes rather than
+   * once it lands: a refusal is reported where it belongs (`onError`) and the
+   * answer stays on the form, but a body the API has refused must not ride
+   * along with every later edit.
+   */
+  const settling = saveM.isPending || formQ.isFetching;
+  useEffect(() => {
+    if (settling || pausing.current) return;
     const body = Object.fromEntries(
-      Object.entries(next).filter(([key]) => asked.has(key)),
+      Object.entries(unsent.current).filter(([key]) => answerable.has(key)),
     );
-    if (TYPED_INTO.has(declaration.type)) {
-      timer.current = setTimeout(() => saveM.mutate(body), TYPING_PAUSE);
+    if (Object.keys(body).length === 0) return;
+    for (const key of Object.keys(body)) delete unsent.current[key];
+    saveM.mutate(body);
+  }, [due, settling, answerable, saveM.mutate]);
+
+  function change(declaration: InputDeclarationOut, value: unknown) {
+    setAnswers((previous) => ({ ...previous, [declaration.key]: value }));
+    setErrors({});
+    unsent.current[declaration.key] = value;
+    if (timer.current) clearTimeout(timer.current);
+    // A keystroke must not be a request, so a typed-into control waits out the
+    // pause; anything else is a whole answer the moment it is picked.
+    pausing.current = TYPED_INTO.has(declaration.type);
+    if (pausing.current) {
+      timer.current = setTimeout(() => {
+        pausing.current = false;
+        setDue((count) => count + 1);
+      }, TYPING_PAUSE);
     } else {
-      saveM.mutate(body);
+      setDue((count) => count + 1);
     }
   }
 
   if (form.inputs.length === 0) {
     return <p className="muted">Für diese Abrechnung fragen die Regeln nichts ab.</p>;
   }
+  const opening = opensWithOneStep(form);
   return (
     <>
-      {form.inputs.map((declaration) => (
+      {form.steps.map((step) => (
+        <AnswerGroup
+          key={step.label}
+          step={step}
+          opening={opening}
+          form={form}
+          answers={answers}
+          errors={errors}
+          onChange={change}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
+ * One group of questions, as the ruleset grouped them.
+ *
+ * `steps` always partitions the whole form, so this is the only way the form is
+ * laid out — including the degenerate case, a ruleset that named no steps,
+ * which comes back as a single group with an empty label and reads as the flat
+ * list it was before there were steps.
+ *
+ * Sections and not pages, deliberately. This form is already one leg of a
+ * wizard (`EtappenRail`), and a second wizard inside it would make "Weiter"
+ * mean two different things on one screen — and hide questions behind a step
+ * the person cannot see they still have to answer. The backend is of the same
+ * mind: `steps` carries a label and its keys and nothing else, no page state
+ * and no notion of a step being finished.
+ *
+ * The readings come first within a group: what the trip says, then what it
+ * leaves to be answered.
+ *
+ * `opening` says this group is the form's first step and the rest is waiting on
+ * it (`opensWithOneStep`). It is still a section and still not a page — what it
+ * adds is a frame and one sentence, because a form showing a single question
+ * with nothing under it reads as a page that failed to load rather than as a
+ * question that decides the others.
+ */
+function AnswerGroup({
+  step,
+  opening,
+  form,
+  answers,
+  errors,
+  onChange,
+}: {
+  step: FormStepOut;
+  opening: boolean;
+  form: StatementFormOut;
+  answers: Answers;
+  errors: Record<string, string[]>;
+  onChange: (declaration: InputDeclarationOut, value: unknown) => void;
+}) {
+  const declared = step.keys
+    .map((key) => form.inputs.find((declaration) => declaration.key === key))
+    .filter((declaration): declaration is InputDeclarationOut => declaration !== undefined);
+  const derived = declared.filter((declaration) => declaration.derived);
+  const asked = declared.filter((declaration) => !declaration.derived);
+  return (
+    <section className={opening ? "answer-group answer-opening" : "answer-group"}>
+      {step.label && <h3 className="answer-group-title">{step.label}</h3>}
+      {derived.length > 0 && (
+        // Read from `form.answers` rather than from the draft: a derived figure
+        // is resolved again on every request and nothing stores it, so the form
+        // as served is the only place it is current.
+        <DerivedFacts declarations={derived} answers={form.answers} />
+      )}
+      {asked.map((declaration) => (
         <AnswerField
           key={declaration.key}
           declaration={declaration}
           value={answers[declaration.key]}
-          errors={errors[declaration.key]}
-          onChange={(value) => change(declaration, value)}
+          // The whole map, not this key's messages: a table's refusals are
+          // keyed by a path into it (`"reisen[1].kilometers"`), so where a
+          // message lands is the renderer's business and not the form's.
+          errors={errors}
+          onChange={(value) => onChange(declaration, value)}
         />
       ))}
-    </>
+      {opening && (
+        <p className="answer-opening-note">
+          Die weiteren Fragen erscheinen, sobald dieser Schritt beantwortet ist.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -993,6 +1262,27 @@ function AbschlussStep({ statement }: { statement: StatementOut }) {
           two summaries of one statement must never disagree. */}
       <PayoutPreview statement={statement} />
     </section>
+  );
+}
+
+/**
+ * The questions the section's rules ask about this statement, and its answers.
+ *
+ * Asked for at two levels off one cache entry: the leg renders the form, and
+ * the flow above it needs to know whether there is anything to render at all —
+ * a statement whose rules ask nothing has no Erstattung leg. One key, so the
+ * two are never out of step and only one request goes out.
+ */
+function useStatementForm(statement: StatementOut | null) {
+  return useApiQuery(
+    ["finance", "statements", statement?.id ?? 0, "form"],
+    () =>
+      unwrap(
+        client.GET("/api/finance/statements/{statement_id}/form", {
+          params: { path: { statement_id: statement?.id as number } },
+        }),
+      ),
+    { enabled: statement !== null },
   );
 }
 

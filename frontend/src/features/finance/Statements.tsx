@@ -22,6 +22,8 @@ import {
   type Crumb,
   euro,
 } from "../../components/ui";
+import { ApprovalRecord, outstandingText } from "./approval";
+import { payoutWords } from "./payout";
 import type { components } from "../../api/schema";
 
 type StatementBrief = components["schemas"]["StatementBrief"];
@@ -186,12 +188,16 @@ function StatementDetailBody({ statement, crumbs }: { statement: StatementOut; c
     ["LJP-Beitrag an", memberName(statement.ljp_to)],
   ];
 
+  // `confirmed_by` / `confirmed_date` are who released the statement and when.
+  // What releasing *was* depends on the section's rules, so the two rows are
+  // named after the act rather than after the column.
+  const words = payoutWords(statement);
   const adminRows: [string, ReactNode][] = [
     ["Angelegt von", memberName(statement.created_by)],
     ["Eingereicht von", memberName(statement.submitted_by)],
     ["Eingereicht am", formatDate(statement.submitted_date)],
-    ["Bezahlt von", memberName(statement.confirmed_by)],
-    ["Bezahlt am", formatDate(statement.confirmed_date)],
+    [words.releasedBy, memberName(statement.confirmed_by)],
+    [words.releasedOn, formatDate(statement.confirmed_date)],
   ];
 
   return (
@@ -231,9 +237,55 @@ function StatementDetailBody({ statement, crumbs }: { statement: StatementOut; c
             label: "Belege",
             content: <StatementBills statement={statement} />,
           },
+          // What a handed-in statement is still waiting for is what the person
+          // who handed it in most wants to know, and it is not gated on the
+          // treasurer's permission — reading the statement at all is already
+          // behind `view_obj_statement`. It used to be a page of its own with
+          // the signature on it, beside the review pipeline, which also signs:
+          // two doors into one room. The act lives in the review pipeline now
+          // and this is the record, read-only.
+          ...(statement.submitted
+            ? [
+                {
+                  id: "freigabe",
+                  label: "Freigabe",
+                  content: <StatementApproval statementId={statement.id} />,
+                },
+              ]
+            : []),
         ]}
       />
     </div>
+  );
+}
+
+/**
+ * The approval record on the statement's own page, with no action on it.
+ *
+ * The record and the act were one page and one route; the act has moved to the
+ * review pipeline's last leg, where the payout it releases is also shown. What
+ * stays here is the answer to "what is this waiting for", for the person who
+ * handed the statement in and cannot do anything about it anyway.
+ */
+function StatementApproval({ statementId }: { statementId: number }) {
+  const query = useApiQuery(["finance", "statements", statementId, "approval"], () =>
+    unwrap(
+      client.GET("/api/finance/statements/{statement_id}/approval", {
+        params: { path: { statement_id: statementId } },
+      }),
+    ),
+  );
+  return (
+    <QueryBoundary query={query}>
+      {(approval) => (
+        <div className="flow">
+          <p className="fieldset-help">
+            {approval.approved ? "Alle Freigaben liegen vor." : outstandingText(approval)}
+          </p>
+          <ApprovalRecord approval={approval} />
+        </div>
+      )}
+    </QueryBoundary>
   );
 }
 
@@ -389,7 +441,10 @@ function StatementActions({ statement }: { statement: StatementOut }) {
       )}
       {/* Both working modes leave the record view for their own guided route:
           a draft is finished in the submission flow, a submitted statement is
-          worked through the review pipeline. */}
+          worked through the review pipeline — which is also where it is signed,
+          so this is the only button a handed-in statement offers. There used to
+          be a second one here, "Freigabe", for the same act under another name;
+          what it showed is now a tab of the record below. */}
       {!submitted && (
         <Button
           type="button"
@@ -398,25 +453,15 @@ function StatementActions({ statement }: { statement: StatementOut }) {
           Weiter bearbeiten
         </Button>
       )}
+      {/* The door says what is behind it, and that depends on who makes the
+          transfers: the reviewer, or the Geschäftsstelle after a handoff. One
+          label for both would promise one of the two a thing it does not do. */}
       {processable && can("finance.process_statementsubmitted") && (
         <Button
           type="button"
           onClick={() => navigate(`/kompass/finance/statements/${statement.id}/review`)}
         >
-          Prüfen & auszahlen
-        </Button>
-      )}
-      {/* Not gated on a permission, unlike the two above: what a handed-in
-          statement is still waiting for is what the person who handed it in
-          most wants to know, and the page's two actions are gated themselves.
-          Reading it at all is already behind `view_obj_statement`. */}
-      {submitted && (
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => navigate(`/kompass/finance/statements/${statement.id}/approval`)}
-        >
-          Freigabe
+          {payoutWords(statement).door}
         </Button>
       )}
       {workflowButtons.length >= 2 ? (

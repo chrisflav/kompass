@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-18 18:22+0200\n"
+"POT-Creation-Date: 2026-10-24 22:34+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -256,6 +256,26 @@ msgstr ""
 "Die Buchungen konnten nicht erzeugt werden. Bitte trage bei jedem "
 "übernommenen Beleg ein, wer ihn bezahlt hat."
 
+msgid ""
+"The statement is still handed in for approvals and cannot be handed over yet."
+msgstr ""
+"Diese Abrechnung wartet noch auf Freigaben und kann noch nicht zur "
+"Auszahlung übergeben werden."
+
+msgid ""
+"The statement is still waiting for approvals and cannot be paid out yet."
+msgstr ""
+"Diese Abrechnung wartet noch auf Freigaben und kann noch nicht ausgezahlt "
+"werden."
+
+msgid ""
+"The summary could not be sent to the office, so the statement was not handed "
+"over. Nothing was changed — try again."
+msgstr ""
+"Der Beleg konnte nicht an die Geschäftsstelle gesendet werden, deshalb wurde "
+"die Abrechnung nicht übergeben. Es wurde nichts geändert — bitte versuche es "
+"noch einmal."
+
 msgid "Statement is not ready to be confirmed."
 msgstr "Diese Abrechnung kann noch nicht bestätigt werden."
 
@@ -281,8 +301,39 @@ msgstr "Finanzen"
 msgid "These rules do not ask for %(key)s."
 msgstr "Diese Regeln fragen %(key)s nicht ab."
 
+#, python-format
+msgid ""
+"%(label)s is taken from the statement's own data and cannot be answered here."
+msgstr ""
+"%(label)s wird aus den Daten der Abrechnung übernommen und kann hier nicht "
+"beantwortet werden."
+
+#, python-format
+msgid "%(label)s is a list of rows."
+msgstr "%(label)s ist eine Liste von Zeilen."
+
+#, python-format
+msgid "%(label)s may have at most %(max)s rows, but you gave %(count)s."
+msgstr ""
+"%(label)s darf höchstens %(max)s Zeilen haben, du hast aber %(count)s "
+"angegeben."
+
+msgid "This row is not a set of answers."
+msgstr "Diese Zeile besteht nicht aus Antworten."
+
+#, python-format
+msgid "This row answers %(keys)s, which these rules do not ask for."
+msgstr "Diese Zeile beantwortet %(keys)s – das fragen diese Regeln nicht ab."
+
+#, python-format
+msgid "%(label)s is not one of the options offered."
+msgstr "%(label)s ist keine der angebotenen Auswahlmöglichkeiten."
+
 msgid "Only youth leaders of this excursion may receive contributions."
 msgstr "Nur Leiter*innen dieser Ausfahrt können Zuschüsse erhalten."
+
+msgid "This person is not one of the people these rules offer."
+msgstr "Diese Person gehört nicht zu den Personen, die diese Regeln anbieten."
 
 #, python-format
 msgid ""
@@ -515,6 +566,21 @@ msgstr "Verwendungszweck"
 msgid "Recipient"
 msgstr "Empfänger*in"
 
+msgid "Settlement group"
+msgstr "Überweisungsgruppe"
+
+msgid ""
+"The group of bank transfers this booking may share, carried over from the "
+"transfer the section's rules resolved. Bookings are bundled into one payment "
+"only within one group, so an amount that names its own is transferred "
+"separately. Empty means no group."
+msgstr ""
+"Die Gruppe von Überweisungen, die sich diese Buchung teilen darf, übernommen "
+"aus der Zahlung, die das Regelwerk der Sektion ermittelt hat. Buchungen "
+"werden nur innerhalb einer Gruppe zu einer Überweisung zusammengefasst; ein "
+"Betrag mit eigener Gruppe wird also getrennt überwiesen. Leer bedeutet keine "
+"Gruppe."
+
 msgid "Paid"
 msgstr "Bezahlt"
 
@@ -523,6 +589,12 @@ msgstr "Überweisung"
 
 msgid "Transactions"
 msgstr "Überweisungen"
+
+msgid "The reviewer makes the transfers (ausgezahlt)"
+msgstr "Die prüfende Person überweist selbst (ausgezahlt)"
+
+msgid "The office makes the transfers (zur Auszahlung übergeben)"
+msgstr "Die Geschäftsstelle überweist (zur Auszahlung übergeben)"
 
 msgid "Member"
 msgstr "Mitglied"
@@ -574,6 +646,21 @@ msgstr ""
 
 msgid "Context version"
 msgstr "Kontext-Version"
+
+msgid "Payout mode"
+msgstr "Auszahlungsweg"
+
+msgid ""
+"Who makes the bank transfers once a statement is released, as this version "
+"of the rules declares it. Immutable, like the rest of what a version says: a "
+"section that changes how it pays imports a new version, and a statement "
+"keeps the arrangement it was created under."
+msgstr ""
+"Wer die Überweisungen ausführt, wenn eine Abrechnung freigegeben ist – so "
+"wie diese Version des Regelwerks es erklärt. Unveränderlich wie alles, was "
+"eine Version aussagt: Eine Sektion, die ihren Auszahlungsweg ändert, "
+"importiert eine neue Version, und eine Abrechnung behält den Weg, unter dem "
+"sie angelegt wurde."
 
 msgid "Parameters"
 msgstr "Parameter"
@@ -678,6 +765,18 @@ msgstr "Bezeichnung"
 
 msgid "Rule"
 msgstr "Regel"
+
+msgid ""
+"The group of bank transfers this amount may share, as the section's rules "
+"named it. Two amounts owed to the same person out of the same account are "
+"bundled into one payment only when this is equal. Empty means no group, "
+"which is what bundles with everything else."
+msgstr ""
+"Die Gruppe von Überweisungen, die sich dieser Betrag teilen darf, so benannt "
+"vom Regelwerk der Sektion. Zwei Beträge an dieselbe Person aus demselben "
+"Konto werden nur dann zu einer Überweisung zusammengefasst, wenn dieser Wert "
+"gleich ist. Leer bedeutet keine Gruppe und wird mit allem anderen "
+"zusammengefasst."
 
 msgid "Rule version"
 msgstr "Regel-Version"

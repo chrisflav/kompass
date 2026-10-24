@@ -4576,7 +4576,7 @@
             }
           }
         },
-        "description": "Create a draft statement (requires the global add permission).",
+        "description": "Create a draft statement (requires the global add permission).\n\nA statement created *on* an excursion has its seeded tables filled in here\n— one row, as the trip describes it, for the person to correct or to split\n(:func:`finance.inputs.seeded`). This is one of the two moments a seed\napplies; the other is an excursion being changed in ``update_statement``.",
         "tags": [
           "finance"
         ],
@@ -4660,7 +4660,7 @@
             }
           }
         },
-        "description": "Update the editable subset of a draft statement, authorized per object.",
+        "description": "Update the editable subset of a draft statement, authorized per object.\n\nChanging the excursion does two things to the answers, for one reason: they\nwere given about a different trip. Every answer that names somebody goes,\nbecause the people the rules offer are the incoming trip's; and every seeded\ntable is re-seeded, because the row it held carried the outgoing trip's\ndistance and mode. An answer restated **in this same request** wins over\nboth, so correcting the excursion and the table together is one call.\n\nA refusal about a table is keyed per cell — ``\"reisen[1].kilometers\"`` —\nrather than by the question; see :func:`finance.inputs.row_key`.",
         "tags": [
           "finance"
         ],
@@ -4899,7 +4899,7 @@
             }
           }
         },
-        "description": "Confirm (pay out) a submitted statement, optionally mailing the summary.",
+        "description": "Release a submitted statement: pay it out, or hand it over to the office.",
         "tags": [
           "finance"
         ],
@@ -5430,7 +5430,7 @@
             }
           }
         },
-        "description": "The questions the section's rules ask about this statement.\n\nDerived from the rules rather than written beside them, so a section that\nreimburses something else gets a different form without a release. The\nanswers go back through ``PATCH /statements/{id}`` as ``inputs``, and each\none is validated against the declaration it belongs to.\n\n``answers`` is what the statement carries today, restricted to the keys\nthis form asks for — so one request is a whole form, questions and answers\ntogether, and an answer the rules have since stopped asking for is not\nhanded back to be re-submitted.",
+        "description": "The questions the section's rules ask about this statement.\n\nDerived from the rules rather than written beside them, so a section that\nreimburses something else gets a different form without a release. The\nanswers go back through ``PATCH /statements/{id}`` as ``inputs``, and each\none is validated against the declaration it belongs to.\n\n``answers`` is what the statement carries today, restricted to the keys\nthis form asks for — so one request is a whole form, questions and answers\ntogether, and an answer the rules have since stopped asking for is not\nhanded back to be re-submitted. A *derived* answer is in there too, read\noff the statement's own data rather than out of storage, which is why the\nwhole payload comes from one call: the questions, their grouping and the\nanswers are all resolved against one context.",
         "tags": [
           "finance"
         ],
@@ -5468,7 +5468,7 @@
             }
           }
         },
-        "description": "What stands between this statement and being handed in.\n\nThe ruleset's own checks, plus anything its ``transfers`` reported — the\ntwo lists ``submit`` refuses on — so a client can show them before somebody\npresses the button rather than after.",
+        "description": "What stands between this statement and being handed in.\n\nThe ruleset's own checks, plus anything the evaluation reported, so that a\nclient can show them before somebody presses the button rather than after.\n\nNeither list is what ``POST …/submit`` itself refuses on: that endpoint\nreproduces the excursion overview's two guards (valid allowance recipients,\nand a proof per bill when LJP contributions are claimed) and consults\nneither ``checks`` nor ``errors``. What an error *does* do is stop the\nstatement resolving, so nothing is materialised and nothing is frozen —\nwhich is why a client should read this before submitting and why a failing\ncheck here is advice rather than a lock.",
         "tags": [
           "finance"
         ],
@@ -17029,6 +17029,10 @@
             "title": "Validity Display",
             "type": "string"
           },
+          "payout_mode": {
+            "title": "Payout Mode",
+            "type": "string"
+          },
           "transaction_issues": {
             "default": [],
             "items": {
@@ -17276,6 +17280,7 @@
           "is_valid",
           "validity",
           "validity_display",
+          "payout_mode",
           "night_cost",
           "total",
           "total_bills",
@@ -17335,7 +17340,7 @@
         "type": "object"
       },
       "TransferOut": {
-        "description": "One movement of money the section's rules resolved.\n\nThe payout list, as the rules see it rather than as the statement's\ncolumns happen to be shaped: who owes whom how much, under which rule, and\nin which category. The last transfer of a statement is the engine's\nbalancing one — what the participants' contributions have to cover — so the\nlist adds up to zero by construction.\n\n``reference`` is the text the generated bank transaction carries.",
+        "description": "One movement of money the section's rules resolved.\n\nThe payout list, as the rules see it rather than as the statement's\ncolumns happen to be shaped: who owes whom how much, under which rule, and\nin which category. The last transfer of a statement is the engine's\nbalancing one — what the participants' contributions have to cover — so the\nlist adds up to zero by construction.\n\n``reference`` is the text the generated bank transaction carries.\n\n``settlement_group`` is the token the rules put on the transfer to keep it\nout of other bank transfers: two amounts to the same person out of the same\nledger are bundled into one payment only when it is equal, and an empty\nstring means no group at all.",
         "properties": {
           "source": {
             "$ref": "#/components/schemas/TransferPartyOut"
@@ -17368,6 +17373,11 @@
           "reference": {
             "default": "",
             "title": "Reference",
+            "type": "string"
+          },
+          "settlement_group": {
+            "default": "",
+            "title": "Settlement Group",
             "type": "string"
           }
         },
@@ -17406,7 +17416,7 @@
         "type": "object"
       },
       "StatementCreate": {
-        "description": "A new draft. The answers come afterwards, through ``inputs``.\n\n``night_cost`` used to be here, because it used to be a column; a create\nnow says what the statement is for and nothing a section's rules might not\nask about.",
+        "description": "A new draft. The answers come afterwards, through ``inputs``.\n\n``night_cost`` used to be here, because it used to be a column; a create\nnow says what the statement is for and nothing a section's rules might not\nask about.\n\nOne exception, and it is not an answer this request gives: a draft created\nwith an ``excursion_id`` comes back with every **seeded** table already\nholding one row, as the trip describes it. That is the trip's own distance\nand mode written into the answers once, for the person to correct or to\nsplit into one row per traveller. ``GET .../form`` then serves it like any\nother answer.",
         "properties": {
           "short_description": {
             "title": "Short Description",
@@ -17436,7 +17446,7 @@
         "type": "object"
       },
       "StatementUpdate": {
-        "description": "Editable draft fields; PATCH semantics (only supplied fields applied).\n\n``inputs`` is the answers by declaration key, validated against what the\nsection's rules actually ask for (``GET .../form``). It replaces the four\nfields that were here — ``night_cost``, ``allowance_to_ids``,\n``subsidy_to_id`` and ``ljp_to_id`` — which were four fields because they\nwere four columns on ``Statement``, and so a section whose rules ask a\nfifth question had no way to be asked it. A key the rules do not ask for is\nrefused; a key left out is unchanged.",
+        "description": "Editable draft fields; PATCH semantics (only supplied fields applied).\n\n``inputs`` is the answers by declaration key, validated against what the\nsection's rules actually ask for (``GET .../form``). It replaces the four\nfields that were here — ``night_cost``, ``allowance_to_ids``,\n``subsidy_to_id`` and ``ljp_to_id`` — which were four fields because they\nwere four columns on ``Statement``, and so a section whose rules ask a\nfifth question had no way to be asked it. A key the rules do not ask for is\nrefused; a key left out is unchanged.\n\n**Where a refusal lands.** A ``422`` from here is\n``{\"detail\": [...], \"errors\": {\"<where>\": [\"<message>\", ...]}}``, and\n``<where>`` is a path rather than always a bare key, so that a client can\nprint each message against the control that caused it:\n\n``\"night_cost\"``\n    the answer to that question.\n``\"reisen\"``\n    a ``rows`` answer as a whole — too many rows, or not a list of rows.\n``\"reisen[1]\"``\n    the row at index 1, **zero-based**, in the order this request sent them.\n``\"reisen[1].kilometers\"``\n    the ``kilometers`` cell of that row.\n\nA table reports **every** cell it found wrong, in one response; across\ndifferent questions the first problem still answers alone. ``\"__all__\"``\nholds a refusal about the request rather than about one answer, as it always\nhas. The type is unchanged — the keys are strings and the values are lists\nof messages — so a client that renders ``errors`` by key keeps working and\none that wants to place a cell error parses the path.",
         "properties": {
           "short_description": {
             "anyOf": [
@@ -18121,6 +18131,11 @@
             "title": "Iban Valid",
             "type": "boolean"
           },
+          "settlement_group": {
+            "default": "",
+            "title": "Settlement Group",
+            "type": "string"
+          },
           "reference": {
             "title": "Reference",
             "type": "string"
@@ -18189,8 +18204,49 @@
         "title": "TransactionInlineUpdate",
         "type": "object"
       },
+      "FormStepOut": {
+        "description": "One group of questions the rules said belong together.\n\nA label and the keys in it, in declaration order. Nothing more: there is no\npage state here and no notion of a step being finished — which questions\nbelong together is the section's business, and how to lay them out is the\nclient's.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "keys": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Keys",
+            "type": "array"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "title": "FormStepOut",
+        "type": "object"
+      },
+      "InputChoiceOut": {
+        "description": "One alternative a ``choice`` answer may be.\n\n``value`` is what goes back in ``inputs`` and what the rules read;\n``label`` is what the person picking it is shown.",
+        "properties": {
+          "value": {
+            "title": "Value",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "InputChoiceOut",
+        "type": "object"
+      },
       "InputDeclarationOut": {
-        "description": "One question the section's rules ask about a statement.\n\nDerived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks\nfor something else gets a different form without anybody editing the API.\n``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,\n``choice``, ``member``, ``member_set`` — and ``options`` is the domain a\nparty-valued answer may be picked from, resolved to names here because the\nrules themselves never see them.",
+        "description": "One question the section's rules ask about a statement.\n\nDerived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks\nfor something else gets a different form without anybody editing the API.\n``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,\n``choice``, ``member``, ``member_set``, ``rows``. ``options`` is the domain a\nparty-valued answer may be picked from, resolved to names here because the\nrules themselves never see them; ``choices`` is the same thing for a\n``choice``.\n\n``rows`` is a **repeating row**: a table whose columns are ``fields`` and\nwhose answer is a list of objects keyed by those fields' keys. It exists\nbecause one statement settles a trip several people travelled differently,\nand whether somebody gets a rate per kilometre at all depends on *their*\nmode of travel — so the mode and the distance belong together, per\ntraveller, in a row. ``max`` bounds **the number of rows**; a cell's own\nbound is on its field. A party-valued cell's people are this declaration's\n``options``, not the field's. ``fields`` is empty for every other type.\n\n``derived`` says the engine supplies this answer itself, from the\nstatement's own data — the kilometres off the excursion rather than off a\nperson. The value is in ``answers`` like any other, and\n``PATCH /statements/{id}`` **refuses** a value for the key: it is a reading\nof the trip, and a wrong one is corrected on the trip. A table is never\n``derived``: it may be *seeded* from the trip when the excursion is set, and\na seeded row is editable, stored, and does not follow the trip afterwards —\nwhich is the whole difference and why the two are not one mechanism.\n\n``step`` is the label of the group the question belongs to; see\n``StatementFormOut.steps``.",
         "properties": {
           "key": {
             "title": "Key",
@@ -18231,6 +18287,32 @@
             },
             "title": "Options",
             "type": "array"
+          },
+          "choices": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/InputChoiceOut"
+            },
+            "title": "Choices",
+            "type": "array"
+          },
+          "fields": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/InputFieldOut"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "step": {
+            "default": "",
+            "title": "Step",
+            "type": "string"
+          },
+          "derived": {
+            "default": false,
+            "title": "Derived",
+            "type": "boolean"
           }
         },
         "required": [
@@ -18240,6 +18322,59 @@
           "required"
         ],
         "title": "InputDeclarationOut",
+        "type": "object"
+      },
+      "InputFieldOut": {
+        "description": "One cell of a ``rows`` question — a column of the table.\n\nA cell is a question asked once per row, so everything here means what it\nmeans on ``InputDeclarationOut``: ``type`` is the same widget vocabulary\nminus ``rows`` (there is no table inside a table), ``choices`` are a\n``choice`` cell's own alternatives, and ``max`` is that cell's ceiling or\ncount — never the number of rows, which is the question's own ``max``.\n\nThere is no ``options`` here on purpose. The people a party-valued cell may\nname are the **question's** ``options``, stated once for the whole table, so\none column cannot be served two different domains in two rows.\n\n``required`` is advisory, exactly as it is on a question: an empty cell is\naccepted and stored, and what refuses to hand the statement in is the\nsection's own checks (``GET …/preflight``).",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "help": {
+            "default": "",
+            "title": "Help",
+            "type": "string"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "choices": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/InputChoiceOut"
+            },
+            "title": "Choices",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "type",
+          "required"
+        ],
+        "title": "InputFieldOut",
         "type": "object"
       },
       "InputOptionOut": {
@@ -18262,7 +18397,7 @@
         "type": "object"
       },
       "StatementFormOut": {
-        "description": "The questions this statement still has to answer, and its answers.\n\n``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a\nquestion once an earlier answer makes it moot — and ``answers`` is\nrestricted to the keys that survived that, so a retired answer is not\nhanded back to a client to re-submit. The values are as\n``Statement.inputs`` holds them: money as a string, a person as an id, a\nset of people as a list of ids.",
+        "description": "The questions this statement still has to answer, and its answers.\n\n``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a\nquestion once an earlier answer makes it moot — and since taxis #579 that\nis also the question the *rules* are asked, so a question that is not here\nis one no rule reads either. ``answers`` is restricted to the keys that\nsurvived, so a retired answer is not handed back to be re-submitted.\n\nThe values are as ``Statement.inputs`` holds them: money as a string, a\nperson as an id, a set of people as a list of ids, a ``rows`` answer as a\nlist of objects keyed by that question's field keys — with each cell in the\nshape its own type would have had as a question, so money in a cell is a\nstring too. Two of them are not read\nout of storage. A ``derived`` answer is resolved from the statement's own\ndata on every request, because nothing stores it. And an answer the\ndeclaration no longer *offers* — a ``choice`` whose option has been\nwithdrawn, a person who is no longer in ``options`` because the receipt\nthey paid was cleared — comes back ``null``, because that is what the rules\nnow read and serving anything else would hand back a value this API would\nrefuse.\n\nSo **what this serves is what the rules read**, and a client may send back\neverything except the keys marked ``derived``: those are served to be shown\nand refused to be changed, which is the whole of the refusal.\n\nOne further exception: an answer whose stored *type* no longer fits its\ndeclaration — because the section retyped the key — is served as it stands\nand refused on the way back, since it is a broken answer rather than a\nwithdrawn one and the rules report it rather than reading it as\nunanswered. Answering that question properly clears it.\n\n``steps`` partitions ``inputs`` into the groups the ruleset named, in\norder; every key appears in exactly one, and a form whose rules named no\nsteps comes back as a single step with an empty label.",
         "properties": {
           "statement_id": {
             "title": "Statement Id",
@@ -18274,6 +18409,14 @@
               "$ref": "#/components/schemas/InputDeclarationOut"
             },
             "title": "Inputs",
+            "type": "array"
+          },
+          "steps": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FormStepOut"
+            },
+            "title": "Steps",
             "type": "array"
           },
           "answers": {
@@ -18499,7 +18642,7 @@
         "type": "object"
       },
       "StatementApprovalOut": {
-        "description": "Who has to sign a statement off, and who has.\n\nRouting runs on the resolved transfers rather than on the statement's\nfields, which is what lets a rule say \"nobody who receives money from this\nstatement\" — so this list is frozen at submission, beside the payout.",
+        "description": "Who has to sign a statement off, and who has.\n\nRouting runs on the resolved transfers rather than on the statement's\nfields, which is what lets a rule say \"nobody who receives money from this\nstatement\" — so this list is frozen at submission, beside the payout.\n\n``may_approve`` says whether the asking person has anything left to sign;\n``completes_approval`` says whether signing it would be the last signature,\nwhich is the difference between recording a signature and paying the\nstatement out. One surface shows both acts, so it has to know which one a\nclick is about to be.",
         "properties": {
           "statement_id": {
             "title": "Statement Id",
@@ -18511,6 +18654,10 @@
           },
           "may_approve": {
             "title": "May Approve",
+            "type": "boolean"
+          },
+          "completes_approval": {
+            "title": "Completes Approval",
             "type": "boolean"
           },
           "constraints": {
@@ -18533,7 +18680,8 @@
         "required": [
           "statement_id",
           "approved",
-          "may_approve"
+          "may_approve",
+          "completes_approval"
         ],
         "title": "StatementApprovalOut",
         "type": "object"

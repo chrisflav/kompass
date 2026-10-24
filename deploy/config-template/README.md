@@ -76,17 +76,30 @@ those keys belongs in `rules/` as a module constant, where it is versioned
 with the rules that read it — which is arguably where a figure your section
 voted on belongs anyway.
 
-> **Input keys are not free-form either, and that one can cost money.** A
-> statement still stores its answers in four columns, so `inputs` can only
-> declare `night_cost` (money), `allowance_to` (member set), `subsidy_to`
-> (member) and `ljp_to` (member). A declaration under any other key has
-> nowhere to be stored: the person is asked, the answer is dropped, and the
-> rule reads that type's empty value — `0.00`, `False`, `()`, `None` — every
-> time, with nothing raised and nothing logged. **A case will not catch it**,
-> because the case runner passes unknown keys straight through: green case,
-> production pays zero. Until Kompass #556 moves the answers into one JSON
-> field, a figure you cannot put in one of those four keys goes in `rules/` as
-> a constant instead of an input.
+**Input keys are free-form as far as storage goes**, unlike the parameter
+names: a statement keeps its answers in one JSON field, so `inputs` may declare
+any key it likes and the rules read it back. What the engine does police is
+that a declaration can be *served* — a `choice` has to list its alternatives, a
+`source` has to name a real context field, an `options_source` has to be one of
+the five the engine resolves, and a `source` may not also say who may be picked
+— and it refuses anything else where it is written, which fails a case in this
+repository's CI rather than reaching somebody's form.
+
+> **Two key names still mean something outside the engine.** Kompass reads
+> `allowance_to` and `night_cost` **by name** in model properties the rules
+> engine never sees: `allowance_to` drives the `INVALID_ALLOWANCE_TO` gate that
+> the admin's confirm and submit both check, and it passes *vacuously* when the
+> key is absent; `night_cost` is what the printed statement summary shows as
+> the price per night. Reuse those two names and you keep that behaviour. Call
+> your allowance key something else and you give the gate up — quietly.
+
+> **A derived input is not answered, so a case cannot answer it.** A
+> declaration with `source="excursion.kilometers"` is resolved from the trip,
+> and submitting a value for it is refused — including in a case file, where
+> the engine supplies the excursion's figure over whatever `inputs` says. Put
+> the number in the case's `excursion`, not in its `inputs`. The *other* arm is
+> worth a case of its own: leave `excursion` out and the same declaration is an
+> ordinary question, which is the statement that settles a purchase.
 
 `manage.py importruleset` runs **when the `master` container starts** — of the
 five containers the image runs, that is the only entrypoint that imports — so a
@@ -171,7 +184,7 @@ have to change it.
 
 ## Writing the rules
 
-Three things are worth knowing before the first rule, and the documentation
+Four things are worth knowing before the first rule, and the documentation
 page has the rest:
 
 - **A rule may read only its `RuleContext`.** No database (the engine refuses
@@ -183,6 +196,22 @@ page has the rest:
   the residual party in `balance`, and the engine appends the one transfer that
   makes the books add up. That is why a case's last expected transfer is the
   balance.
+- **An amount that may not share a bank transfer says so on its transfer.**
+  Kompass bundles amounts owed to the same person out of the same ledger into
+  one payment, which is the right default and wrong for anything that has to be
+  payable separately — a tax-relevant Vergütung, say. Give such a transfer a
+  `settlement_group="…"`, a token of your own choosing, and it is bundled only
+  with transfers naming the same one. A ruleset that names no groups bundles
+  exactly as every ruleset did before this existed.
+- **Who makes the transfers is a declaration, and it has two readings.** With
+  the default, `payout = SELF_PAYMENT`, the person reviewing a statement makes
+  the bank transfers from the review screen and the statement ends up
+  *ausgezahlt*. With `payout = OFFICE_PAYMENT` the section's Geschäftsstelle
+  makes them, the review ends in a handoff, the statement ends up *zur
+  Auszahlung übergeben*, and the summary it mails carries one payment order per
+  booking — because in that arrangement the paper is the only thing the person
+  making the transfers ever sees. No wording is true in both, so say which one
+  your section is even though one of them is the default.
 - **The import whitelist is a lint, not a sandbox.** Whoever can write this
   repository already holds the instance's database password, so executing
   Python from here grants no new privilege. What the whitelist catches is the
@@ -191,23 +220,32 @@ page has the rest:
 
 ### For Ludwigsburg, concretely
 
-The next ruleset to write is Ludwigsburg's, whose instance has none and is
-therefore settling under Heidelberg's rules today. What is recorded of its
-policy maps onto this template like this:
+**There is a worked example of all of this next door: `deploy/ludwigsburg/`.**
+It is the Sektion Ludwigsburg's real configuration, written out of its four
+signed documents — two parallel travel-cost policies selected by a `choice`,
+the trip's figures derived with `source=`, a statement with no trip paying a
+bill's payer, signatures routed by office with a conflict-of-interest `Forbid`,
+and twenty cases pinning the figures of both policies. Its README also names
+what it deliberately does *not* implement and every reading it had to make,
+which is the part of a ruleset that is easiest to leave unwritten.
+
+Ludwigsburg's policy maps onto this template like this:
 
 | Rule | Where it goes |
 | --- | --- |
-| *Individualisierte* Aufwandsentschädigung | **Blocked on Kompass #556.** A per-person amount needs an input key per person, and there are only the four columns above — a fifth key reads `0.00` in production while its case passes. `allowance_to` can say *who*; it cannot say *how much each*. |
-| Übernachtungs- und Fahrtkosten, individualisiert | **Partly blocked on #556.** One shared price per night fits `night_cost`, and one recipient fits `subsidy_to`; `ctx.excursion.nights`, `kilometers` and `approach` are in the context already. Individualising either needs keys that cannot be stored yet. |
-| LJP wie gehabt | `ctx.excursion.ljp` carries the counts the state's regulations define, already computed. The reference ruleset's `_ljp_amount` is the worked example to read. |
+| Zwei parallele Regelwerke (Ehrenamt vs. Tourenleitung) | A `choice` with the two as its `choices`, grouped into a first `step`, and the rate read off `ctx.inputs.text("regime")`. |
+| *Individualisierte* Aufwandsentschädigung | A `money` key per recipient, or one key holding the shared amount plus `allowance_to` for who. Keys are free-form now (#556), so this is a ruleset decision rather than a Kompass one. |
+| Übernachtungs- und Fahrtkosten, individualisiert | Same: as many keys as the policy needs. The kilometres need no key at all — `source="excursion.kilometers"` derives them from the trip and asks for them only when there is no trip. |
+| Abrechnungen ohne Fahrt (Anschaffungen, Reparaturen) | `options_source="bills.payers"` (or `"statement.creator"`) is who may be paid when there are no youth leaders to offer. |
+| LJP wie gehabt | `ctx.excursion.ljp` carries the counts the state's regulations define, already computed. The reference ruleset's `_ljp_amount` is the worked example to read — and it is Heidelberg's policy, not a default: in Ludwigsburg the LJP moves no money at all and only changes who signs. |
 | Einreichen nach Bestätigung aller Jugendleitenden | **Not implemented by the engine.** `Check`s are preconditions for handing in, but there is no per-leader confirmation to check for, and `Constraint`s are signatures *after* submission. It needs a pre-submission stage in the engine. |
 | Abrechnung innerhalb eines Monats: erinnern, dann forcieren | **Not implemented by the engine.** There is no clock in a rule and no deadline in the context, deliberately; a reminder is a scheduled task in Kompass, not a rule. |
 
-Only the LJP row is a rule to write here today. The first two wait on #556 —
-in flight, so check it before concluding they still do — and the last two are
+The first five are written, in `deploy/ludwigsburg/rules/`. The last two are
 Kompass features that do not exist at all, which cannot be written as rules
-however the ruleset is arranged. All four are better known before the first
-pull request than after it.
+however the ruleset is arranged — better known before the first pull request
+than after it.
 
-The figures themselves are the section's to decide, so nobody should write
-Ludwigsburg's ruleset without Ludwigsburg.
+The figures themselves are the section's to decide, which is why every reading
+`deploy/ludwigsburg/` had to make is listed in its README rather than settled
+quietly in a rule.

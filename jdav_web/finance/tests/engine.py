@@ -13,6 +13,7 @@ import json
 import sys
 import threading
 from contextlib import nullcontext
+from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -25,13 +26,16 @@ from django.db import connections
 from django.test import SimpleTestCase
 from django.test import TestCase
 from finance.engine import active_ruleset
+from finance.engine import asking
 from finance.engine import build_context
 from finance.engine import evaluate
 from finance.engine import evaluate_statement
 from finance.engine import load
 from finance.engine import manifest
 from finance.engine import manifest_hash
+from finance.engine import no_longer_offered
 from finance.engine import no_queries
+from finance.engine import options_from
 from finance.engine import parameters
 from finance.engine import permission_holders
 from finance.engine import QueryDuringEvaluation
@@ -41,6 +45,8 @@ from finance.engine import RulesetInvalid
 from finance.engine import RulesetRejected
 from finance.engine import source_hash
 from finance.engine import sum_amounts
+from finance.engine import supplied
+from finance.engine import unbounded
 from finance.engine.cases import load_cases
 from finance.engine.cases import parse_case
 from finance.engine.cases import party
@@ -60,13 +66,17 @@ from finance.engine.loader import safe_builtins
 from finance.models import Bill
 from finance.models import Statement
 from finance.rules_api import Bill as RuleBill
+from finance.rules_api import Choice
 from finance.rules_api import CONTEXT_VERSION
+from finance.rules_api import Excursion
 from finance.rules_api import first_of
 from finance.rules_api import Input
 from finance.rules_api import Inputs
 from finance.rules_api import Member
 from finance.rules_api import MemberId
+from finance.rules_api import OPTION_SOURCES
 from finance.rules_api import Params
+from finance.rules_api import Participant
 from finance.rules_api import PARTICIPANTS
 from finance.rules_api import pct
 from finance.rules_api import quantize
@@ -74,6 +84,7 @@ from finance.rules_api import RuleContext
 from finance.rules_api import RuleError
 from finance.rules_api import Ruleset
 from finance.rules_api import SECTION
+from finance.rules_api import SETTLEMENT_GROUP_LENGTH
 from finance.rules_api import split
 from finance.rules_api import StatementInfo
 from finance.rules_api import Transfer
@@ -175,10 +186,15 @@ class EveryWidgetCase(Ruleset):
         self.seen: tuple[object, ...] = ()
 
     def inputs(self, ctx):
+        # The two party-valued questions offer the trip's leaders, which is
+        # what every real ruleset does and what a case has to describe: a
+        # stored answer naming somebody a declaration does not offer reads as
+        # unanswered, so a case answering one has to put them on the trip.
+        leaders = ctx.excursion.leaders if ctx.excursion is not None else ()
         return [
             Input("fee", "Gebühr", "money", required=False),
-            Input("helper", "Helfer*in", "member", required=False),
-            Input("helpers", "Helfende", "member_set", required=False),
+            Input("helper", "Helfer*in", "member", required=False, options=leaders),
+            Input("helpers", "Helfende", "member_set", required=False, options=leaders),
             Input("nights", "Nächte", "int", required=False),
         ]
 
@@ -192,22 +208,36 @@ class EveryWidgetCase(Ruleset):
         return [], []
 
 
-#: One declaration of each type in the widget vocabulary, for a ruleset that is
-#: only ever asked what it asks.
-#:
-#: The reference ruleset asks for money, a person and a set of people; the other
-#: four types have no section in tree that uses them, and the coercion from what
-#: ``Statement.inputs`` stores to what a rule reads has to be right for all
-#: seven.
-EVERY_WIDGET = [
-    Input("night_cost", "Geld", "money", required=False),
-    Input("nights", "Ganze Zahl", "int", required=False, max=9),
-    Input("catered", "Ja oder nein", "bool", required=False),
-    Input("note", "Text", "text", required=False),
-    Input("pick", "Auswahl", "choice", required=False),
-    Input("subsidy_to", "Eine Person", "member", required=False),
-    Input("allowance_to", "Mehrere Personen", "member_set", required=False),
-]
+def every_widget(*offered):
+    """One declaration of each type in the widget vocabulary.
+
+    The reference ruleset asks for money, a person and a set of people; the
+    other four types have no section in tree that uses them, and the coercion
+    from what ``Statement.inputs`` stores to what a rule reads has to be right
+    for all seven.
+
+    ``offered`` are the people the two party-valued questions put on offer, and
+    they have to be *somebody*: a stored answer naming a person the declaration
+    does not offer reads as unanswered, so a declaration offering nobody can
+    never be answered — which is the whole point of that reading, and makes a
+    fixture with no options a fixture that tests nothing.
+    """
+    people = tuple(Member(MemberId(person.pk)) for person in offered)
+    return [
+        Input("night_cost", "Geld", "money", required=False),
+        Input("nights", "Ganze Zahl", "int", required=False, max=9),
+        Input("catered", "Ja oder nein", "bool", required=False),
+        Input("note", "Text", "text", required=False),
+        Input(
+            "pick",
+            "Auswahl",
+            "choice",
+            required=False,
+            choices=(Choice("a", "Erstes"), Choice("b", "Zweites")),
+        ),
+        Input("subsidy_to", "Eine Person", "member", required=False, options=people),
+        Input("allowance_to", "Mehrere Personen", "member_set", required=False, options=people),
+    ]
 
 
 # --- the typed API ---------------------------------------------------------
@@ -319,6 +349,364 @@ class RulesApiTestCase(SimpleTestCase):
         self.assertEqual(cents(Decimal("21.676")), Decimal("21.68"))
 
 
+# --- what a declaration may say --------------------------------------------
+
+
+class InputDeclarationTestCase(SimpleTestCase):
+    """A declaration the engine cannot serve is refused where it is written.
+
+    Not at render time and not silently: ``Input.__post_init__`` raises, which
+    inside ``inputs`` becomes an error on the statement with a traceback
+    pointing at the line in the section's own rules, and in the section's own
+    CI fails a case before the version is ever activated. The alternative —
+    what both of these used to do — is a question that reaches a person's form
+    with nothing behind it.
+
+    Neuter any of these (delete the check from ``__post_init__``) and the test
+    below it goes red; there is no second mechanism that would notice, because
+    a declaration is data and nothing else looks at it.
+    """
+
+    def test_a_choice_has_to_say_what_may_be_chosen(self):
+        with self.assertRaises(RuleError) as caught:
+            Input("goal", "Ziel", "choice")
+        self.assertIn("offers no choices", str(caught.exception))
+        # And with alternatives it is an ordinary declaration.
+        self.assertEqual(
+            Input("goal", "Ziel", "choice", choices=(Choice("a", "A"),)).choices[0].value, "a"
+        )
+
+    def test_choices_on_something_that_is_not_a_choice_are_refused(self):
+        """They would never be shown, so saying them is a mistake, not a hint."""
+        with self.assertRaises(RuleError) as caught:
+            Input("fee", "Gebühr", "money", choices=(Choice("a", "A"),))
+        self.assertIn("never shown", str(caught.exception))
+
+    def test_a_source_has_to_start_at_a_root_the_engine_resolves(self):
+        with self.assertRaises(RuleError) as caught:
+            Input("who", "Wer", "member", source="members.all")
+        self.assertIn("excursion", str(caught.exception))
+        self.assertIn("statement", str(caught.exception))
+
+    def test_a_source_is_one_field_deep_and_no_more(self):
+        """Deeper is read off the context by the rule that wants it.
+
+        ``excursion.ljp.duration`` is a figure a rule reads directly; a derived
+        *input* is a question a person might otherwise have to answer, and one
+        field is enough for every one of those. Refusing the rest keeps the
+        resolution a lookup of a named field on a frozen dataclass rather than
+        a walk over whatever the context happens to hold.
+        """
+        for source in ("excursion", "excursion.ljp.duration", "excursion."):
+            with self.subTest(source=source), self.assertRaises(RuleError):
+                Input("x", "X", "int", source=source)
+
+    def test_a_source_naming_a_field_that_does_not_exist_lists_the_ones_that_do(self):
+        with self.assertRaises(RuleError) as caught:
+            Input("km", "Kilometer", "int", source="excursion.kilometres")
+        self.assertIn("kilometers", str(caught.exception))
+
+    def test_an_option_source_outside_the_vocabulary_is_refused(self):
+        """The bound. A path would make the member table one spelling away."""
+        with self.assertRaises(RuleError) as caught:
+            Input("who", "Wer", "member", options_source="members.objects")
+        for offered in OPTION_SOURCES:
+            self.assertIn(offered, str(caught.exception))
+
+    def test_an_option_source_on_a_question_that_names_nobody_is_refused(self):
+        with self.assertRaises(RuleError) as caught:
+            Input("fee", "Gebühr", "money", options_source="excursion.leaders")
+        self.assertIn("names no people", str(caught.exception))
+
+    def test_listing_the_options_and_naming_a_source_for_them_is_refused(self):
+        """Two answers to one question, and no rule for which wins."""
+        with self.assertRaises(RuleError) as caught:
+            Input(
+                "who",
+                "Wer",
+                "member",
+                options=(Member(MemberId(1)),),
+                options_source="excursion.leaders",
+            )
+        self.assertIn("say it once", str(caught.exception))
+
+    def test_who_may_be_picked_may_be_stated_beside_a_source(self):
+        """Because the two arms never both apply, and both halves are needed.
+
+        A party-valued question with a ``source`` and no domain can be answered
+        only on the arm where the engine supplies it: with no trip it offers
+        nobody, and a declaration offering nobody offers nobody. So the pairing
+        is the point rather than an ambiguity — who may be picked bounds the
+        answer when it is *asked for*, and says nothing about one the engine
+        supplies out of the statement's own data.
+
+        It is also the shape the engine itself produces: filling ``options``
+        from an ``options_source`` leaves a declaration carrying both, so a
+        refusal here would have been a refusal of the engine's own answer —
+        raised from inside ``replace``, as a 500 on every page that builds a
+        context. Either way round, this has to build.
+        """
+        for domain in (
+            {"options": (Member(MemberId(1)),)},
+            {"options_source": "bills.payers"},
+        ):
+            with self.subTest(**domain):
+                declaration = Input("who", "Wer", "member", source="statement.creator", **domain)
+                self.assertEqual(declaration.source, "statement.creator")
+
+    def test_a_declaration_cannot_call_itself_derived(self):
+        """The engine sets that, from ``source``, and only ever to true.
+
+        A ruleset writing it by hand would get a question the form refuses to
+        accept an answer for and the engine never supplies a value for —
+        unanswerable, and refused with a message that is not true of it.
+        """
+        with self.assertRaises(RuleError) as caught:
+            Input("km", "Kilometer", "int", derived=True)
+        self.assertIn("nothing to derive it from", str(caught.exception))
+        # And it is accepted on a declaration that has one, because that is how
+        # the engine marks it.
+        self.assertTrue(
+            Input("km", "Kilometer", "int", source="excursion.kilometers", derived=True).derived
+        )
+
+
+class OptionSourceTestCase(SimpleTestCase):
+    """Every name in the vocabulary, and what it resolves to.
+
+    Each one is a set the statement itself carries, which is the claim that
+    makes ``options_source`` safe: there is no spelling of it that reaches a
+    member the statement does not mention. Exercised here as well as through
+    the API because only one of the five has a client in tree, and the other
+    four would otherwise first run on a section's live statement.
+    """
+
+    def setUp(self):
+        self.ctx = context(
+            excursion=Excursion(
+                duration=Decimal("1.0"),
+                nights=0,
+                kilometers=120,
+                approach="car",
+                leaders=(Member(MemberId(3)), Member(MemberId(1))),
+                staff_count=2,
+                approved_staff_count=2,
+                participants=(
+                    Participant(
+                        member=Member(MemberId(9)), age=30, age_at_start=30, is_leader=False
+                    ),
+                ),
+                ljp=None,
+            ),
+            bills=(
+                RuleBill(
+                    id=1,
+                    amount=Decimal("5.00"),
+                    covered=True,
+                    payer=Member(MemberId(7)),
+                    has_proof=True,
+                    description="Seil",
+                ),
+                # Twice the same payer and one with nobody named: both are
+                # ordinary, and neither may reach the option list as itself.
+                RuleBill(
+                    id=2,
+                    amount=Decimal("5.00"),
+                    covered=True,
+                    payer=Member(MemberId(7)),
+                    has_proof=True,
+                    description="Seil",
+                ),
+                RuleBill(
+                    id=3,
+                    amount=Decimal("5.00"),
+                    covered=False,
+                    payer=None,
+                    has_proof=False,
+                    description="Unklar",
+                ),
+            ),
+            statement=StatementInfo(id=1, creator=Member(MemberId(4)), submitter=None),
+        )
+
+    def test_each_name_resolves_to_the_people_the_statement_carries(self):
+        self.assertEqual(
+            options_from(self.ctx, "excursion.leaders"),
+            (Member(MemberId(1)), Member(MemberId(3))),
+            "deduplicated and in id order, like every other set of people",
+        )
+        self.assertEqual(options_from(self.ctx, "excursion.participants"), (Member(MemberId(9)),))
+        self.assertEqual(
+            options_from(self.ctx, "bills.payers"),
+            (Member(MemberId(7)),),
+            "one person who paid twice is one option, and nobody is not one",
+        )
+        self.assertEqual(options_from(self.ctx, "statement.creator"), (Member(MemberId(4)),))
+        self.assertEqual(options_from(self.ctx, "statement.submitter"), ())
+
+    def test_without_a_trip_the_trip_based_names_offer_nobody(self):
+        """And do not raise, which is what lets one ruleset serve both."""
+        bare = context(statement=StatementInfo(id=1, creator=None, submitter=None))
+        self.assertEqual(options_from(bare, "excursion.leaders"), ())
+        self.assertEqual(options_from(bare, "excursion.participants"), ())
+        self.assertEqual(options_from(bare, "statement.creator"), ())
+
+
+class DerivedResolutionTestCase(SimpleTestCase):
+    """Resolving a source, and deciding whether it resolved at all."""
+
+    def test_a_source_that_comes_to_nothing_leaves_an_ordinary_question(self):
+        declaration = Input("km", "Kilometer", "int", source="excursion.kilometers")
+        bare = context()
+        self.assertEqual(supplied([declaration], bare), {})
+        asked = asking(Fixed(declarations=[declaration]), bare).vocabulary
+        self.assertFalse(asked[0].derived, "nothing was derived, so nothing is marked")
+
+    def test_a_source_that_resolves_is_supplied_and_marked(self):
+        declaration = Input("km", "Kilometer", "int", source="excursion.kilometers")
+        with_trip = context(
+            excursion=Excursion(
+                duration=Decimal("1.0"),
+                nights=0,
+                kilometers=120,
+                approach="car",
+                leaders=(),
+                staff_count=0,
+                approved_staff_count=0,
+                participants=(),
+                ljp=None,
+            )
+        )
+        self.assertEqual(supplied([declaration], with_trip), {"km": 120})
+        self.assertTrue(asking(Fixed(declarations=[declaration]), with_trip).vocabulary[0].derived)
+
+    def test_a_declaration_with_neither_is_handed_back_untouched(self):
+        """``replace`` is not free, and an unchanged declaration is identical."""
+        declaration = Input("night_cost", "Preis", "money", required=False)
+        self.assertIs(
+            asking(Fixed(declarations=[declaration]), context()).vocabulary[0], declaration
+        )
+
+    def test_a_bound_is_asked_of_a_supplied_value_too(self):
+        """``max`` reached a submitted answer and not the engine's own.
+
+        So the one value a client cannot influence was the one value nothing
+        bounded. Both shapes are checked here because only the set of people
+        has a client in tree: a whole number out of the trip is the other, and
+        a section deriving ``excursion.nights`` with a ceiling on it is the
+        obvious use.
+
+        Neuter either arm of :func:`finance.engine.declared.unbounded` and the
+        matching row below reports nothing — the engine paying a figure its own
+        declaration calls too large.
+        """
+        nights = Input("nights", "Nächte", "int", source="excursion.nights", max=7)
+        crew = Input(
+            "crew", "Leitung", "member_set", source="excursion.leaders", max=1, required=False
+        )
+        people = (Member(MemberId(1)), Member(MemberId(2)))
+        self.assertIn("at most 7", unbounded([nights], {"nights": 9})[0])
+        self.assertIn("'crew'", unbounded([crew], {"crew": people})[0])
+        # Inside the bound, and with no bound at all, there is nothing to say.
+        self.assertEqual(unbounded([nights], {"nights": 7}), [])
+        self.assertEqual(unbounded([crew], {"crew": people[:1]}), [])
+        self.assertEqual(unbounded([replace(nights, max=None)], {"nights": 9}), [])
+        # And a declaration the engine did not supply is not this question.
+        self.assertEqual(unbounded([nights], {}), [])
+
+    def test_one_key_declared_twice_does_not_mark_the_other_copy(self):
+        """``derived`` is keyed to the declaration, not to the key.
+
+        A ruleset naming one key twice with a ``source`` on only one of the two
+        is a mistake, but it must not be a *crash*: keyed by key, the sourceless
+        copy was handed ``derived=True``, which :class:`~kompass.rules.Input`
+        refuses — from inside ``replace``, so the ``RuleError`` came out of
+        ``asking`` rather than being reported. That is a 500 on the statement
+        list and on ``/form``, and a traceback out of ``checkruleset`` and
+        ``importruleset`` instead of a refusal to import, because ``run_case``
+        calls ``asking`` outside any ``try``.
+
+        Neuter it — key the flag by ``declaration.key in values`` — and this
+        raises instead of answering.
+        """
+        with_trip = context(
+            excursion=Excursion(
+                duration=Decimal("1.0"),
+                nights=0,
+                kilometers=120,
+                approach="car",
+                leaders=(),
+                staff_count=0,
+                approved_staff_count=0,
+                participants=(),
+                ljp=None,
+            )
+        )
+        twice = [
+            Input("km", "Kilometer", "int", source="excursion.kilometers"),
+            Input("km", "Kilometer, noch einmal", "int", required=False),
+        ]
+        asked = asking(Fixed(declarations=twice), with_trip)
+        self.assertEqual([entry.derived for entry in asked.vocabulary], [True, False])
+        # And the form is one question rather than two sharing a key.
+        self.assertEqual([entry.key for entry in asked.form], ["km"])
+
+    def test_a_retyped_answer_is_not_called_a_withdrawn_one(self):
+        """``within`` judges only what it recognises, and that is load-bearing.
+
+        The two ways an answer can fail to fit need different treatment. A
+        value outside the domain is dropped and reported as "not one these
+        rules offer any more", which is a sentence somebody can act on by
+        answering again. A value of the *wrong type* — a section retyped the
+        key — is handed through so the rule's own accessor raises and the
+        evaluation reports the type error with a traceback.
+
+        Without the guard, a retyped answer falls out of every domain
+        comparison and gets the first treatment: the wrong sentence, and the
+        right one lost, because an emptied value never reaches the accessor.
+        Neuter any arm's ``isinstance`` guard and its row below reports a
+        withdrawal that did not happen.
+        """
+        offered = (Member(MemberId(1)),)
+        cases = {
+            "member_set": (Input("a", "A", "member_set", options=offered), {"3": 1}),
+            "member": (Input("b", "B", "member", options=offered), "nobody"),
+            "choice": (Input("c", "C", "choice", choices=(Choice("x", "X"),)), 7),
+            "int": (Input("d", "D", "int", max=3), "viele"),
+        }
+        for kind, (declaration, stored) in cases.items():
+            with self.subTest(type=kind):
+                self.assertEqual(no_longer_offered([declaration], {declaration.key: stored}), [])
+        # And a genuine withdrawal in each of them *is* reported, so the guard
+        # is not simply switching the question off.
+        withdrawn = {
+            "member_set": (cases["member_set"][0], (Member(MemberId(9)),)),
+            "member": (cases["member"][0], Member(MemberId(9))),
+            "choice": (cases["choice"][0], "y"),
+            "int": (cases["int"][0], 9),
+        }
+        for kind, (declaration, stored) in withdrawn.items():
+            with self.subTest(type=kind, withdrawn=True):
+                self.assertEqual(
+                    no_longer_offered([declaration], {declaration.key: stored}),
+                    [declaration.key],
+                )
+
+    def test_a_bound_says_nothing_about_a_value_it_cannot_measure(self):
+        """A bound on a type that has no size is not a refusal.
+
+        ``max`` means a count for a set of people and a ceiling for a whole
+        number, and nothing at all for the rest of the vocabulary — so a
+        section that puts one on a derived line of text gets it ignored rather
+        than an error it cannot act on. ``bool`` is in here because it *is* an
+        ``int`` to Python, and ``True > 0`` would have been a refusal.
+        """
+        text = Input("how", "Anreise", "text", source="excursion.approach", max=1)
+        flag = Input("any", "Überhaupt", "bool", source="excursion.ljp", max=0)
+        self.assertEqual(unbounded([text], {"how": "car"}), [])
+        self.assertEqual(unbounded([flag], {"any": True}), [])
+
+
 # --- evaluation ------------------------------------------------------------
 
 
@@ -374,6 +762,93 @@ class EvaluationTestCase(SimpleTestCase):
                 result = evaluate(Fixed([candidate]), context())
                 self.assertIn(message, result.errors[0])
 
+    def test_a_settlement_group_that_cannot_be_stored_is_refused(self):
+        """Both ways a group token fails to survive being written down.
+
+        Not a style check. The token decides which amounts may **not** share a
+        bank transfer, so a value that does not reach the column intact — a
+        ``None`` that would be written as the string ``"None"``, a token cut to
+        the column's width — silently merges two payments the section wrote it
+        to keep apart. An error on the statement persists nothing and pays
+        nothing out; a truncation pays out wrongly. Neuter either branch and
+        this goes red.
+        """
+        member = Member(MemberId(1))
+        refused = [
+            (
+                "NoneType settlement group",
+                Transfer(SECTION, member, Decimal("1.00"), "x", rule_id="a", settlement_group=None),
+            ),
+            (
+                "settlement group of 51 characters",
+                Transfer(
+                    SECTION,
+                    member,
+                    Decimal("1.00"),
+                    "x",
+                    rule_id="b",
+                    settlement_group="s" * (SETTLEMENT_GROUP_LENGTH + 1),
+                ),
+            ),
+        ]
+        for message, candidate in refused:
+            with self.subTest(message=message):
+                result = evaluate(Fixed([candidate]), context())
+                self.assertEqual(result.rule_transfers, ())
+                self.assertIn(message, result.errors[0])
+
+    def test_a_settlement_group_exactly_as_long_as_the_column_is_kept(self):
+        """The boundary, from the side that must pass.
+
+        A token of exactly :data:`SETTLEMENT_GROUP_LENGTH` characters fits, so
+        refusing it would be the engine inventing a limit the column does not
+        have — and the off-by-one is the mistake this catches.
+        """
+        token = "s" * SETTLEMENT_GROUP_LENGTH
+        result = evaluate(
+            Fixed(
+                [
+                    Transfer(
+                        SECTION,
+                        Member(MemberId(1)),
+                        Decimal("1.00"),
+                        "x",
+                        rule_id="a",
+                        settlement_group=token,
+                    )
+                ]
+            ),
+            context(),
+        )
+        self.assertEqual(result.errors, ())
+        self.assertEqual(result.rule_transfers[0].settlement_group, token)
+
+    def test_the_balancing_transfer_is_in_no_settlement_group(self):
+        """The residue is the participants' contribution and nothing else.
+
+        Worth pinning: if the engine ever copied a group onto the balance, a
+        statement with one tax-relevant transfer would close its books inside
+        that group, and the one party a balance may name is not a person
+        anyway.
+        """
+        result = evaluate(
+            Fixed(
+                [
+                    Transfer(
+                        SECTION,
+                        Member(MemberId(1)),
+                        Decimal("10.00"),
+                        "tour_leader_fee",
+                        rule_id="fee",
+                        settlement_group="steuerrelevant",
+                    )
+                ]
+            ),
+            context(),
+        )
+        self.assertEqual(result.errors, ())
+        self.assertEqual(result.balance.settlement_group, "")
+
     def test_a_transfer_without_a_rule_id_is_still_named_in_the_error(self):
         result = evaluate(
             Fixed([Transfer(SECTION, PARTICIPANTS, Decimal("0.001"), "x", rule_id="")]), context()
@@ -403,6 +878,19 @@ class EvaluationTestCase(SimpleTestCase):
         self.assertEqual(result.errors, ())
 
     def test_a_declared_question_nobody_answered_reads_as_empty(self):
+        """All seven types, read through the accessor each one is paired with.
+
+        ``choice`` is here because it was the one that was not: ``EMPTY`` held
+        ``None`` for it while :meth:`~kompass.rules.Inputs.text` type-checks
+        against ``str``, so reading an unanswered one raised inside
+        ``transfers`` and collapsed the whole evaluation into one traceback
+        (taxis #573). Neuter it — put ``None`` back — and this goes red, which
+        a test going through a *statement* would not: ``coerce_input`` makes an
+        absent answer ``""`` on its way into the context, so the ``EMPTY``
+        branch is only reached by a context that never mentioned the key at
+        all. A case file and the fuzzer are exactly that, which is why the
+        guard belongs here rather than on the API.
+        """
         seen = {}
 
         class Reader(Fixed):
@@ -413,6 +901,7 @@ class EvaluationTestCase(SimpleTestCase):
                 seen["number"] = ctx.inputs.number("number")
                 seen["flag"] = ctx.inputs.flag("flag")
                 seen["text"] = ctx.inputs.text("text")
+                seen["pick"] = ctx.inputs.text("pick")
                 return [], []
 
         declarations = [
@@ -422,8 +911,10 @@ class EvaluationTestCase(SimpleTestCase):
             Input("number", "", "int"),
             Input("flag", "", "bool"),
             Input("text", "", "text"),
+            Input("pick", "", "choice", choices=(Choice("a", "Erstes"),)),
         ]
-        evaluate(Reader(declarations=declarations), context())
+        result = evaluate(Reader(declarations=declarations), context())
+        self.assertEqual(result.errors, (), result.errors)
         self.assertEqual(
             seen,
             {
@@ -433,6 +924,7 @@ class EvaluationTestCase(SimpleTestCase):
                 "number": 0,
                 "flag": False,
                 "text": "",
+                "pick": "",
             },
         )
 
@@ -1154,7 +1646,9 @@ class ContextTestCase(TestCase):
         }
         self.statement.inputs = answers
         self.statement.save()
-        ctx = build_context(self.statement, ruleset=Fixed(declarations=EVERY_WIDGET))
+        ctx = build_context(
+            self.statement, ruleset=Fixed(declarations=every_widget(self.member, other))
+        )
         self.assertEqual(ctx.inputs.money("night_cost"), Decimal("12.50"))
         self.assertEqual(ctx.inputs.number("nights"), 3)
         self.assertIs(ctx.inputs.flag("catered"), True)
@@ -1170,7 +1664,7 @@ class ContextTestCase(TestCase):
 
     def test_a_question_that_was_never_answered_reads_as_its_types_empty(self):
         blank = Statement.objects.create(short_description="Unbeantwortet")
-        ctx = build_context(blank, ruleset=Fixed(declarations=EVERY_WIDGET))
+        ctx = build_context(blank, ruleset=Fixed(declarations=every_widget(self.member)))
         self.assertEqual(ctx.inputs.money("night_cost"), Decimal("0"))
         self.assertEqual(ctx.inputs.number("nights"), 0)
         self.assertIs(ctx.inputs.flag("catered"), False)
@@ -1195,7 +1689,10 @@ class ContextTestCase(TestCase):
             with self.subTest(stored=stored):
                 self.statement.inputs = {"allowance_to": stored}
                 self.statement.save()
-                ctx = build_context(self.statement, ruleset=Fixed(declarations=EVERY_WIDGET))
+                ctx = build_context(
+                    self.statement,
+                    ruleset=Fixed(declarations=every_widget(self.member)),
+                )
                 self.assertEqual(ctx.inputs.raw("allowance_to"), stored)
                 with self.assertRaises(RuleError):
                     ctx.inputs.members("allowance_to")
@@ -1209,10 +1706,42 @@ class ContextTestCase(TestCase):
         """
         self.statement.inputs = {"night_cost": "1.00", "retired": "alt"}
         self.statement.save()
-        ctx = build_context(self.statement, ruleset=Fixed(declarations=EVERY_WIDGET))
+        ctx = build_context(self.statement, ruleset=Fixed(declarations=every_widget(self.member)))
         self.assertNotIn("retired", ctx.inputs.declared())
         with self.assertRaises(RuleError):
             ctx.inputs.raw("retired")
+
+    def test_relevant_inputs_is_never_asked_against_the_raw_answers(self):
+        """It is promised the answers *typed*, so it is only asked where they are.
+
+        ``build_context`` asks ``inputs`` alone, because the vocabulary is what
+        it needs to type the stored answers with — and at that point the
+        answers are still the JSON the column holds. A ruleset written to the
+        documented instruction, reading ``ctx.inputs.money(…)`` in
+        ``relevant_inputs``, would raise straight out of the context build, the
+        statement list and ``/form``.
+
+        Neuter it — have ``build_context`` ask both — and this goes red with
+        ``input 'night_cost' is not a money value, but str``.
+        """
+
+        seen = []
+
+        class ReadsTyped(Fixed):
+            def relevant_inputs(self, ctx):
+                # Exactly what the manual tells a ruleset it may do here.
+                seen.append(ctx.inputs.money("night_cost"))
+                return self.inputs(ctx)
+
+        declarations = [Input("night_cost", "Preis", "money", required=False)]
+        ruleset = ReadsTyped(declarations=declarations)
+        ctx = build_context(self.statement, ruleset=ruleset)
+        self.assertEqual(seen, [], "it was not asked here, which is the whole point")
+        self.assertEqual(ctx.inputs.money("night_cost"), Decimal("12.50"))
+        # And asked where the context *is* typed, it answers rather than raising.
+        asked = asking(ruleset, ctx)
+        self.assertEqual([entry.key for entry in asked.form], ["night_cost"])
+        self.assertEqual(seen, [Decimal("12.50")])
 
     def test_without_a_ruleset_the_answers_are_the_column_as_it_is(self):
         """Nobody but the rules can type them, so nothing else pretends to."""
@@ -1226,10 +1755,14 @@ class ContextTestCase(TestCase):
         query refuses, and with the guard lifted at the line that installs it
         the same call goes through — which is what says the refusal came from
         the guard rather than from a query that would have failed anyway.
+
+        The line that installs it is in :mod:`finance.engine.declared` now,
+        which is the one funnel every caller asks a ruleset for its
+        declarations through, and so the one place the guard has to be opened.
         """
         with self.assertRaises(QueryDuringEvaluation):
             build_context(self.statement, ruleset=QueryingDeclarations())
-        with guard_lifted("finance.engine.context"):
+        with guard_lifted("finance.engine.declared"):
             ctx = build_context(self.statement, ruleset=QueryingDeclarations())
         self.assertEqual(ctx.inputs.money("night_cost"), Decimal("12.50"))
 
@@ -1386,6 +1919,11 @@ class CasesTestCase(SimpleTestCase):
         case = parse_case(
             {
                 "inputs": {"fee": "2.50", "helper": 7, "helpers": [7, 8], "nights": 3},
+                # The two people the answers name have to be on the trip, since
+                # that is where the declaration takes its options from. A case
+                # that answers a party-valued question is checked against the
+                # people the instance would really have offered.
+                "excursion": {"leaders": [7, 8]},
                 "expect": {"transfers": [["PARTICIPANTS", "SECTION", "0.00", "balance"]]},
             },
             name="custom",
@@ -1409,6 +1947,103 @@ class CasesTestCase(SimpleTestCase):
         seen = EveryWidgetCase()
         run_case(seen, case)
         self.assertEqual(seen.seen, (Decimal("0"), None, (), 0))
+
+    def test_a_case_pins_the_settlement_group_only_where_it_writes_one(self):
+        """The fifth element, from both sides, row by row.
+
+        Two claims at once, and the second is the one that keeps a section
+        honest. A row of **four** says nothing about the group, so every case
+        written before groups existed goes on passing — the first assertion.
+        A row of **five** is compared exactly, including ``""`` for *no
+        group* — the second and the third. Without the ``""`` half, a case
+        would go on passing after a later edit swept every transfer into one
+        token, at which point they merge again and the separation is gone with
+        every check green.
+
+        Neuter the width-aware comparison — render every transfer in full, or
+        cut everything to four — and one of the three goes red.
+        """
+        rules = Fixed(
+            [
+                Transfer(SECTION, Member(MemberId(1)), Decimal("10.00"), "travel", rule_id="t"),
+                Transfer(
+                    SECTION,
+                    Member(MemberId(1)),
+                    Decimal("5.00"),
+                    "fee",
+                    rule_id="f",
+                    settlement_group="steuerrelevant",
+                ),
+            ]
+        )
+        silent = parse_case(
+            {
+                "expect": {
+                    "transfers": [
+                        ["SECTION", "1", "10.00", "travel"],
+                        ["SECTION", "1", "5.00", "fee"],
+                        ["PARTICIPANTS", "SECTION", "15.00", "balance"],
+                    ]
+                }
+            },
+            name="silent",
+        )
+        self.assertEqual(run_case(rules, silent), [])
+        spoken = parse_case(
+            {
+                "expect": {
+                    "transfers": [
+                        ["SECTION", "1", "10.00", "travel", ""],
+                        ["SECTION", "1", "5.00", "fee", "steuerrelevant"],
+                        ["PARTICIPANTS", "SECTION", "15.00", "balance", ""],
+                    ]
+                }
+            },
+            name="spoken",
+        )
+        self.assertEqual(run_case(rules, spoken), [])
+        # The half that matters: the travel costs are in *no* group, and a case
+        # that says so fails when they are swept into the Vergütung's.
+        wrong = parse_case(
+            {
+                "expect": {
+                    "transfers": [
+                        ["SECTION", "1", "10.00", "travel", "steuerrelevant"],
+                        ["SECTION", "1", "5.00", "fee", "steuerrelevant"],
+                        ["PARTICIPANTS", "SECTION", "15.00", "balance", ""],
+                    ]
+                }
+            },
+            name="wrong",
+        )
+        failures = run_case(rules, wrong)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("steuerrelevant", failures[0])
+
+    def test_a_transfer_no_case_row_expected_is_shown_in_full(self):
+        """A produced transfer with nothing to be cut to shows everything.
+
+        The failure message is the whole value of a failing case, so a transfer
+        the file did not expect at all is rendered with its group: otherwise
+        the one difference a reader needs could be the one left out of the
+        message.
+        """
+        rules = Fixed(
+            [
+                Transfer(
+                    SECTION,
+                    Member(MemberId(1)),
+                    Decimal("5.00"),
+                    "fee",
+                    rule_id="f",
+                    settlement_group="steuerrelevant",
+                )
+            ]
+        )
+        case = parse_case({"expect": {"transfers": []}}, name="nothing expected")
+        failures = run_case(rules, case)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("steuerrelevant", failures[0])
 
 
 # --- the reference ruleset's own edges -------------------------------------

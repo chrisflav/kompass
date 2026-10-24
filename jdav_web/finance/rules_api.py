@@ -69,6 +69,7 @@ from collections.abc import Iterator
 from collections.abc import Mapping
 from dataclasses import dataclass
 from dataclasses import field
+from dataclasses import fields
 from decimal import Decimal
 from decimal import ROUND_FLOOR
 from typing import Any
@@ -87,6 +88,53 @@ CONTEXT_VERSION: Final = 1
 #: One cent — the resolution of every amount in a transfer.
 CENT: Final = Decimal("0.01")
 
+#: How long a :attr:`Transfer.settlement_group` token may be.
+#:
+#: The width of the column it is written to, on the obligation row and on the
+#: booking. Stated here rather than only on the models because it is part of
+#: what a ruleset may return: the engine reports a longer token as an error on
+#: the statement, since a token truncated on the way into the database would
+#: silently merge two amounts a section wrote it to keep apart.
+SETTLEMENT_GROUP_LENGTH: Final = 50
+
+PayoutMode = Literal["self", "office"]
+"""Who actually moves the money once a statement is released.
+
+Two arrangements exist among JDAV sections, and the terminal act of a payout
+means something different under each — which is why this is a declaration and
+not wording somebody can soften.
+
+``"self"``
+    The person reviewing the statement makes the bank transfers. Kompass shows
+    them the accounts and the EPC-QR codes, asks them to confirm that the
+    transfers were made, and the end state means **ausgezahlt**. This is what
+    Kompass has always done and what :data:`SELF_PAYMENT` is the default for.
+``"office"``
+    The section's Geschäftsstelle makes the transfers, after the release. All
+    Kompass observes is the handoff: the summary with its payment orders goes
+    to the office, and the end state means **zur Auszahlung übergeben** —
+    nothing in Kompass knows whether the money has moved yet.
+
+There is no wording true in both. "Ausgezahlt" is false in a section whose
+office pays, and "zur Auszahlung übergeben" is false in one whose treasurer
+pays, so the last step of the review genuinely branches on this.
+"""
+
+#: :attr:`Ruleset.payout`: the reviewer makes the transfers. The default.
+SELF_PAYMENT: Final[PayoutMode] = "self"
+
+#: :attr:`Ruleset.payout`: the Geschäftsstelle makes them after the handoff.
+OFFICE_PAYMENT: Final[PayoutMode] = "office"
+
+#: Every value :attr:`Ruleset.payout` may take.
+#:
+#: A fixed vocabulary, like :data:`OPTION_SOURCES` and for the same reason: a
+#: spelling Kompass does not know would have to fall back to one of the two
+#: readings, and both of them are a sentence on somebody's screen that is
+#: false. So an unknown mode keeps the version out of force instead
+#: (:func:`finance.engine.versions.payout_problems`).
+PAYOUT_MODES: Final = (SELF_PAYMENT, OFFICE_PAYMENT)
+
 MemberId = NewType("MemberId", int)
 """A member's primary key.
 
@@ -94,11 +142,25 @@ The only identity a rule ever sees. Names, addresses and bank details are
 resolved by the engine after evaluation, so that a ruleset cannot leak them.
 """
 
-InputType = Literal["money", "int", "bool", "text", "choice", "member", "member_set"]
+InputType = Literal["money", "int", "bool", "text", "choice", "member", "member_set", "rows"]
 """The widget vocabulary an :class:`Input` is rendered with.
 
 This is presentation, not rule structure: ``money`` and ``int`` are both
 numbers, and the difference is the field the person is shown.
+
+``rows`` is the one entry that is not a widget but a *shape*: a table whose
+rows repeat, each row a little form over the cells :attr:`Input.fields`
+declares. Every cell's own type comes from this same list, which is what lets
+one validation path serve a question and a cell alike.
+"""
+
+CELL_TYPES: Final = ("money", "int", "bool", "text", "choice", "member", "member_set")
+"""The types a cell of a ``rows`` question may have — :data:`InputType` minus
+``rows`` itself.
+
+There is no nesting, and that is a decision rather than an omission: a table
+inside a table is a shape no form can lay out and no error key can name, and
+nothing a section settles needs one.
 """
 
 
@@ -289,8 +351,8 @@ class Inputs:
     ``ctx.inputs.night_cost`` reads the same answer untyped, for a quick look.
     A key that happens to be named like one of the accessors — ``money``,
     ``member``, ``members``, ``number``, ``flag``, ``text``, ``raw``,
-    ``declared`` — is readable through those and through :meth:`raw`, but not
-    as an attribute, where the method wins.
+    ``rows``, ``declared`` — is readable through those and through
+    :meth:`raw`, but not as an attribute, where the method wins.
     """
 
     __slots__ = ("_values",)
@@ -368,6 +430,57 @@ class Inputs:
             return value
         raise RuleError(f"input {key!r} is not a set of members")
 
+    def rows(self, key: str) -> tuple["Row", ...]:
+        """The rows of a ``rows`` answer, each a :class:`Row` of typed cells.
+
+        A table nobody has filled in reads as ``()``, like an unanswered set of
+        people — and so does one whose every row was deleted, because those are
+        the same state and nothing distinguishes them. A rule that pays per row
+        therefore pays nothing for an empty table without having to ask whether
+        it was ever answered::
+
+            for journey in ctx.inputs.rows("reisen"):
+                if journey.text("approach") != CAR:
+                    continue
+                owed += journey.number("kilometers") * rate
+        """
+        value = self.raw(key)
+        if isinstance(value, tuple) and all(isinstance(item, Row) for item in value):
+            return value
+        raise RuleError(f"input {key!r} is not a table of rows")
+
+
+class Row(Inputs):
+    """One row of a ``rows`` answer — its cells, by field key, typed.
+
+    An :class:`Inputs` over one row, which is the whole of the idea: a row is a
+    little form, so the accessors that read a form's answers read a row's cells
+    as well, with the same types and the same refusals. A cell the question did
+    not declare raises :class:`RuleError` naming the fields it does have.
+
+    Frozen in the sense :class:`Inputs` is: the cells are copied in and there is
+    no way to put one back.
+    """
+
+    __slots__ = ("_question",)
+
+    def __init__(self, question: str, values: Mapping[str, object]) -> None:
+        super().__init__(values)
+        self._question = question
+
+    def __repr__(self) -> str:
+        return f"Row({self._question!r}, {self._values!r})"
+
+    def raw(self, key: str) -> object:
+        """The cell ``key``, untyped — or a refusal naming the row's own fields."""
+        try:
+            return self._values[key]
+        except KeyError:
+            raise RuleError(
+                f"undeclared field {key!r} of the table {self._question!r}; its "
+                f"fields are {', '.join(self._values) or 'none'}"
+            ) from None
+
 
 class Params:
     """The section's numbers, as :class:`~decimal.Decimal`\\ s.
@@ -421,7 +534,7 @@ class Roles(Mapping[str, tuple[Member, ...]]):
     engine offers that it says so by failing loudly.
     """
 
-    __slots__ = ("_values", "_resolved")
+    __slots__ = ("_resolved", "_values")
 
     def __init__(self, values: Mapping[str, tuple[Member, ...]] | None = None) -> None:
         self._resolved = values is not None
@@ -554,6 +667,212 @@ class Transfer:
     label: str = ""
     #: Room for the arithmetic, if it is worth showing: "4 Tage × 22 €".
     explanation: str = ""
+    #: Which **bank transfer** this amount may share, as a token of the
+    #: ruleset's own choosing — ``"steuerrelevant"``, ``"vorschuss"``, whatever
+    #: the section has to keep apart. Two amounts owed to the same person out
+    #: of the same account are bundled into one payment only when their tokens
+    #: are equal, so a transfer that names its own group is transferred on its
+    #: own, and two that name the same one still travel together.
+    #:
+    #: The default — no group at all — is what every ruleset had before this
+    #: existed, and amounts with no group go on being bundled with each other.
+    #: A token is therefore a statement about *separation*, and it never has to
+    #: be written for an amount that is happy to be merged.
+    #:
+    #: The one Ludwigsburg needs is the tax one: the Tourenleitervergütung is
+    #: tax-relevant under § 3 Nr. 26 EStG and has to reach the recipient as its
+    #: own transfer, although it is settled, approved and paid out as one
+    #: process with their travel costs. A token rather than a ``separate``
+    #: flag, because a flag can only say "this one stands alone" — it cannot
+    #: say "these three belong together but not with those", which costs
+    #: nothing more to express and is the shape the next separation will want.
+    #:
+    #: Free text, at most :data:`SETTLEMENT_GROUP_LENGTH` characters: it is
+    #: written to the obligation row and to the booking, so a token too long to
+    #: be stored is an error on the statement rather than a truncation that
+    #: merges what it was written to keep apart.
+    settlement_group: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class Choice:
+    """One alternative a ``choice`` question offers.
+
+    The value is what is stored and what a rule reads back
+    (:meth:`Inputs.text`); the label is what the person picking it is shown.
+    Keeping the two apart is what lets a section reword a question without
+    touching the rules that read its answer.
+    """
+
+    #: What the answer reads as — the rules' own vocabulary, and stable.
+    value: str
+    #: What the person choosing it is shown, in the section's language.
+    label: str
+
+
+#: The context fields a derived input's :attr:`Input.source` may start at.
+#:
+#: A source is ``"<root>.<field>"``, one field deep, and the field has to be a
+#: real field of what that root holds. Both are checked where the declaration
+#: is written, so a typo is a refusal that lists the fields rather than a
+#: question that silently becomes one nobody can answer. The list is
+#: deliberately short: a derived input is a figure the statement *already*
+#: knows, and these are the two places it keeps one.
+SOURCE_ROOTS: Final = ("excursion", "statement")
+
+#: What each root holds, for checking a :attr:`Input.source` against its fields.
+_SOURCE_TYPES: Final = {"excursion": Excursion, "statement": StatementInfo}
+
+#: Where a party-valued question's :attr:`Input.options` may be taken from.
+#:
+#: A fixed vocabulary rather than a path, because "who may be paid" is the one
+#: declaration where a mistake costs money. Every name here is a set the
+#: *statement itself* carries, so no spelling of
+#: :attr:`Input.options_source` reaches somebody the statement does not already
+#: mention, and "every member in the section" is not reachable at all.
+#:
+#: ``excursion.leaders`` is what a trip-shaped ruleset writes by hand today.
+#: The rest is what a statement settling something else has instead: the people
+#: on the trip's list, whoever paid one of its receipts, and the two people the
+#: statement names itself.
+OPTION_SOURCES: Final = (
+    "excursion.leaders",
+    "excursion.participants",
+    "bills.payers",
+    "statement.creator",
+    "statement.submitter",
+)
+
+#: The widget types whose answer names people, and so the only ones an option
+#: source means anything for. Asked of a cell as well as of a question: a
+#: ``rows`` question with one of these among its :attr:`Input.fields` is a
+#: question that names people.
+_PARTY_INPUT_TYPES: Final = ("member", "member_set")
+
+
+def _check_source(source: str) -> None:
+    """Refuse ``source`` unless the engine will resolve it (:data:`SOURCE_ROOTS`)."""
+    root, dot, name = source.partition(".")
+    holder = _SOURCE_TYPES.get(root)
+    if holder is None:
+        raise RuleError(
+            f"a derived input's source starts at one of {', '.join(SOURCE_ROOTS)}, not at {root!r}"
+        )
+    if not dot or not name or "." in name:
+        raise RuleError(
+            f"{source!r} is not a source: write it as <root>.<field>, one field deep. "
+            "A figure further in than that is read off the context by the rule that "
+            "wants it."
+        )
+    known = tuple(declared.name for declared in fields(holder))
+    if name not in known:
+        raise RuleError(f"{root} has no field {name!r}; it has {', '.join(known)}")
+
+
+@dataclass(frozen=True, slots=True)
+class Field:
+    """One cell of a ``rows`` question — a question asked once per row.
+
+    A cell is a question in its own right, with one thing taken away and one
+    added. Taken away: it does not say who may be picked. Who a ``rows``
+    question's people are is the *question's* business
+    (:attr:`Input.options` / :attr:`Input.options_source`), stated once for the
+    whole table, so that two cells of one row cannot offer two different sets
+    and the error about somebody the rules did not offer reads the same
+    wherever it comes from. Added: :attr:`seed`.
+
+    Everything else is the cell's own and means exactly what it means on an
+    :class:`Input` — which is not a coincidence but the implementation:
+    :meth:`as_input` turns a cell into the question it is, and that is the
+    declaration the engine validates its value against. There is one validation
+    path for a ``choice``, and a ``choice`` cell is on it.
+    """
+
+    #: The key the cell is read back under, inside its row.
+    key: str
+    #: What the person is asked, as the column heading.
+    label: str
+    #: Which widget to render; one of :data:`CELL_TYPES`. ``rows`` is refused:
+    #: there is no table inside a table.
+    type: InputType
+    #: Whether a row may be handed in with this cell empty.
+    #:
+    #: Advisory, exactly as :attr:`Input.required` is: a form is filled in
+    #: gradually, so an empty cell is *stored* and reads as its type's empty
+    #: value, and what refuses to hand the statement in is the section's own
+    #: :class:`Check`. Nothing here is the difference between a journey that
+    #: was entered and one that was not.
+    required: bool = True
+    #: A sentence of help, if the heading is not enough.
+    help: str = ""
+    #: For a ``member_set`` or an ``int`` cell: the largest acceptable count or
+    #: value, with the same meaning — and the same silence on every other type
+    #: — it has on an :class:`Input`. What bounds the number of *rows* is the
+    #: question's own :attr:`Input.max`.
+    max: int | None = None
+    #: For a ``choice`` cell: the alternatives, which a ``choice`` has to have.
+    choices: tuple[Choice, ...] = ()
+    #: Where this cell is **prefilled** from when the statement's excursion is
+    #: set: ``"excursion.kilometers"``, the same ``"<root>.<field>"`` vocabulary
+    #: an :attr:`Input.source` uses (:data:`SOURCE_ROOTS`).
+    #:
+    #: A seed is not a derivation, and the two differ in all four of the ways
+    #: that matter. A :attr:`Input.source` belongs to the excursion: it is
+    #: refused on the form, never stored, re-resolved on every context build, so
+    #: it follows the trip the moment the trip changes. A seed belongs to the
+    #: **person filling the form in**: it is written once, stored like any other
+    #: answer, and theirs to correct or to split into several rows — which is
+    #: the whole point, because the trip records one distance and one mode while
+    #: the people on it travelled differently.
+    #:
+    #: It is applied **exactly once, when the excursion is set**, and again when
+    #: the excursion is *changed* — the old row described a different trip. Not
+    #: on every context build, and not whenever the table happens to be empty:
+    #: either of those would make a deleted row come back by itself and an
+    #: edited one be overwritten, which is the one failure a seed must not have.
+    #:
+    #: A seeded cell whose value its own declaration does not offer — a
+    #: ``choice`` the section does not list, a person the question does not
+    #: offer — is left empty rather than stored outside its domain. A seed that
+    #: resolves to nothing (no excursion, or the field itself unset) is left
+    #: empty too, and a table none of whose seeds resolved gets **no row at
+    #: all**: there is nothing to prefill.
+    seed: str = ""
+
+    def __post_init__(self) -> None:
+        if self.type == "rows":
+            raise RuleError(
+                f"the field {self.key!r} is a table of its own, and there is no table "
+                f"inside a table; a cell is one of {', '.join(CELL_TYPES)}"
+            )
+        if self.seed:
+            _check_source(self.seed)
+        # The cell as the question it is, which is what the engine validates its
+        # value against — so every refusal `Input` writes for a question is a
+        # refusal this writes for a cell, at the line the cell is declared on,
+        # rather than a second list of the same rules drifting from the first.
+        self.as_input()
+
+    def as_input(self, options: tuple[Member, ...] = ()) -> "Input":
+        """This cell as the one-question :class:`Input` it is.
+
+        ``options`` are the table's people, passed in because they belong to the
+        question rather than to the cell. Everything that validates an answer —
+        :func:`finance.inputs.clean_value`, :func:`finance.engine.answers.within`,
+        :func:`finance.engine.answers.coerce_input`,
+        :func:`finance.engine.fuzz.random_answer`, the admin's own form field —
+        is given one of these and needs to know nothing about rows.
+        """
+        return Input(
+            key=self.key,
+            label=self.label,
+            type=self.type,
+            required=self.required,
+            help=self.help,
+            options=options,
+            max=self.max,
+            choices=self.choices,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -563,6 +882,14 @@ class Input:
     Declaring the question beside the rule that reads the answer is what keeps
     the two from drifting apart: the form is generated from these, and a rule
     that reads an undeclared key fails loudly (see :class:`Inputs`).
+
+    A declaration the engine cannot serve is refused where it is written, with
+    :class:`RuleError`: a ``choice`` with nothing to choose from, a
+    :attr:`source` that names no context field, an :attr:`options_source` on a
+    question that names no people, a ``rows`` question with no cells. The engine
+    refuses a nonsense :attr:`Ruleset.balance` for the same reason — it is a bug
+    in the rules, and a case in the section's own CI should fail on it rather
+    than a person's form quietly losing a question.
     """
 
     #: The key the answer is read back under.
@@ -578,9 +905,190 @@ class Input:
     #: For ``member`` and ``member_set``: who may be picked. The engine
     #: re-validates a submitted answer against this, so an answer can never
     #: name somebody the rule did not offer.
+    #:
+    #: A ruleset either lists the people itself, out of the context it was
+    #: given, or names an :attr:`options_source` and lets the engine fill this
+    #: in. Not both.
+    #:
+    #: For a ``rows`` question it is the domain of **every party-valued cell**
+    #: of every row, stated once for the whole table: who may be named is the
+    #: question's business, not each column's.
     options: tuple[Member, ...] = ()
-    #: For ``member_set`` and ``int``: the largest acceptable count or value.
+    #: For ``member_set``, ``int`` and ``rows``, and for **those three only**:
+    #: the largest acceptable count or value. It is ignored on every other type
+    #: — ``money`` included, which is worth knowing because an amount is the
+    #: other thing one would expect a ceiling on. A money answer is bounded by
+    #: the resolution and ceiling of the field itself
+    #: (``finance.inputs.MONEY_MAX``) and not by this; a section wanting its
+    #: own maximum writes a :class:`Check`.
+    #:
+    #: On a ``rows`` question it bounds **the number of rows** and nothing
+    #: inside one. A cell's own ceiling is its :attr:`Field.max`, so a table of
+    #: at most five journeys of at most 2000 km each says ``max=5`` here and
+    #: ``max=2000`` on the ``kilometers`` field. This is the second time this
+    #: attribute has had to be qualified, and both qualifications are the same
+    #: sentence read twice: ``max`` bounds *the answer* — the value for an
+    #: ``int``, the count for a set of people, the count of rows for a table —
+    #: and says nothing about anything one level further in.
+    #:
+    #: It bounds a *submitted* answer, which is refused on the way in, and an
+    #: answer the engine supplies from a :attr:`source`, which cannot be —
+    #: nobody can correct that one through the form. A supplied value that
+    #: breaks this is therefore an **error on the statement**, naming the
+    #: source and the bound, rather than a truncation: five youth leaders
+    #: against three the section approved is something to fix on the
+    #: excursion, and while there is an error nothing is persisted and no
+    #: money moves.
     max: int | None = None
+    #: For ``choice``: the alternatives, which a ``choice`` has to have. A
+    #: submitted answer is re-validated against them, exactly as a person is
+    #: re-validated against :attr:`options`.
+    choices: tuple[Choice, ...] = ()
+    #: For ``rows``: the cells one row has, in the order they are shown. A
+    #: ``rows`` question has to have some, and no other type may.
+    #:
+    #: A table exists for the question a map from person to number cannot
+    #: answer. Whether somebody gets the rate per kilometre at all depends on
+    #: *their* mode of travel — a private car yes, the train no, because there
+    #: the receipt is the claim — so the mode and the distance belong together,
+    #: per traveller, in one row. Keyed by person they come apart, and the rule
+    #: has to pair them up again from two answers that may disagree about how
+    #: many people there were.
+    fields: tuple[Field, ...] = ()
+    #: Where the engine takes this answer *from* instead of asking for it:
+    #: ``"excursion.kilometers"`` (see :data:`SOURCE_ROOTS`).
+    #:
+    #: When the source resolves, the engine supplies the value, the declaration
+    #: comes back :attr:`derived`, and the form **refuses** a submitted answer
+    #: for the key — the figure is corrected where it lives, not here. When it
+    #: does not, this is an ordinary question whose answer is stored like any
+    #: other. Either way a rule reads it the same way, which is the whole
+    #: point: one ``ctx.inputs.number("kilometers")`` and no branch on where it
+    #: came from.
+    #:
+    #: A source resolves to nothing in exactly two cases: the root is absent
+    #: (a statement with no excursion) or the field itself is ``None``. A
+    #: ``0``, an empty string and an empty set are values the statement
+    #: *records*, so they are supplied like any other — a trip whose kilometres
+    #: are still at the model's default of ``0`` serves ``0`` and refuses a
+    #: correction here, because the correction belongs on the trip. The
+    #: nullable fields are :class:`StatementInfo`'s two people and
+    #: :attr:`Excursion.ljp`; every other field of :class:`Excursion` always
+    #: has a value.
+    #:
+    #: Derivation is decided by :meth:`Ruleset.inputs` and nothing else. A key
+    #: :meth:`Ruleset.relevant_inputs` names is served with the declaration
+    #: ``inputs`` gave it, so the form and the rules cannot disagree about
+    #: where one key's value comes from.
+    #:
+    #: For a ``member`` or ``member_set`` it should be stated *with*
+    #: :attr:`options` or an :attr:`options_source`, and the two never both
+    #: apply: when the source resolves the engine supplies the answer and the
+    #: options go unread; when it does not, the options are who may be picked.
+    #: ``source="excursion.leaders"`` with ``options_source="bills.payers"`` is
+    #: the whole of "the people who led the trip, or whoever paid a receipt
+    #: when there was no trip" — and **without the second half the question
+    #: cannot be answered at all** on a statement with no excursion, because a
+    #: party-valued declaration offering nobody offers nobody.
+    #:
+    #: So: who may be picked bounds the answer when it is *asked for*, and says
+    #: nothing about one the engine supplies. A supplied one comes out of the
+    #: statement's own data, which is what makes it safe without a domain, and
+    #: what bounds it is :attr:`max`.
+    #:
+    #: A derived value is **not stored**. It is resolved again every time a
+    #: context is built, so there is no second copy to go stale when the trip
+    #: changes.
+    source: str = ""
+    #: Where the engine takes :attr:`options` from, for a ``member`` or
+    #: ``member_set`` question: one of :data:`OPTION_SOURCES`.
+    #:
+    #: It is a request, and the engine's answer is :attr:`options`. A
+    #: declaration that comes back from the engine therefore carries one or the
+    #: other and never both — which is also what a ruleset stating both is
+    #: refused for.
+    options_source: str = ""
+    #: The step this question belongs to, as a short label. Questions that
+    #: share one are presented together, in the order the labels are first
+    #: declared, and ``GET …/form`` serves that grouping. Empty is the unnamed
+    #: step, which is what a form without steps is.
+    step: str = ""
+    #: Whether the engine supplies this answer itself. The *engine* sets it; a
+    #: ruleset declares :attr:`source` and reads this back, and setting it
+    #: without a source is refused — it would be a question nobody can ever
+    #: answer, refused with a message that is not true of it.
+    derived: bool = False
+
+    def __post_init__(self) -> None:
+        if self.derived and not self.source:
+            raise RuleError(
+                f"{self.key!r} is marked derived with nothing to derive it from; the "
+                "engine sets that itself, from `source`"
+            )
+        # A `source` beside `options` or an `options_source` is *not* refused,
+        # and the rule that makes it unambiguous is one sentence: who may be
+        # picked bounds the answer when it is asked for, and says nothing about
+        # one the engine supplies. The two arms never both apply — see
+        # `source` — so for a `member` or `member_set` this is the pairing that
+        # makes one question answerable with a trip and without one.
+        if self.type == "choice" and not self.choices:
+            raise RuleError(
+                f"the choice {self.key!r} offers no choices, which is a text field that "
+                "validates nothing; list them in `choices`"
+            )
+        if self.choices and self.type != "choice":
+            raise RuleError(f"{self.key!r} is a {self.type} input, so its choices are never shown")
+        if self.type == "rows" and not self.fields:
+            raise RuleError(
+                f"the table {self.key!r} declares no fields, which is a question with no "
+                "cells to answer; list them in `fields`"
+            )
+        if self.fields and self.type != "rows":
+            raise RuleError(f"{self.key!r} is a {self.type} input, so it has no rows")
+        seen: set[str] = set()
+        for cell in self.fields:
+            if cell.key in seen:
+                raise RuleError(
+                    f"the table {self.key!r} declares the field {cell.key!r} twice; a row "
+                    "keeps one value per field, so the second would shadow the first"
+                )
+            seen.add(cell.key)
+        if self.type == "rows" and self.source:
+            raise RuleError(
+                f"the table {self.key!r} names a source, and a table is not derived from "
+                "one figure; what prefills a table is `seed` on the fields that have one, "
+                "and that answer stays the person's to edit"
+            )
+        if self.source:
+            _check_source(self.source)
+        if not self.options_source:
+            return
+        if self.options_source not in OPTION_SOURCES:
+            raise RuleError(
+                f"{self.options_source!r} is not an option source; the engine serves "
+                f"{', '.join(OPTION_SOURCES)}"
+            )
+        if not self.names_people():
+            raise RuleError(f"{self.key!r} is a {self.type} input, so it names no people")
+        if self.options:
+            raise RuleError(
+                f"{self.key!r} both lists its options and names {self.options_source!r} to "
+                "take them from; say it once"
+            )
+
+    def names_people(self) -> bool:
+        """Whether an answer to this question can name somebody.
+
+        True for ``member`` and ``member_set``, and for a ``rows`` question with
+        one of those among its :attr:`fields` — which is one question with three
+        consequences: it may take an :attr:`options_source`, the answer has to
+        be cleaned of a deleted member
+        (:func:`finance.inputs.party_answers`), and it is dropped when the
+        statement's excursion is swapped for another.
+        """
+        if self.type in _PARTY_INPUT_TYPES:
+            return True
+        return any(cell.type in _PARTY_INPUT_TYPES for cell in self.fields)
 
 
 @dataclass(frozen=True, slots=True)
@@ -700,6 +1208,31 @@ class Ruleset(ABC):
     #: out negative the engine runs the transfer the other way round, so the
     #: direction declared here is the one that is usual for the section.
     balance: tuple[Party, Party, str] = (PARTICIPANTS, SECTION, "balance")
+    #: Who makes the bank transfers once the statement is released — one of
+    #: :data:`PAYOUT_MODES`, and see :data:`PayoutMode` for what each means.
+    #:
+    #: It belongs here, beside :attr:`balance` and :attr:`valid_from`, because
+    #: it is one of the things a section *asserts about its own finances*: who
+    #: pays is as much a part of its procedure as which rates apply and who
+    #: signs. Three consequences follow from it living in the ruleset rather
+    #: than in ``settings.toml``:
+    #:
+    #: * It is **hashed into the version**, with the rest of the sources. A
+    #:   section that changes how it pays gets a new version, with its own
+    #:   ``valid_from`` and its own row, so the change is on the record instead
+    #:   of being a line somebody edited in a config file one afternoon.
+    #: * A statement is **bound** to it, like everything else about a version:
+    #:   a statement released today under rules that say the office pays reads
+    #:   as handed over for ever, and a later change of arrangement cannot
+    #:   rewrite what its terminal act meant.
+    #: * It could not have been a parameter even if that were desirable:
+    #:   ``ctx.params`` is a fixed seven-key list of *numbers*
+    #:   (``PARAMETER_KEYS``), and nothing in it would carry a mode without
+    #:   engine work.
+    #:
+    #: The default is :data:`SELF_PAYMENT` — what Kompass has always done — so
+    #: a ruleset that says nothing goes on behaving exactly as it did.
+    payout: PayoutMode = SELF_PAYMENT
 
     @abstractmethod
     def inputs(self, ctx: RuleContext) -> list[Input]:
@@ -727,6 +1260,28 @@ class Ruleset(ABC):
         which is enough for a ruleset whose ``inputs`` branches on them — drop
         the question about the price per night once "no subsidy" has been
         answered, and it stops being asked.
+
+        This and :meth:`inputs` have different jobs, and overriding this one
+        overrides only the second of them. ``inputs`` says what may be
+        **read**: the whole vocabulary, every key an answer may be stored
+        under, and the list that reading a key is checked against. This says
+        what is being **asked**: the form, and the set an answer has to be in
+        to count. A question this leaves out is off the form, the API refuses
+        an answer for it, and the rules read it as *unanswered* — the type's
+        empty value, whatever is still stored under the key.
+
+        So what the form does not ask, the rules read as unanswered, and
+        retiring a question stops it moving money. Reading a retired key is
+        not an error; it reads empty, because a question nobody can see is not
+        something a rule should fail on.
+
+        **Narrow, do not widen.** A key only this names is not in the
+        vocabulary, so it has nowhere to be stored and nowhere to be read: the
+        engine reports it as an error on the statement rather than serving a
+        question whose answer would silently never arrive. And a key this
+        names is served with the declaration ``inputs`` gave it — same label,
+        same type, same bound, same :attr:`Input.source` — so the two methods
+        cannot disagree about one key.
         """
         return self.inputs(ctx)
 
@@ -792,30 +1347,41 @@ def first_of(*parties: Party | None) -> Party | None:
 
 
 __all__ = [
+    "CELL_TYPES",
     "CENT",
     "CONTEXT_VERSION",
+    "LJP",
+    "OFFICE_PAYMENT",
+    "OPTION_SOURCES",
+    "PARTICIPANTS",
+    "PAYOUT_MODES",
+    "SECTION",
+    "SELF_PAYMENT",
+    "SETTLEMENT_GROUP_LENGTH",
+    "SOURCE_ROOTS",
     "Bill",
     "Check",
+    "Choice",
     "Constraint",
     "Excursion",
+    "Field",
     "Forbid",
     "Input",
     "InputType",
     "Inputs",
-    "LJP",
     "LJPGoal",
     "Member",
     "MemberId",
-    "PARTICIPANTS",
     "Params",
     "Participant",
     "Participants",
     "Party",
+    "PayoutMode",
+    "Roles",
+    "Row",
     "RuleContext",
     "RuleError",
-    "Roles",
     "Ruleset",
-    "SECTION",
     "Section",
     "StatementInfo",
     "TourApproach",

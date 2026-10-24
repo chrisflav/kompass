@@ -34,20 +34,16 @@ from finance.rules_api import RuleContext
 from finance.rules_api import RuleError
 from finance.rules_api import Ruleset
 from finance.rules_api import Section
+from finance.rules_api import SETTLEMENT_GROUP_LENGTH
 from finance.rules_api import Transfer
 
+from .answers import EMPTY
+from .answers import no_longer_offered
+from .answers import typed
+from .declared import Asked
+from .declared import asking
+from .declared import unbounded
 from .guard import no_queries
-
-#: What an unanswered declaration of each type reads as.
-_EMPTY: dict[str, object] = {
-    "money": Decimal("0.00"),
-    "int": 0,
-    "bool": False,
-    "text": "",
-    "choice": None,
-    "member": None,
-    "member_set": (),
-}
 
 _PARTY_TYPES = (Member, Section, Participants)
 
@@ -163,7 +159,16 @@ def _is_cent_exact(amount: Decimal) -> bool:
 
 
 def _validate(transfers: Iterable[object]) -> tuple[list[Transfer], list[str]]:
-    """Accept what is a transfer of whole cents, and report the rest."""
+    """Accept what is a transfer of whole cents, and report the rest.
+
+    The settlement group is checked here as strictly as the amount, and for the
+    same kind of reason: it decides which amounts may *not* share a bank
+    transfer, so a token that does not survive being written down — anything
+    that is not a string, anything longer than the column — would quietly
+    merge two payments a section wrote it to keep apart. An error on the
+    statement persists nothing and pays nothing out; a truncation pays out
+    wrongly.
+    """
     accepted: list[Transfer] = []
     problems: list[str] = []
     for index, candidate in enumerate(transfers):
@@ -184,6 +189,17 @@ def _validate(transfers: Iterable[object]) -> tuple[list[Transfer], list[str]]:
             continue
         if not _is_cent_exact(candidate.amount):
             problems.append(f"{where} has the amount {candidate.amount}, which is not whole cents")
+            continue
+        group = candidate.settlement_group
+        if not isinstance(group, str):
+            problems.append(f"{where} has a {type(group).__name__} settlement group, not a string")
+            continue
+        if len(group) > SETTLEMENT_GROUP_LENGTH:
+            problems.append(
+                f"{where} has a settlement group of {len(group)} characters, and at most "
+                f"{SETTLEMENT_GROUP_LENGTH} are stored: a token that is cut short merges "
+                "amounts it was written to keep apart"
+            )
             continue
         accepted.append(replace(candidate, amount=candidate.amount.quantize(CENT)))
     return accepted, problems
@@ -264,20 +280,73 @@ def _net_out(transfers: Iterable[Transfer], party: Party) -> Decimal:
     return total
 
 
-def _answered(declarations: Iterable[Input], ctx: RuleContext) -> Inputs:
-    """The answers to ``declarations``, with an empty value for the unanswered.
+def _answered(asked: Asked, ctx: RuleContext) -> tuple[Inputs, list[str]]:
+    """The answers a rule reads, and the keys whose answer was dropped.
 
-    The declarations are the authority: an answer to a question the ruleset
-    stopped asking is dropped, and a question nobody answered reads as that
-    type's empty value rather than raising.
+    Two sets, because a ruleset answers two questions about its form.
+    :attr:`~finance.engine.declared.Asked.vocabulary` is
+    :meth:`~kompass.rules.Ruleset.inputs`, every key the ruleset may ever read,
+    and it decides what is *readable*: a rule that reads a key it declared gets
+    a value rather than a :class:`~kompass.rules.RuleError`.
+    :attr:`~finance.engine.declared.Asked.form` is
+    :meth:`~kompass.rules.Ruleset.relevant_inputs`, the questions still being
+    asked, and it decides what is *answered*.
+
+    So the rule for a question the ruleset has stopped asking is the rule for a
+    question nobody has answered yet: it reads as that type's empty value. That
+    is taxis #579, settled in the direction that costs nothing — **what the form
+    does not ask, the rules read as unanswered.** The stored answer to a retired
+    question no longer moves money, which was the bug; and reading one is not
+    an error, which would have collapsed the whole evaluation into a traceback
+    over a question a person cannot even see (the mistake ``EMPTY["choice"]``
+    used to make, for the same reason).
+
+    A key ``relevant_inputs`` names and ``inputs`` does not is *not* answered
+    here, and is not quietly nothing either: it never reaches the vocabulary,
+    so :func:`evaluate` reports it (:attr:`~finance.engine.declared.Asked.widened`).
+
+    A **derived** declaration is resolved here rather than read, and that is
+    deliberately the last word. ``build_context`` already resolved it, so for a
+    real statement this agrees with what the form showed — but a context can
+    also arrive from a case file, from the fuzzer or from a dry run against
+    unsaved answers, and on those routes nothing else would. Both resolutions
+    ask :mod:`finance.engine.declared` off ``inputs``, so "again" cannot mean
+    "differently".
+
+    An answer the declaration **no longer offers** is dropped here, and the key
+    is handed back so that :func:`evaluate` can say so. Dropping it where
+    nobody could be told — in ``coerce_input``, which has no way to report —
+    produced the one state with no witness: a statement owing somebody money
+    closing at ``0.00`` with the recipient still named on every page, no error,
+    no failing check (the ruleset's own checks read the already-emptied value
+    and go vacuous), and ``validity`` answering "everything is correct".
+    Reported, it is simply a statement that does not resolve until somebody
+    answers the question again.
     """
-    answers: dict[str, object] = {}
-    for declaration in declarations:
+    # Everything declared reads as unanswered to begin with, so that a question
+    # the form is not asking is readable but empty.
+    answers: dict[str, object] = {
+        declaration.key: EMPTY.get(declaration.type) for declaration in asked.vocabulary
+    }
+    stored: dict[str, object] = {}
+    for declaration in asked.form:
+        if declaration.key in asked.supplied:
+            # `typed` and not `coerce_input`: a supplied value has no domain to
+            # be re-checked against, and a bound it breaks is an error below
+            # rather than a quietly empty reading.
+            answers[declaration.key] = typed(declaration, asked.supplied[declaration.key])
+            continue
         try:
-            answers[declaration.key] = ctx.inputs.raw(declaration.key)
+            stored[declaration.key] = ctx.inputs.raw(declaration.key)
         except RuleError:
-            answers[declaration.key] = _EMPTY.get(declaration.type)
-    return Inputs(answers)
+            answers[declaration.key] = EMPTY.get(declaration.type)
+    asked_and_stored = [entry for entry in asked.form if entry.key in stored]
+    dropped = no_longer_offered(asked_and_stored, stored)
+    for declaration in asked_and_stored:
+        answers[declaration.key] = (
+            EMPTY.get(declaration.type) if declaration.key in dropped else stored[declaration.key]
+        )
+    return Inputs(answers), dropped
 
 
 def evaluate(ruleset: Ruleset, ctx: RuleContext) -> Result:
@@ -289,12 +358,41 @@ def evaluate(ruleset: Ruleset, ctx: RuleContext) -> Result:
     declarations: tuple[Input, ...] = ()
     try:
         with no_queries():
-            declarations = tuple(ruleset.inputs(ctx))
-            answered = replace(ctx, inputs=_answered(declarations, ctx))
+            # Both declaration methods at once, from one call, because the form
+            # and the rules have to agree about which answers count (taxis
+            # #579) and about where one key's value comes from: `inputs` is
+            # what may be read, `relevant_inputs` is what is being asked.
+            # Asking only `inputs` was the bug — a ruleset that retires a
+            # question went on being paid from an answer the API offers no way
+            # to see or change.
+            asked = asking(ruleset, ctx)
+            declarations = asked.form
+            inputs, dropped = _answered(asked, ctx)
+            answered = replace(ctx, inputs=inputs)
             returned, reported = ruleset.transfers(answered)
             checks = tuple(ruleset.checks(answered))
             transfers, problems = _validate(returned)
             balance = _balance_for(ruleset, transfers)
+            # Three things that are wrong with the *answers or the
+            # declarations* rather than with a transfer, reported the same way
+            # and for the same reason: each of them leaves the books addable,
+            # so nothing refuses on its own, and each of them would otherwise
+            # be a figure nobody can account for. While `errors` is non-empty
+            # nothing is persisted and no money moves.
+            problems += [
+                f"the answer to {key!r} is not one these rules offer any more; "
+                "it is not read, so answer it again"
+                for key in dropped
+            ]
+            # `asked.form` and not the vocabulary: a derived question the rules
+            # have retired is one nobody is asked and no rule reads, so a bound
+            # it breaks would be an error with nothing to do about it.
+            problems += unbounded(asked.form, asked.supplied)
+            problems += [
+                f"relevant_inputs asks for {key!r}, which inputs does not declare; "
+                "relevant_inputs narrows the questions, it does not add any"
+                for key in asked.widened
+            ]
     except Exception as exception:
         return Result(
             transfers=(),

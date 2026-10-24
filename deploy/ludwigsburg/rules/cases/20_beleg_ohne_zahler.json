@@ -1,0 +1,24 @@
+{
+  "name": "Ein übernommener Beleg ohne Zahlende ist ein Fehler, keine Auszahlung",
+  "inputs": {
+    "regime": "ehrenamt"
+  },
+  "bills": [
+    {
+      "id": 1,
+      "amount": "20.00",
+      "covered": true,
+      "payer": null,
+      "description": "Bahnfahrt"
+    }
+  ],
+  "expect": {
+    "transfers": [
+      ["PARTICIPANTS", "SECTION", "0.00", "participant_contribution"]
+    ],
+    "errors": [
+      "Für den übernommenen Beleg „Bahnfahrt“ ist nicht eingetragen, wer ihn bezahlt hat."
+    ],
+    "checks": [true, true, true, true, true, true]
+  }
+}

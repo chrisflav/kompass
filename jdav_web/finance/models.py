@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from mailer.mailutils import send as send_mail
+from mailer.mailutils import SENT
 from members.models import Freizeit
 from members.models import Member
 from members.models import MUSKELKRAFT_ANREISE
@@ -42,7 +43,11 @@ from .rules import leads_excursion
 from .rules import may_approve
 from .rules import not_submitted
 from .rules_api import Member as RuleMember
+from .rules_api import OFFICE_PAYMENT
+from .rules_api import PAYOUT_MODES
 from .rules_api import SECTION
+from .rules_api import SELF_PAYMENT
+from .rules_api import SETTLEMENT_GROUP_LENGTH
 from .store import Approval
 from .store import RuleSet
 
@@ -338,6 +343,46 @@ class Statement(CommonModel):
         }
 
     @property
+    def payout_mode(self):
+        """Who makes this statement's bank transfers — ``"self"`` or ``"office"``.
+
+        The declaration of the rules this statement is **bound** to
+        (:attr:`kompass.rules.Ruleset.payout`), read off its own snapshot, so
+        it costs no query and no evaluation: it is a string the version was
+        imported with.
+
+        Bound rather than current, which is the decision in this property. A
+        section that changes how it pays imports a new version, and the
+        statements created before it keep the old arrangement — the same rule
+        that keeps June's rates on a statement opened in June. The alternative,
+        reading whatever version is in force at the moment somebody looks, would
+        make a settled statement's terminal act change meaning afterwards: a
+        payout released as *zur Auszahlung übergeben* would read as *ausgezahlt*
+        once the section took the transfers back in house, which is the record
+        saying something that did not happen. The cost is the other way round
+        and it is bounded: a statement opened before the change is reviewed
+        under the old wording, once, and re-settling it under a correction is
+        the deliberate act #561 is for.
+
+        A statement bound to no version at all — an instance that has imported
+        none — reads ``"self"``, like a ruleset that declares nothing.
+        """
+        snapshot = self.ruleset_snapshot or {}
+        declared = snapshot.get("payout") or SELF_PAYMENT
+        return declared if declared in PAYOUT_MODES else SELF_PAYMENT
+
+    @property
+    def payout_handoff(self):
+        """Whether releasing this statement is a handoff rather than a payment.
+
+        The one question every mode-dependent branch asks. ``True`` means the
+        section's Geschäftsstelle makes the transfers, so what Kompass records
+        is that the statement was handed over — and :meth:`_pay_out` will not
+        record even that until the summary has actually gone.
+        """
+        return self.payout_mode == OFFICE_PAYMENT
+
+    @property
     def submitted(self):
         return self.status == Statement.SUBMITTED or self.status == Statement.CONFIRMED
 
@@ -500,6 +545,59 @@ class Statement(CommonModel):
                 )
         return lines
 
+    def payment_orders(self):
+        """One bank transfer somebody has to make, per booking.
+
+        The payout as an **instruction** rather than as arithmetic:
+        :meth:`payout_lines` says what the rules awarded and to whom, and this
+        says what to type into a banking form — the recipient, their account,
+        the reference the money arrives under, the amount, and whether this
+        amount may be added to another one for the same person.
+
+        It reads the :class:`Transaction` rows, which is the only record that
+        carries all four. A payout line is a rule's output and knows nothing
+        about accounts; a booking is what :meth:`reduce_transactions` has
+        already bundled, so what is listed here is the set of transfers that
+        actually have to be made, not a list that would have to be bundled
+        again by whoever reads it.
+
+        ``separate`` is the fact the paper could not previously carry. The
+        section's rules may keep an amount out of every other bank transfer —
+        a Tourenleitervergütung is tax-relevant under § 3 Nr. 26 EStG and has
+        to arrive on its own — and two rows for one person then read as a
+        duplicate somebody forgot to combine. It is set when this person has
+        another booking in a *different* settlement group, which is exactly the
+        condition under which combining them would be wrong, and it carries the
+        group's own token as the reason: the token is the ruleset's vocabulary
+        rather than German prose, so the paper states the consequence and names
+        the group beside it.
+
+        Ordered by recipient and then by booking, so that two amounts to one
+        person are adjacent and the reader can see the pair the note is about.
+        """
+        bookings = sorted(
+            self.transaction_set.select_related("member", "ledger"),
+            key=lambda booking: (booking.member.name, booking.pk),
+        )
+        groups = {}
+        for booking in bookings:
+            groups.setdefault(booking.member_id, set()).add(booking.settlement_group)
+        orders = []
+        for booking in bookings:
+            iban = IBAN(booking.member.iban or "", allow_invalid=True)
+            orders.append(
+                {
+                    "recipient": booking.member.name,
+                    "iban": str(iban) if iban.is_valid else "",
+                    "reference": booking.reference,
+                    "amount": booking.amount,
+                    "ledger": booking.ledger.name if booking.ledger is not None else "",
+                    "separate": len(groups[booking.member_id]) > 1,
+                    "settlement_group": booking.settlement_group,
+                }
+            )
+        return orders
+
     def transfer_payload(self):
         """The transfers with their parties resolved to members, for the API."""
         result = self.rule_result
@@ -520,6 +618,7 @@ class Statement(CommonModel):
                 "label": str(transfer.label),
                 "explanation": str(transfer.explanation),
                 "reference": str(self._transfer_reference(transfer)),
+                "settlement_group": transfer.settlement_group,
             }
             for transfer in result.transfers
         ]
@@ -639,13 +738,21 @@ class Statement(CommonModel):
         statement used to report "everything is correct", which is exactly when
         it is not. `confirm` refuses on `is_valid`, so this is also what keeps
         money from moving on a statement the rules could not settle.
+
+        ``INVALID_ALLOWANCE_TO`` is asked **first**, by the same argument read
+        the other way. It is the only one of these about an *answer* rather
+        than about the bookkeeping that follows from one, and it names the
+        thing to go and change. Everything downstream of a bad answer — no
+        rows written, so no transactions, so a total that does not match — is a
+        symptom, and showing a symptom when the cause has a sentence of its own
+        is the mistake this ordering exists to avoid.
         """
+        if not self.allowance_to_valid:
+            return Statement.INVALID_ALLOWANCE_TO
         if not self.transactions_match_expenses:
             return Statement.NON_MATCHING_TRANSACTIONS
         if not self.ledgers_configured:
             return Statement.MISSING_LEDGER
-        if not self.allowance_to_valid:
-            return Statement.INVALID_ALLOWANCE_TO
         if not self.total_valid:
             return Statement.INVALID_TOTAL
         if self.rule_result.errors:
@@ -746,6 +853,42 @@ class Statement(CommonModel):
         if member is None or not self.submitted or self.confirmed:
             return False
         return may_sign(self.live_approval_states, member.pk)
+
+    def signature_completes_approval(self, member=None, user=None):
+        """Whether one signature from this signer would settle the last step.
+
+        The question an interface has to ask *before* the click, because
+        :meth:`approve` pays out on the signature that completes the quorum
+        and records one that does not — two different acts behind the same
+        call. A page that cannot tell them apart has to describe one of them
+        wrongly, and the one it described wrongly was the signature short of a
+        quorum: it reported "not ready to be confirmed" over a signature it had
+        just taken.
+
+        Asked of the *gate* rather than the record, with this signer's
+        signature added to the ones already in — as a member if they have a
+        member record, otherwise as their account, which is how
+        :attr:`finance.store.Approval.signer` counts them. A signer who has
+        already signed gets the honest answer for free: adding their signature
+        again changes nothing, so this is then simply whether the statement is
+        approved already.
+
+        Nobody — no member and no account — is not a signer, and the answer is
+        no rather than "whatever the statement says", because the point of the
+        question is what *this person's* next click does.
+        """
+        if not self.submitted or self.confirmed:
+            return False
+        if member is None and user is None:
+            return False
+        members, others = self._signatures()
+        if member is not None:
+            members = [*members, member.pk]
+        else:
+            others = {*others, ("user", user.pk)}
+        return fully_approved(
+            approval_states(current_constraint_rows(self), members, uncredited=others)
+        )
 
     def approve(self, member=None, note="", user=None):
         """Record a signature, and pay out once the last one is in.
@@ -931,13 +1074,35 @@ class Statement(CommonModel):
         return False
 
     def _pay_out(self, confirmer=None):
-        """Flip to paid: the last step, once the signatures are in."""
+        """Flip to paid: the last step, once the signatures are in.
+
+        In a section whose Geschäftsstelle makes the transfers
+        (:attr:`payout_mode`) the last step is not a payment but a **handoff**,
+        and the handoff is the mail: the summary with its payment orders is
+        what the office works from. So the mail is sent here, from the one
+        funnel every release goes through — :meth:`approve` and
+        :meth:`override_approval` both end up here, and an endpoint that sent
+        it instead would leave the other two able to mark a statement handed
+        over with nothing handed over.
+
+        **And the status does not move until the mail has gone.** Nothing else
+        would be true: in handoff mode "Completed" asserts that somebody else
+        now has the instruction, and asserting it over a mail that was refused
+        is precisely the defect — a status that claims an act that did not
+        happen. A send that fails therefore leaves the statement submitted, and
+        leaves the signatures that are already in standing: pressing the button
+        again retries the handoff and records no second signature
+        (:meth:`_has_signed`), which is why the failure costs a click rather
+        than a statement.
+        """
         if self.rule_result.errors:
             # A statement whose rules report a problem has no settled payout to
             # pay out: its rows were never frozen, and `generate_transactions`
             # refused for the same reason.
             return False
         if not self.validity == Statement.VALID:
+            return False
+        if self.payout_handoff and not self.hand_over(confirmer):
             return False
         self._capture_settings_snapshot()
         self.status = self.CONFIRMED
@@ -974,6 +1139,11 @@ class Statement(CommonModel):
         behind. Money owed to a member is a transfer *to* them and money
         charged against their reimbursement a transfer *from* them, which is
         where the negative amount of an org-fee row comes from.
+
+        The transfer's settlement group rides along onto the booking, because
+        the rules decided it and :meth:`reduce_transactions` is what reads it
+        back: which amounts may not share a bank transfer is a property of the
+        money, not of the screen that bundles it.
         """
         result = self.rule_result
         if result.errors:
@@ -990,25 +1160,53 @@ class Statement(CommonModel):
                     amount=sign * transfer.amount,
                     confirmed=False,
                     reference=reference,
+                    settlement_group=transfer.settlement_group,
                 ).save()
         return True
 
     def reduce_transactions(self):
-        # to minimize the number of needed bank transactions, we bundle transactions from same ledger to
-        # same member
+        """Bundle what may share a bank transfer, and only that.
+
+        To minimise the number of transfers somebody has to make, bookings to
+        the same person out of the same ledger become one — *within one
+        settlement group*. The group is the token the section's rules put on
+        the transfer (:attr:`kompass.rules.Transfer.settlement_group`), carried
+        through to the booking, and it is the third part of the key here.
+
+        Which is the whole of the feature: the Tourenleitervergütung is
+        tax-relevant under § 3 Nr. 26 EStG and has to reach the recipient as
+        its own transfer, although it is one statement, one approval and one
+        process with their travel costs. Before, the two were added together
+        and paid out as one amount under a reference that concatenated both, so
+        the taxable part was not a payment anybody could point at. A ruleset
+        that names no group merges exactly as it always did.
+
+        **The reference text is deliberately unchanged.** A merged row still
+        itemises what it covers (``"Fahrtkosten EUR 24.00, Tagegeld EUR
+        28.00"``), which is what a reader reconciling one bank line against the
+        paper needs, and a row that stayed on its own still carries its own
+        transfer's reference verbatim — which is precisely what merging used to
+        destroy. The group token itself is *not* written into the reference: it
+        is the ruleset's internal vocabulary rather than German a stranger
+        reads, and what tells the reader the two rows are deliberate is that
+        each one says what it is for. The demanding reader is the one who gets
+        the statement as a PDF and was never in Kompass; "Tourenleitervergütung"
+        on its own line is an instruction they can act on, and the concatenation
+        was not.
+        """
         transactions = self.transaction_set.all()
         if any(t.ledger is None for t in transactions):
             return
 
         def sort_key(trans):
-            return (trans.member.pk, trans.ledger.pk)
+            return (trans.member.pk, trans.ledger.pk, trans.settlement_group)
 
         def group_key(trans):
-            return (trans.member, trans.ledger)
+            return (trans.member, trans.ledger, trans.settlement_group)
 
         transactions = sorted(transactions, key=sort_key)
-        for pair, transaction_group in groupby(transactions, group_key):
-            member, ledger = pair
+        for key, transaction_group in groupby(transactions, group_key):
+            member, ledger, settlement_group = key
             grp = list(transaction_group)
             if len(grp) == 1:
                 continue
@@ -1022,6 +1220,7 @@ class Statement(CommonModel):
                 confirmed=False,
                 reference=new_ref,
                 ledger=ledger,
+                settlement_group=settlement_group,
             ).save()
             for trans in grp:
                 trans.delete()
@@ -1226,7 +1425,19 @@ class Statement(CommonModel):
         pay something else gets it on the paper without anybody editing LaTeX.
         The named figures below it are the rates and totals the document
         narrates around that list.
+
+        ``orders`` is the other half, and it is only on the paper where the
+        paper is an **instruction**: in a section whose Geschäftsstelle makes
+        the transfers (:attr:`payout_mode`), this document is the only thing
+        the person making them ever sees, and until now it carried the covered
+        bills and the payout lines and not one account number. Where the
+        reviewer makes the transfers they are made from the review screen,
+        which shows the accounts and the QR codes, and the document is a
+        receipt for what already happened — so ``handoff`` is false, ``orders``
+        is empty, and the paper is byte for byte what it was.
         """
+        handoff = self.payout_handoff
+        orders = self.payment_orders() if handoff else []
         context = {
             "total_bills": self.total_bills,
             "total_bills_theoretic": self.total_bills_theoretic,
@@ -1236,6 +1447,9 @@ class Statement(CommonModel):
             "payout_total": sum(
                 (line["amount"] for line in self.payout_lines()), cvt_to_decimal(0)
             ),
+            "handoff": handoff,
+            "orders": orders,
+            "orders_total": sum((order["amount"] for order in orders), cvt_to_decimal(0)),
         }
         if self.excursion:
             excursion_context = {
@@ -1280,9 +1494,31 @@ class Statement(CommonModel):
             .annotate(amount=Sum("amount"))
         )
 
+    def hand_over(self, confirmer=None):
+        """Send the office the summary it makes the transfers from.
+
+        Only the handoff mode calls this, and only :meth:`_pay_out` does, right
+        before the status would move. The person releasing the statement is
+        copied in, which is the same courtesy the review screen's "Beleg
+        senden" has always given whoever pressed it.
+
+        Returns whether the mail was accepted for delivery.
+        :func:`mailer.mailutils.send` catches its own exceptions and answers
+        with a status, so "it did not go" is a value here rather than a
+        traceback — and it is the value the status of this statement hangs on.
+        """
+        cc = [confirmer.email] if confirmer is not None and confirmer.email else []
+        return self.send_summary(cc=cc) == SENT
+
     def send_summary(self, cc=None):
         """
         Sends a summary of the statement to the central office of the association.
+
+        Returns the :mod:`mailer.mailutils` status — ``SENT`` when the message
+        was handed to the mail server. Every caller but :meth:`hand_over`
+        ignores it, exactly as they did when it returned ``None``: in a section
+        that pays from the review screen the mail is a receipt for an act that
+        has already happened, and in one whose office pays it *is* the act.
         """
         excursion = self.excursion
         context = dict(statement=self.template_context(), excursion=excursion, settings=settings)
@@ -1293,7 +1529,7 @@ class Statement(CommonModel):
         filename = render_tex_with_attachments(
             pdf_filename, "finance/statement_summary.tex", context, attachments, save_only=True
         )
-        send_mail(
+        return send_mail(
             _("Statement summary for %(title)s") % {"title": self.title},
             settings.SEND_STATEMENT_SUMMARY.format(statement=self.title),
             sender=settings.DEFAULT_SENDING_MAIL,
@@ -1488,6 +1724,18 @@ class Transaction(models.Model):
     reference = models.TextField(verbose_name=_("Reference"))
     amount = models.DecimalField(max_digits=6, decimal_places=2, verbose_name=_("Amount"))
     member = models.ForeignKey(Member, verbose_name=_("Recipient"), on_delete=models.CASCADE)
+    settlement_group = models.CharField(
+        verbose_name=_("Settlement group"),
+        max_length=SETTLEMENT_GROUP_LENGTH,
+        blank=True,
+        default="",
+        help_text=_(
+            "The group of bank transfers this booking may share, carried over "
+            "from the transfer the section's rules resolved. Bookings are "
+            "bundled into one payment only within one group, so an amount that "
+            "names its own is transferred separately. Empty means no group."
+        ),
+    )
     ledger = models.ForeignKey(
         Ledger,
         blank=False,

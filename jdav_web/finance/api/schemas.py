@@ -66,6 +66,11 @@ class TransferOut(Schema):
     list adds up to zero by construction.
 
     ``reference`` is the text the generated bank transaction carries.
+
+    ``settlement_group`` is the token the rules put on the transfer to keep it
+    out of other bank transfers: two amounts to the same person out of the same
+    ledger are bundled into one payment only when it is equal, and an empty
+    string means no group at all.
     """
 
     source: TransferPartyOut
@@ -76,6 +81,7 @@ class TransferOut(Schema):
     label: str = ""
     explanation: str = ""
     reference: str = ""
+    settlement_group: str = ""
 
 
 def bills():
@@ -183,6 +189,17 @@ class StatementOut(ModelSchema):
     is_valid: bool
     validity: int
     validity_display: str
+    # Who makes the bank transfers once this statement is released —
+    # ``"self"``, the person reviewing it, or ``"office"``, the section's
+    # Geschäftsstelle after a handoff. It is the declaration of the ruleset
+    # this statement is *bound* to, so it is a fact about the statement and
+    # not about the instance, and a client has to read it per statement.
+    #
+    # There is no wording true under both: a release means *ausgezahlt* in one
+    # and *zur Auszahlung übergeben* in the other. A client that showed one
+    # sentence for both would be telling half its users something that did not
+    # happen, which is why this is in the payload at all.
+    payout_mode: str
     transaction_issues: list[TransactionIssueOut] = []
     excursion: ExcursionBrief | None = None
     created_by: MemberBrief | None = None
@@ -313,6 +330,16 @@ class TransactionOut(ModelSchema):
     # over the API) so bank details stay scoped to this screen's payload.
     iban: str = ""
     iban_valid: bool = False
+    # The payout screen has to be able to say *why* one person has two rows,
+    # and the count on its "bundle recipients" button is wrong without this:
+    # what may be bundled is ``(member, ledger, settlement_group)``, so a
+    # screen keying on the first two offers to merge a taxable payment with a
+    # mileage claim and then nothing happens. Annotated here rather than named
+    # in ``Meta.fields`` so that it is a plain ``string`` in the contract: the
+    # column is ``NOT NULL`` with an empty default, a blank model field comes
+    # out of ``ModelSchema`` as ``string | null``, and a client that has to
+    # handle a ``null`` that cannot occur would key its grouping on it.
+    settlement_group: str = ""
 
     class Meta:
         model = Transaction
@@ -337,6 +364,13 @@ class StatementCreate(Schema):
     ``night_cost`` used to be here, because it used to be a column; a create
     now says what the statement is for and nothing a section's rules might not
     ask about.
+
+    One exception, and it is not an answer this request gives: a draft created
+    with an ``excursion_id`` comes back with every **seeded** table already
+    holding one row, as the trip describes it. That is the trip's own distance
+    and mode written into the answers once, for the person to correct or to
+    split into one row per traveller. ``GET .../form`` then serves it like any
+    other answer.
     """
 
     short_description: str
@@ -354,6 +388,27 @@ class StatementUpdate(Schema):
     were four columns on ``Statement``, and so a section whose rules ask a
     fifth question had no way to be asked it. A key the rules do not ask for is
     refused; a key left out is unchanged.
+
+    **Where a refusal lands.** A ``422`` from here is
+    ``{"detail": [...], "errors": {"<where>": ["<message>", ...]}}``, and
+    ``<where>`` is a path rather than always a bare key, so that a client can
+    print each message against the control that caused it:
+
+    ``"night_cost"``
+        the answer to that question.
+    ``"reisen"``
+        a ``rows`` answer as a whole — too many rows, or not a list of rows.
+    ``"reisen[1]"``
+        the row at index 1, **zero-based**, in the order this request sent them.
+    ``"reisen[1].kilometers"``
+        the ``kilometers`` cell of that row.
+
+    A table reports **every** cell it found wrong, in one response; across
+    different questions the first problem still answers alone. ``"__all__"``
+    holds a refusal about the request rather than about one answer, as it always
+    has. The type is unchanged — the keys are strings and the values are lists
+    of messages — so a client that renders ``errors`` by key keeps working and
+    one that wants to place a cell error parses the path.
     """
 
     short_description: str | None = None
@@ -362,7 +417,9 @@ class StatementUpdate(Schema):
     # picking the wrong one in the submission flow is a correction rather than a
     # delete-and-start-over. ``update_statement`` refuses any edit once submitted.
     # Changing it drops every answer that named a person, because the people the
-    # rules offer are the incoming trip's.
+    # rules offer are the incoming trip's, and re-seeds every table that has a
+    # seed, because the row it held described the outgoing trip. An answer
+    # restated in the same request wins over both.
     excursion_id: int | None = None
     inputs: dict[str, Any] | None = None
 
@@ -491,15 +548,75 @@ class InputOptionOut(Schema):
     name: str
 
 
+class InputChoiceOut(Schema):
+    """One alternative a ``choice`` answer may be.
+
+    ``value`` is what goes back in ``inputs`` and what the rules read;
+    ``label`` is what the person picking it is shown.
+    """
+
+    value: str
+    label: str
+
+
+class InputFieldOut(Schema):
+    """One cell of a ``rows`` question — a column of the table.
+
+    A cell is a question asked once per row, so everything here means what it
+    means on ``InputDeclarationOut``: ``type`` is the same widget vocabulary
+    minus ``rows`` (there is no table inside a table), ``choices`` are a
+    ``choice`` cell's own alternatives, and ``max`` is that cell's ceiling or
+    count — never the number of rows, which is the question's own ``max``.
+
+    There is no ``options`` here on purpose. The people a party-valued cell may
+    name are the **question's** ``options``, stated once for the whole table, so
+    one column cannot be served two different domains in two rows.
+
+    ``required`` is advisory, exactly as it is on a question: an empty cell is
+    accepted and stored, and what refuses to hand the statement in is the
+    section's own checks (``GET …/preflight``).
+    """
+
+    key: str
+    label: str
+    type: str
+    required: bool
+    help: str = ""
+    max: int | None = None
+    choices: list[InputChoiceOut] = []
+
+
 class InputDeclarationOut(Schema):
     """One question the section's rules ask about a statement.
 
     Derived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks
     for something else gets a different form without anybody editing the API.
     ``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,
-    ``choice``, ``member``, ``member_set`` — and ``options`` is the domain a
+    ``choice``, ``member``, ``member_set``, ``rows``. ``options`` is the domain a
     party-valued answer may be picked from, resolved to names here because the
-    rules themselves never see them.
+    rules themselves never see them; ``choices`` is the same thing for a
+    ``choice``.
+
+    ``rows`` is a **repeating row**: a table whose columns are ``fields`` and
+    whose answer is a list of objects keyed by those fields' keys. It exists
+    because one statement settles a trip several people travelled differently,
+    and whether somebody gets a rate per kilometre at all depends on *their*
+    mode of travel — so the mode and the distance belong together, per
+    traveller, in a row. ``max`` bounds **the number of rows**; a cell's own
+    bound is on its field. A party-valued cell's people are this declaration's
+    ``options``, not the field's. ``fields`` is empty for every other type.
+
+    ``derived`` says the engine supplies this answer itself, from the
+    statement's own data — the kilometres off the excursion rather than off a
+    person. The value is in ``answers`` like any other, and
+    ``PATCH /statements/{id}`` **refuses** a value for the key: it is a reading
+    of the trip, and a wrong one is corrected on the trip. A table is never
+    ``derived``: it may be *seeded* from the trip when the excursion is set, and
+    a seeded row is editable, stored, and does not follow the trip afterwards —
+    which is the whole difference and why the two are not one mechanism.
+
+    ``step`` is the label of the group the question belongs to; see
+    ``StatementFormOut.steps``.
     """
 
     key: str
@@ -509,21 +626,65 @@ class InputDeclarationOut(Schema):
     help: str = ""
     max: int | None = None
     options: list[InputOptionOut] = []
+    choices: list[InputChoiceOut] = []
+    fields: list[InputFieldOut] = []
+    step: str = ""
+    derived: bool = False
+
+
+class FormStepOut(Schema):
+    """One group of questions the rules said belong together.
+
+    A label and the keys in it, in declaration order. Nothing more: there is no
+    page state here and no notion of a step being finished — which questions
+    belong together is the section's business, and how to lay them out is the
+    client's.
+    """
+
+    label: str
+    keys: list[str] = []
 
 
 class StatementFormOut(Schema):
     """The questions this statement still has to answer, and its answers.
 
     ``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a
-    question once an earlier answer makes it moot — and ``answers`` is
-    restricted to the keys that survived that, so a retired answer is not
-    handed back to a client to re-submit. The values are as
-    ``Statement.inputs`` holds them: money as a string, a person as an id, a
-    set of people as a list of ids.
+    question once an earlier answer makes it moot — and since taxis #579 that
+    is also the question the *rules* are asked, so a question that is not here
+    is one no rule reads either. ``answers`` is restricted to the keys that
+    survived, so a retired answer is not handed back to be re-submitted.
+
+    The values are as ``Statement.inputs`` holds them: money as a string, a
+    person as an id, a set of people as a list of ids, a ``rows`` answer as a
+    list of objects keyed by that question's field keys — with each cell in the
+    shape its own type would have had as a question, so money in a cell is a
+    string too. Two of them are not read
+    out of storage. A ``derived`` answer is resolved from the statement's own
+    data on every request, because nothing stores it. And an answer the
+    declaration no longer *offers* — a ``choice`` whose option has been
+    withdrawn, a person who is no longer in ``options`` because the receipt
+    they paid was cleared — comes back ``null``, because that is what the rules
+    now read and serving anything else would hand back a value this API would
+    refuse.
+
+    So **what this serves is what the rules read**, and a client may send back
+    everything except the keys marked ``derived``: those are served to be shown
+    and refused to be changed, which is the whole of the refusal.
+
+    One further exception: an answer whose stored *type* no longer fits its
+    declaration — because the section retyped the key — is served as it stands
+    and refused on the way back, since it is a broken answer rather than a
+    withdrawn one and the rules report it rather than reading it as
+    unanswered. Answering that question properly clears it.
+
+    ``steps`` partitions ``inputs`` into the groups the ruleset named, in
+    order; every key appears in exactly one, and a form whose rules named no
+    steps comes back as a single step with an empty label.
     """
 
     statement_id: int
     inputs: list[InputDeclarationOut] = []
+    steps: list[FormStepOut] = []
     answers: dict[str, Any] = {}
 
 
@@ -589,11 +750,18 @@ class StatementApprovalOut(Schema):
     Routing runs on the resolved transfers rather than on the statement's
     fields, which is what lets a rule say "nobody who receives money from this
     statement" — so this list is frozen at submission, beside the payout.
+
+    ``may_approve`` says whether the asking person has anything left to sign;
+    ``completes_approval`` says whether signing it would be the last signature,
+    which is the difference between recording a signature and paying the
+    statement out. One surface shows both acts, so it has to know which one a
+    click is about to be.
     """
 
     statement_id: int
     approved: bool
     may_approve: bool
+    completes_approval: bool
     constraints: list[ApprovalConstraintOut] = []
     signatures: list[SignatureOut] = []
 
