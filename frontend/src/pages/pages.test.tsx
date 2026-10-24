@@ -3,7 +3,7 @@ import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { API_BASE } from "../api/client";
-import { api, http, HttpResponse, server } from "../test/server";
+import { api, http, HttpResponse, server, useMe } from "../test/server";
 import {
   captureNavigations,
   renderRoute,
@@ -415,12 +415,13 @@ describe("Dashboard", () => {
   });
 
   it("offers the compose shortcut and a see-all link per section", async () => {
+    useMe({ permissions: ["mailer.add_global_message"] });
     dashboardReturns();
     renderWithApp(<Dashboard />, { route: "/kompass" });
 
-    expect(screen.getByRole("link", { name: /Nachricht senden/ })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: /Nachricht senden/ })).toHaveAttribute(
       "href",
-      "/kompass/mailer/messages?compose=1",
+      "/kompass/mailer/messages/new",
     );
     expect(await screen.findByRole("link", { name: "Alle Gruppen →" })).toHaveAttribute(
       "href",
@@ -428,5 +429,15 @@ describe("Dashboard", () => {
     );
     expect(screen.getByRole("link", { name: "Alle Ausfahrten →" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Alle Abrechnungen →" })).toBeInTheDocument();
+  });
+
+  it("hides the compose shortcut from someone who may not send messages", async () => {
+    useMe({ permissions: [] });
+    dashboardReturns();
+    renderWithApp(<Dashboard />, { route: "/kompass" });
+
+    // The greeting names the user, so /me (and with it the rights) is in.
+    await screen.findByRole("link", { name: "Hannah" });
+    expect(screen.queryByRole("link", { name: /Nachricht senden/ })).not.toBeInTheDocument();
   });
 });
