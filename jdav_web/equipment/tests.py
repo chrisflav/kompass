@@ -425,6 +425,9 @@ class LendingTestCase(MaterialFixture, TestCase):
         services.lend(self.alice, [self.slings[2]], self.alice, due=days(1))
         with self.assertRaises(ValidationError):
             services.assemble(self.slings[2], self.slings[0], self.alice)
+        with self.assertRaises(ValidationError) as context:
+            services.assemble(self.slings[0], self.slings[2], self.alice)
+        self.assertIn("out on loan", context.exception.messages[0])
         services.assemble(self.slings[1], None, self.alice)
         self.assertIsNone(self.slings[1].parent)
 

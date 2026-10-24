@@ -867,6 +867,121 @@ describe("material — Teil", () => {
     expect(patched).toBe(false);
   });
 
+  it("builds a piece from the stock into this one, leaving out what cannot go in", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    const calls: { q?: string | null; body?: unknown } = {};
+    server.use(
+      http.get(api("/api/material/parts/1"), () =>
+        HttpResponse.json(partOut({ parent: part(4), components: [part(3)] })),
+      ),
+      http.get(api("/api/material/parts"), ({ request }) => {
+        calls.q = new URL(request.url).searchParams.get("q");
+        return HttpResponse.json([
+          part(1),
+          part(2, { holder: ref(8, "Peter Lustig"), location: null, lent_until: TOMORROW }),
+          part(3),
+          part(4),
+          part(5, { product_type: ref(12, "Karabiner") }),
+        ]);
+      }),
+      http.patch(api("/api/material/parts/5"), async ({ request }) => {
+        calls.body = await request.json();
+        return HttpResponse.json(partOut({ id: 5, label: "S5", product_type: ref(12, "Karabiner") }));
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Teil einbauen" }));
+    const d = await dialog();
+    await user.type(d.getByLabelText("Teil suchen"), "Kara");
+    const add = await d.findByRole("button", { name: "Karabiner S5 einbauen" });
+    expect(calls.q).toBe("Kara");
+    // Not itself, what it is in, what is in it already, nor a piece on loan.
+    for (const id of [1, 2, 3, 4]) {
+      expect(d.queryByRole("button", { name: `Bandschlinge 120 cm S${id} einbauen` })).not.toBeInTheDocument();
+    }
+    await user.click(add);
+    expect(await screen.findByText("Karabiner S5 eingebaut.")).toBeInTheDocument();
+    expect(calls.body).toEqual({ parent: 1 });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("creates new pieces built into this one", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    let body: unknown;
+    server.use(
+      http.post(api("/api/material/parts"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json([part(5), part(6)]);
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Neues Teil einbauen" }));
+    const d = await dialog();
+    await user.click(await d.findByRole("button", { name: "Materialtyp" }));
+    await user.click(dropdown().getByRole("button", { name: "Bandschlinge 120 cm" }));
+    const add = await screen.findByRole("dialog", {
+      name: "Bandschlinge 120 cm in Bandschlinge 120 cm E1351 einbauen",
+    });
+    await user.type(within(add).getByLabelText("PSA-ID"), "E2");
+    await user.click(within(add).getByRole("button", { name: "Anlegen" }));
+    await waitFor(() => expect(body).toMatchObject({ product_type: 10, psa_id: "E2", parent: 1 }));
+  });
+
+  it("takes a piece out, from the assembly or from the piece itself", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    const patched: Record<number, unknown> = {};
+    server.use(
+      http.get(api("/api/material/parts/1"), () =>
+        HttpResponse.json(partOut({ parent: part(4), components: [part(3)] })),
+      ),
+      http.patch(api("/api/material/parts/:id"), async ({ request, params }) => {
+        const id = Number(params.id);
+        patched[id] = await request.json();
+        return HttpResponse.json(partOut({ id, label: `S${id}`, psa_id: null }));
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("tab", { name: "Bestandteile" }));
+    await user.click(screen.getByRole("button", { name: "Bandschlinge 120 cm S3 ausbauen" }));
+    expect(await screen.findByText("Bandschlinge 120 cm S3 ausgebaut.")).toBeInTheDocument();
+    expect(patched[3]).toEqual({ parent: null });
+    await user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Ausbauen" }));
+    await waitFor(() => expect(patched[1]).toEqual({ parent: null }));
+  });
+
+  it("builds nothing into a piece out on loan, and offers no assembly without the inventory", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    server.use(
+      http.get(api("/api/material/parts/1"), () =>
+        HttpResponse.json(
+          partOut({ holder: ref(8, "Peter Lustig"), location: null, lent_until: TOMORROW, components: [part(3)] }),
+        ),
+      ),
+    );
+    const { user, unmount } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "Aktionen ▾" }));
+    expect(screen.getByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Teil einbauen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Neues Teil einbauen" })).not.toBeInTheDocument();
+    unmount();
+
+    useMe({ permissions: [] });
+    server.use(
+      http.get(api("/api/material/parts/1"), () =>
+        HttpResponse.json(partOut({ parent: part(4), components: [part(3)] })),
+      ),
+    );
+    const second = renderRoute("/kompass/material/parts/1");
+    await second.user.click(await screen.findByRole("tab", { name: "Bestandteile" }));
+    expect(screen.queryByRole("button", { name: /ausbauen/ })).not.toBeInTheDocument();
+    await second.user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
+    expect(screen.queryByRole("button", { name: "Teil einbauen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ausbauen" })).not.toBeInTheDocument();
+  });
+
   it("lets a leader of the owning group pass a piece on, but not one lent to someone else", async () => {
     server.use(
       http.get(api("/api/members/groups"), () =>

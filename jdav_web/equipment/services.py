@@ -861,6 +861,8 @@ def assemble(part, parent, by):
             raise ValidationError(_("A piece cannot be assembled into itself."))
         if open_loan_line(part) is not None:
             raise ValidationError(_("A lent piece cannot be assembled."))
+        if open_loan_line(parent.top_level) is not None:
+            raise ValidationError(_("A piece cannot be built into one that is out on loan."))
     part.parent = parent
     part.save(update_fields=["parent"])
     if parent is not None:
