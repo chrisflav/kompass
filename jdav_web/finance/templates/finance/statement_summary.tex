@@ -106,6 +106,50 @@ Zuschüsse und Aufwandsentschädigung werden wie folgt abgerufen:
     \end{tabularx}
 \end{table}
 
+% The payment orders, and only where this document *is* the instruction: in a
+% section whose Geschäftsstelle makes the transfers, nobody who makes them ever
+% sees the review screen, so the accounts, the references and the amounts have
+% to be on the paper. Where the reviewer transfers the money from that screen,
+% `handoff` is false and this section does not exist -- the document is then a
+% receipt for transfers that have already been made.
+{% if statement.handoff %}
+\vspace{12pt}
+
+\noindent\textbf{\large Überweisungsaufträge}
+
+\noindent Die folgenden Überweisungen sind von der Geschäftsstelle auszuführen.
+{% if statement.orders %}
+
+\begin{table}[H]
+    \centering
+    \begin{tabularx}{.97\textwidth}{lXr}
+        \toprule
+        \textbf{Empfänger*in} & \textbf{IBAN und Verwendungszweck} & \textbf{Betrag} \\
+        \midrule
+        % One row per booking, which is what `reduce_transactions` has already
+        % bundled -- so this is the set of transfers to make and not a list to
+        % be combined again by whoever reads it. `separate` marks the rows that
+        % must *not* be combined, with the rules' own name for the group as the
+        % reason.
+        {% for order in statement.orders %}
+        {{ order.recipient|esc_all }} & {% if order.iban %}\texttt{ {{ order.iban|esc_all }} }{% else %}\textbf{keine IBAN hinterlegt}{% endif %} \newline {{ order.reference|esc_all }}{% if order.separate %} \newline \emph{getrennt zu überweisen{% if order.settlement_group %} (Abrechnungsgruppe {{ order.settlement_group|esc_all }}){% endif %}}{% endif %} & {{ order.amount }} €\\
+        {% endfor %}
+        \midrule
+        \multicolumn{2}{l}{\textbf{Summe Überweisungen}} & \textbf{ {{ statement.orders_total }} }€\\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\noindent Zeilen mit dem Hinweis \emph{getrennt zu überweisen} dürfen nicht zu einer
+Überweisung zusammengefasst werden, auch wenn sie an dieselbe Person gehen: sie
+gehören zu unterschiedlichen Abrechnungsgruppen, etwa weil eine davon steuerlich
+getrennt nachweisbar sein muss. Alle übrigen Zeilen sind bereits zusammengefasst.
+{% else %}
+
+\noindent Für diese Abrechnung sind keine Überweisungen auszuführen.
+{% endif %}
+{% endif %}
+
 \noindent Dieser Beleg wird automatisch erstellt und daher nicht unterschrieben.
 
 {% endblock %}

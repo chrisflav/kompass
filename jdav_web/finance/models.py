@@ -531,6 +531,59 @@ class Statement(CommonModel):
                 )
         return lines
 
+    def payment_orders(self):
+        """One bank transfer somebody has to make, per booking.
+
+        The payout as an **instruction** rather than as arithmetic:
+        :meth:`payout_lines` says what the rules awarded and to whom, and this
+        says what to type into a banking form — the recipient, their account,
+        the reference the money arrives under, the amount, and whether this
+        amount may be added to another one for the same person.
+
+        It reads the :class:`Transaction` rows, which is the only record that
+        carries all four. A payout line is a rule's output and knows nothing
+        about accounts; a booking is what :meth:`reduce_transactions` has
+        already bundled, so what is listed here is the set of transfers that
+        actually have to be made, not a list that would have to be bundled
+        again by whoever reads it.
+
+        ``separate`` is the fact the paper could not previously carry. The
+        section's rules may keep an amount out of every other bank transfer —
+        a Tourenleitervergütung is tax-relevant under § 3 Nr. 26 EStG and has
+        to arrive on its own — and two rows for one person then read as a
+        duplicate somebody forgot to combine. It is set when this person has
+        another booking in a *different* settlement group, which is exactly the
+        condition under which combining them would be wrong, and it carries the
+        group's own token as the reason: the token is the ruleset's vocabulary
+        rather than German prose, so the paper states the consequence and names
+        the group beside it.
+
+        Ordered by recipient and then by booking, so that two amounts to one
+        person are adjacent and the reader can see the pair the note is about.
+        """
+        bookings = sorted(
+            self.transaction_set.select_related("member", "ledger"),
+            key=lambda booking: (booking.member.name, booking.pk),
+        )
+        groups = {}
+        for booking in bookings:
+            groups.setdefault(booking.member_id, set()).add(booking.settlement_group)
+        orders = []
+        for booking in bookings:
+            iban = IBAN(booking.member.iban or "", allow_invalid=True)
+            orders.append(
+                {
+                    "recipient": booking.member.name,
+                    "iban": str(iban) if iban.is_valid else "",
+                    "reference": booking.reference,
+                    "amount": booking.amount,
+                    "ledger": booking.ledger.name if booking.ledger is not None else "",
+                    "separate": len(groups[booking.member_id]) > 1,
+                    "settlement_group": booking.settlement_group,
+                }
+            )
+        return orders
+
     def transfer_payload(self):
         """The transfers with their parties resolved to members, for the API."""
         result = self.rule_result
@@ -1358,7 +1411,19 @@ class Statement(CommonModel):
         pay something else gets it on the paper without anybody editing LaTeX.
         The named figures below it are the rates and totals the document
         narrates around that list.
+
+        ``orders`` is the other half, and it is only on the paper where the
+        paper is an **instruction**: in a section whose Geschäftsstelle makes
+        the transfers (:attr:`payout_mode`), this document is the only thing
+        the person making them ever sees, and until now it carried the covered
+        bills and the payout lines and not one account number. Where the
+        reviewer makes the transfers they are made from the review screen,
+        which shows the accounts and the QR codes, and the document is a
+        receipt for what already happened — so ``handoff`` is false, ``orders``
+        is empty, and the paper is byte for byte what it was.
         """
+        handoff = self.payout_handoff
+        orders = self.payment_orders() if handoff else []
         context = {
             "total_bills": self.total_bills,
             "total_bills_theoretic": self.total_bills_theoretic,
@@ -1368,6 +1433,9 @@ class Statement(CommonModel):
             "payout_total": sum(
                 (line["amount"] for line in self.payout_lines()), cvt_to_decimal(0)
             ),
+            "handoff": handoff,
+            "orders": orders,
+            "orders_total": sum((order["amount"] for order in orders), cvt_to_decimal(0)),
         }
         if self.excursion:
             excursion_context = {

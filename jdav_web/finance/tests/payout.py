@@ -37,6 +37,7 @@ from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.core import mail
+from django.template.loader import render_to_string
 from django.test import SimpleTestCase
 from django.test import TestCase
 from django.urls import reverse
@@ -50,6 +51,7 @@ from finance.engine.versions import payout_problems
 from finance.models import Bill
 from finance.models import Ledger
 from finance.models import Statement
+from finance.models import Transaction
 from finance.rules_api import OFFICE_PAYMENT
 from finance.rules_api import SELF_PAYMENT
 from finance.rulesets.heidelberg import HeidelbergRules
@@ -497,6 +499,195 @@ class SelfPaymentIsUntouchedTestCase(TestCase):
         self.assertTrue(statement.confirm(self.anna))
         self.assertEqual(mail.outbox, [], "the summary is sent when somebody asks for it")
         self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)
+
+
+# --- the paper -------------------------------------------------------------
+
+
+class PaymentOrdersTestCase(TestCase):
+    """What the Geschäftsstelle has to be able to read off the Beleg.
+
+    Per recipient: the amount, the account, the reference — and, where two
+    amounts to one person must not be combined, that fact and why. The
+    document carried the covered bills and the payout lines and not one
+    account number, so in handoff mode the per-transfer instruction never
+    reached the person making the transfers at all.
+    """
+
+    def setUp(self):
+        self.anna_user, self.anna = a_user("anna", permitted=True)
+        self.anna.iban = "DE89370400440532013000"
+        self.anna.save()
+        self.ledger = Ledger.objects.create(name="Konto")
+        imported(HANDOFF, "handoff")
+        self.statement = Statement.objects.create(short_description="Übergabe")
+
+    def booking(self, amount, reference, group="", member=None):
+        return Transaction.objects.create(
+            statement=self.statement,
+            member=member or self.anna,
+            amount=amount,
+            reference=reference,
+            settlement_group=group,
+            ledger=self.ledger,
+        )
+
+    def test_one_order_per_booking_with_everything_needed_to_make_it(self):
+        self.booking(Decimal("24.00"), "Fahrtkosten")
+        orders = self.statement.payment_orders()
+        self.assertEqual(len(orders), 1)
+        self.assertEqual(
+            {
+                "recipient": orders[0]["recipient"],
+                "iban": orders[0]["iban"],
+                "reference": orders[0]["reference"],
+                "amount": orders[0]["amount"],
+                "ledger": orders[0]["ledger"],
+            },
+            {
+                "recipient": self.anna.name,
+                "iban": "DE89370400440532013000",
+                "reference": "Fahrtkosten",
+                "amount": Decimal("24.00"),
+                "ledger": "Konto",
+            },
+        )
+
+    def test_two_amounts_that_may_not_be_combined_say_so_and_say_why(self):
+        """And the two that may are *not* marked, which is the real assertion.
+
+        A test that counted marks would pass against code that marked every
+        row, so this pins which rows carry the note: the pair in two different
+        groups does, the pair in one group does not.
+        """
+        self.booking(Decimal("24.00"), "Fahrtkosten")
+        self.booking(Decimal("56.00"), "Tourenleitervergütung", group="steuerrelevant")
+        apart = {
+            (order["reference"], order["separate"], order["settlement_group"])
+            for order in self.statement.payment_orders()
+        }
+        self.assertEqual(
+            apart,
+            {
+                ("Fahrtkosten", True, ""),
+                ("Tourenleitervergütung", True, "steuerrelevant"),
+            },
+        )
+
+        together = Statement.objects.create(short_description="Zusammen")
+        for reference in ("Fahrtkosten", "Tagegeld"):
+            Transaction.objects.create(
+                statement=together,
+                member=self.anna,
+                amount=Decimal("10.00"),
+                reference=reference,
+                settlement_group="",
+                ledger=self.ledger,
+            )
+        self.assertEqual(
+            {order["separate"] for order in together.payment_orders()},
+            {False},
+            "two amounts in one group are one transfer, and the paper says nothing",
+        )
+
+    def test_an_order_whose_booking_has_no_ledger_still_says_what_to_transfer(self):
+        """The ledger is the section's bookkeeping, not the recipient's.
+
+        A booking with no account assigned holds up the release — so this is a
+        statement nobody has handed over — but the order is still rendered,
+        because the admin reads the same list while fixing it, and a crash
+        there would be the only thing between somebody and the fix.
+        """
+        Transaction.objects.create(
+            statement=self.statement,
+            member=self.anna,
+            amount=Decimal("24.00"),
+            reference="Fahrtkosten",
+        )
+        orders = self.statement.payment_orders()
+        self.assertEqual([order["ledger"] for order in orders], [""])
+        self.assertEqual([order["amount"] for order in orders], [Decimal("24.00")])
+
+    def test_an_order_nobody_can_execute_says_the_account_is_missing(self):
+        """Which matters more here than on the review screen.
+
+        The person making the transfer cannot ask: they have the paper and
+        nothing else. An IBAN that is absent and one that does not validate
+        are the same fact to them — there is nothing to type in — so both
+        come through as no account at all.
+        """
+        bernd_user, bernd = a_user("bernd")
+        self.booking(Decimal("10.00"), "Hütte", member=bernd)
+        bernd.iban = "DE00"
+        bernd.save()
+        self.booking(Decimal("12.00"), "Bus", member=bernd)
+        orders = {
+            order["reference"]: order["iban"]
+            for order in self.statement.payment_orders()
+            if order["recipient"] == bernd.name
+        }
+        self.assertEqual(orders, {"Hütte": "", "Bus": ""})
+
+    def test_the_document_prints_the_orders_in_the_handoff_mode(self):
+        self.booking(Decimal("24.00"), "Fahrtkosten")
+        self.booking(Decimal("56.00"), "Tourenleitervergütung", group="steuerrelevant")
+        document = render_to_string(
+            "finance/statement_summary.tex",
+            {"statement": self.statement.template_context(), "excursion": None},
+        )
+        self.assertIn("Überweisungsaufträge", document)
+        self.assertIn("DE89370400440532013000", document)
+        self.assertIn("Tourenleitervergütung", document)
+        self.assertIn("getrennt zu überweisen", document)
+        self.assertIn("Abrechnungsgruppe steuerrelevant", document)
+        # German formatting, because this is the paper somebody reads.
+        self.assertIn("24,00", document)
+        self.assertIn("56,00", document)
+        self.assertIn("80,00", document, "and the sum of what is to be transferred")
+
+    def test_a_statement_with_no_bookings_says_there_is_nothing_to_transfer(self):
+        document = render_to_string(
+            "finance/statement_summary.tex",
+            {"statement": self.statement.template_context(), "excursion": None},
+        )
+        self.assertIn("Überweisungsaufträge", document)
+        self.assertIn("keine Überweisungen auszuführen", document)
+
+
+class SelfPaymentPaperIsUntouchedTestCase(TestCase):
+    """Heidelberg's Beleg is the one it always was.
+
+    The document goes to the office as a *record* there: the transfers were
+    made from the review screen, by the person who was looking at the accounts
+    and the QR codes. Printing payment orders on it would be an instruction to
+    make transfers that have already been made.
+    """
+
+    def setUp(self):
+        self.anna_user, self.anna = a_user("anna", permitted=True)
+        self.anna.iban = "DE89370400440532013000"
+        self.anna.save()
+        self.ledger = Ledger.objects.create(name="Konto")
+        import_from_directory(reference_directory())
+        self.statement = Statement.objects.create(short_description="Auszahlung")
+        Transaction.objects.create(
+            statement=self.statement,
+            member=self.anna,
+            amount=Decimal("24.00"),
+            reference="Fahrtkosten",
+            ledger=self.ledger,
+        )
+
+    def test_the_paper_carries_no_payment_orders(self):
+        context = self.statement.template_context()
+        self.assertFalse(context["handoff"])
+        self.assertEqual(context["orders"], [])
+        document = render_to_string(
+            "finance/statement_summary.tex",
+            {"statement": context, "excursion": None},
+        )
+        self.assertNotIn("Überweisungsaufträge", document)
+        self.assertNotIn("DE89370400440532013000", document)
 
 
 # --- the endpoint ----------------------------------------------------------
