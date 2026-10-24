@@ -384,22 +384,49 @@ def reduce_transactions(request, statement_id: int):
 
 @router.post("/statements/{statement_id}/confirm", response=StatementOut)
 def confirm_statement(request, statement_id: int, send: bool = False):
-    """Confirm (pay out) a submitted statement, optionally mailing the summary."""
+    """Release a submitted statement: pay it out, or hand it over to the office."""
+    # Which of the two it is comes from the section's rules
+    # (`kompass.rules.Ruleset.payout`). Where the reviewer makes the transfers
+    # it is a payout, and `send` says whether the summary goes to the office as
+    # well. Where the **office** makes them it is a handoff, the mail *is* the
+    # handoff, and `Statement._pay_out` sends it itself — so `send` is not
+    # consulted in that mode and cannot be used to hand a statement over
+    # without handing anything over.
+    #
+    # The docstring stays one line, like `override_statement_approval`'s: it is
+    # the operation's `description` in `frontend/openapi.json` and in the
+    # generated `schema.d.ts`, both pinned byte for byte, and the Sphinx roles
+    # above are not something a client reads.
     statement = get_object_or_404(Statement, pk=statement_id)
     authorize(request, "finance.process_statementsubmitted")
+    handoff = statement.payout_handoff
     if not statement.confirm(get_member(request), user=request.user):
         # Confirming is a signature, and a signature short of the quorum is
         # *recorded* rather than refused — `approve` returns False having taken
         # it. "Not ready to be confirmed" is then the wrong half of the truth:
         # it reads as "nothing happened" over something that did. Which of the
-        # two refusals it was is a question the statement can answer, so say
-        # it; the clients that render the whole record say more (`/approval`).
+        # refusals it was is a question the statement can answer, so say it;
+        # the clients that render the whole record say more (`/approval`).
         if statement.submitted and not statement.fully_approved:
             raise ValidationError(
-                _("The statement is still waiting for approvals and cannot be paid out yet.")
+                _("The statement is still handed in for approvals and cannot be handed over yet.")
+                if handoff
+                else _("The statement is still waiting for approvals and cannot be paid out yet.")
+            )
+        if handoff and statement.submitted and not statement.confirmed and statement.is_valid():
+            # Everything else is in: the signatures, the bookings, the rules.
+            # In handoff mode the one remaining way to get here is the mail,
+            # and the statement was deliberately left where it was rather than
+            # marked as handed over to somebody who never received it. Saying
+            # so is the difference between a retry and a mystery.
+            raise ValidationError(
+                _(
+                    "The summary could not be sent to the office, so the statement "
+                    "was not handed over. Nothing was changed — try again."
+                )
             )
         raise ValidationError(_("Statement is not ready to be confirmed."))
-    if send:
+    if send and not handoff:
         member = get_member(request)
         statement.send_summary(cc=[member.email] if member else [])
     return statement

@@ -108,6 +108,10 @@ class RuleSetAdmin(ExtraButtonsMixin, admin.ModelAdmin):
         "hash",
         "state",
         "context_version",
+        # Who makes the transfers under this version. Part of what the row
+        # *says* rather than part of its lifecycle, so it belongs on the page
+        # that answers "under which rules was this settled".
+        "payout",
         "revision",
         "engine_version",
         "valid_from",

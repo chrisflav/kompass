@@ -4899,7 +4899,7 @@
             }
           }
         },
-        "description": "Confirm (pay out) a submitted statement, optionally mailing the summary.",
+        "description": "Release a submitted statement: pay it out, or hand it over to the office.",
         "tags": [
           "finance"
         ],
@@ -17018,6 +17018,10 @@
             "title": "Validity Display",
             "type": "string"
           },
+          "payout_mode": {
+            "title": "Payout Mode",
+            "type": "string"
+          },
           "transaction_issues": {
             "default": [],
             "items": {
@@ -17265,6 +17269,7 @@
           "is_valid",
           "validity",
           "validity_display",
+          "payout_mode",
           "night_cost",
           "total",
           "total_bills",

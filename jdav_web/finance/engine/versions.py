@@ -40,7 +40,9 @@ from typing import Any
 from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
+from finance.rules_api import PAYOUT_MODES
 from finance.rules_api import Ruleset
+from finance.rules_api import SELF_PAYMENT
 from finance.store import RuleSet
 
 from .cases import run_cases
@@ -239,13 +241,51 @@ def declared_valid_from(ruleset: Ruleset) -> datetime:
     return parsed
 
 
+def declared_payout(ruleset: Ruleset) -> str:
+    """Who makes the transfers under ``ruleset`` — its own declaration.
+
+    One of :data:`kompass.rules.PAYOUT_MODES`. A ruleset that declares nothing
+    pays from the review screen, which is what Kompass has always done.
+
+    A mode this does not know comes back as the default **and** is reported by
+    :func:`payout_problems`, so the version is stored as a draft and never
+    applies. The two halves are deliberate: falling back silently would put
+    one of two false sentences in front of whoever releases a payout — either
+    "ausgezahlt" in a section whose office pays, or an instruction to make
+    transfers that somebody else makes — and there is no third wording to
+    retreat to. The fallback exists only so that the *draft row* has something
+    storable in a column with choices.
+    """
+    declared = getattr(ruleset, "payout", SELF_PAYMENT)
+    return str(declared) if declared in PAYOUT_MODES else SELF_PAYMENT
+
+
+def payout_problems(ruleset: Ruleset) -> list[str]:
+    """One message when a ruleset declares a payout mode Kompass cannot read.
+
+    A reason not to activate the version, exactly like a parameter that is not
+    a number (:func:`parameter_problems`): the mode decides what the last step
+    of a review *says it did*, and a version Kompass cannot read that off is a
+    version that must not decide it.
+    """
+    declared = getattr(ruleset, "payout", SELF_PAYMENT)
+    if declared in PAYOUT_MODES:
+        return []
+    return [
+        f"the ruleset declares payout={declared!r}, which is not one of "
+        f"{', '.join(repr(mode) for mode in PAYOUT_MODES)} — the version cannot be "
+        "activated with it"
+    ]
+
+
 @dataclass(frozen=True)
 class DeclaredFields:
-    """The three row fields that come from the ruleset *object* itself."""
+    """The four row fields that come from the ruleset *object* itself."""
 
     name: str
     context_version: int
     valid_from: datetime
+    payout: str
 
 
 def declared_fields(loaded: Ruleset | None, directory: Path, *, name: str = "") -> DeclaredFields:
@@ -262,19 +302,23 @@ def declared_fields(loaded: Ruleset | None, directory: Path, *, name: str = "") 
     the ``name or ...`` it replaced did: an explicit name is the importer's,
     not the ruleset's.
 
-    The fourth such attribute, ``permissions``, is read by
+    The fifth such attribute, ``permissions``, is read by
     :func:`check_directory` rather than here: it is not a field of the row,
     and reading it is the same refusal for the same reason (#554).
     """
     if loaded is None:
         return DeclaredFields(
-            name=name or directory.name, context_version=0, valid_from=timezone.now()
+            name=name or directory.name,
+            context_version=0,
+            valid_from=timezone.now(),
+            payout=SELF_PAYMENT,
         )
     with no_queries():
         return DeclaredFields(
             name=name or loaded.name,
             context_version=loaded.context_version,
             valid_from=declared_valid_from(loaded),
+            payout=declared_payout(loaded),
         )
 
 
@@ -320,8 +364,22 @@ def check_directory(directory: Path) -> tuple[Ruleset | None, list[str]]:
             tuple(loaded.permissions)
     except Exception as broken:
         return loaded, [f"the ruleset's permissions could not be read: {broken}"]
+    try:
+        # `payout` is the fifth, and the same refusal for the same reason as
+        # `permissions`: it is read like data and it is a section's own Python.
+        # Read *here* rather than beside the row's other declared fields,
+        # because a mode Kompass cannot read has to be a problem with a
+        # sentence -- `manage.py checkruleset` prints it, the import stores a
+        # draft, and the previous version goes on applying.
+        with no_queries():
+            mode = payout_problems(loaded)
+    except Exception as broken:
+        return loaded, [f"the ruleset's payout mode could not be read: {broken}"]
     failed = failed_cases(loaded, directory)
-    problems = [f"case “{case}”: {'; '.join(messages)}" for case, messages in failed.items()]
+    problems = [
+        *mode,
+        *(f"case “{case}”: {'; '.join(messages)}" for case, messages in failed.items()),
+    ]
     return loaded, problems
 
 
@@ -368,6 +426,7 @@ def import_from_directory(
         engine_version=engine_version(),
         context_version=declared.context_version,
         params=params,
+        payout=declared.payout,
         state=RuleSet.DRAFT,
         problems=problems,
         valid_from=declared.valid_from,

@@ -14,5 +14,6 @@ from .engine import *
 from .migrations import *
 from .models import *
 from .parity import *
+from .payout import *
 from .rules import *
 from .store import *

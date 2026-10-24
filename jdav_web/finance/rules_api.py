@@ -97,6 +97,44 @@ CENT: Final = Decimal("0.01")
 #: silently merge two amounts a section wrote it to keep apart.
 SETTLEMENT_GROUP_LENGTH: Final = 50
 
+PayoutMode = Literal["self", "office"]
+"""Who actually moves the money once a statement is released.
+
+Two arrangements exist among JDAV sections, and the terminal act of a payout
+means something different under each — which is why this is a declaration and
+not wording somebody can soften.
+
+``"self"``
+    The person reviewing the statement makes the bank transfers. Kompass shows
+    them the accounts and the EPC-QR codes, asks them to confirm that the
+    transfers were made, and the end state means **ausgezahlt**. This is what
+    Kompass has always done and what :data:`SELF_PAYMENT` is the default for.
+``"office"``
+    The section's Geschäftsstelle makes the transfers, after the release. All
+    Kompass observes is the handoff: the summary with its payment orders goes
+    to the office, and the end state means **zur Auszahlung übergeben** —
+    nothing in Kompass knows whether the money has moved yet.
+
+There is no wording true in both. "Ausgezahlt" is false in a section whose
+office pays, and "zur Auszahlung übergeben" is false in one whose treasurer
+pays, so the last step of the review genuinely branches on this.
+"""
+
+#: :attr:`Ruleset.payout`: the reviewer makes the transfers. The default.
+SELF_PAYMENT: Final[PayoutMode] = "self"
+
+#: :attr:`Ruleset.payout`: the Geschäftsstelle makes them after the handoff.
+OFFICE_PAYMENT: Final[PayoutMode] = "office"
+
+#: Every value :attr:`Ruleset.payout` may take.
+#:
+#: A fixed vocabulary, like :data:`OPTION_SOURCES` and for the same reason: a
+#: spelling Kompass does not know would have to fall back to one of the two
+#: readings, and both of them are a sentence on somebody's screen that is
+#: false. So an unknown mode keeps the version out of force instead
+#: (:func:`finance.engine.versions.payout_problems`).
+PAYOUT_MODES: Final = (SELF_PAYMENT, OFFICE_PAYMENT)
+
 MemberId = NewType("MemberId", int)
 """A member's primary key.
 
@@ -1170,6 +1208,31 @@ class Ruleset(ABC):
     #: out negative the engine runs the transfer the other way round, so the
     #: direction declared here is the one that is usual for the section.
     balance: tuple[Party, Party, str] = (PARTICIPANTS, SECTION, "balance")
+    #: Who makes the bank transfers once the statement is released — one of
+    #: :data:`PAYOUT_MODES`, and see :data:`PayoutMode` for what each means.
+    #:
+    #: It belongs here, beside :attr:`balance` and :attr:`valid_from`, because
+    #: it is one of the things a section *asserts about its own finances*: who
+    #: pays is as much a part of its procedure as which rates apply and who
+    #: signs. Three consequences follow from it living in the ruleset rather
+    #: than in ``settings.toml``:
+    #:
+    #: * It is **hashed into the version**, with the rest of the sources. A
+    #:   section that changes how it pays gets a new version, with its own
+    #:   ``valid_from`` and its own row, so the change is on the record instead
+    #:   of being a line somebody edited in a config file one afternoon.
+    #: * A statement is **bound** to it, like everything else about a version:
+    #:   a statement released today under rules that say the office pays reads
+    #:   as handed over for ever, and a later change of arrangement cannot
+    #:   rewrite what its terminal act meant.
+    #: * It could not have been a parameter even if that were desirable:
+    #:   ``ctx.params`` is a fixed seven-key list of *numbers*
+    #:   (``PARAMETER_KEYS``), and nothing in it would carry a mode without
+    #:   engine work.
+    #:
+    #: The default is :data:`SELF_PAYMENT` — what Kompass has always done — so
+    #: a ruleset that says nothing goes on behaving exactly as it did.
+    payout: PayoutMode = SELF_PAYMENT
 
     @abstractmethod
     def inputs(self, ctx: RuleContext) -> list[Input]:
@@ -1288,9 +1351,12 @@ __all__ = [
     "CENT",
     "CONTEXT_VERSION",
     "LJP",
+    "OFFICE_PAYMENT",
     "OPTION_SOURCES",
     "PARTICIPANTS",
+    "PAYOUT_MODES",
     "SECTION",
+    "SELF_PAYMENT",
     "SETTLEMENT_GROUP_LENGTH",
     "SOURCE_ROOTS",
     "Bill",
@@ -1310,6 +1376,7 @@ __all__ = [
     "Participant",
     "Participants",
     "Party",
+    "PayoutMode",
     "Roles",
     "Row",
     "RuleContext",

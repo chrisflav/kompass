@@ -23,6 +23,7 @@ import {
   euro,
 } from "../../components/ui";
 import { ApprovalRecord, outstandingText } from "./approval";
+import { payoutWords } from "./payout";
 import type { components } from "../../api/schema";
 
 type StatementBrief = components["schemas"]["StatementBrief"];
@@ -187,12 +188,16 @@ function StatementDetailBody({ statement, crumbs }: { statement: StatementOut; c
     ["LJP-Beitrag an", memberName(statement.ljp_to)],
   ];
 
+  // `confirmed_by` / `confirmed_date` are who released the statement and when.
+  // What releasing *was* depends on the section's rules, so the two rows are
+  // named after the act rather than after the column.
+  const words = payoutWords(statement);
   const adminRows: [string, ReactNode][] = [
     ["Angelegt von", memberName(statement.created_by)],
     ["Eingereicht von", memberName(statement.submitted_by)],
     ["Eingereicht am", formatDate(statement.submitted_date)],
-    ["Bezahlt von", memberName(statement.confirmed_by)],
-    ["Bezahlt am", formatDate(statement.confirmed_date)],
+    [words.releasedBy, memberName(statement.confirmed_by)],
+    [words.releasedOn, formatDate(statement.confirmed_date)],
   ];
 
   return (
@@ -448,12 +453,15 @@ function StatementActions({ statement }: { statement: StatementOut }) {
           Weiter bearbeiten
         </Button>
       )}
+      {/* The door says what is behind it, and that depends on who makes the
+          transfers: the reviewer, or the Geschäftsstelle after a handoff. One
+          label for both would promise one of the two a thing it does not do. */}
       {processable && can("finance.process_statementsubmitted") && (
         <Button
           type="button"
           onClick={() => navigate(`/kompass/finance/statements/${statement.id}/review`)}
         >
-          Prüfen & auszahlen
+          {payoutWords(statement).door}
         </Button>
       )}
       {workflowButtons.length >= 2 ? (

@@ -203,6 +203,15 @@ page has the rest:
   `settlement_group="…"`, a token of your own choosing, and it is bundled only
   with transfers naming the same one. A ruleset that names no groups bundles
   exactly as every ruleset did before this existed.
+- **Who makes the transfers is a declaration, and it has two readings.** With
+  the default, `payout = SELF_PAYMENT`, the person reviewing a statement makes
+  the bank transfers from the review screen and the statement ends up
+  *ausgezahlt*. With `payout = OFFICE_PAYMENT` the section's Geschäftsstelle
+  makes them, the review ends in a handoff, the statement ends up *zur
+  Auszahlung übergeben*, and the summary it mails carries one payment order per
+  booking — because in that arrangement the paper is the only thing the person
+  making the transfers ever sees. No wording is true in both, so say which one
+  your section is even though one of them is the default.
 - **The import whitelist is a lint, not a sandbox.** Whoever can write this
   repository already holds the instance's database password, so executing
   Python from here grants no new privilege. What the whitelist catches is the

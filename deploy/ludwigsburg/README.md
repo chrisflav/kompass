@@ -211,7 +211,41 @@ line, instead of the one amount under
 `"Fahrtkosten EUR 24.00, Tourenleitervergütung EUR 15.00"` that the bundling
 used to produce. **Kompass stops at that handoff in Ludwigsburg**: the transfer
 itself is made by the Geschäftsstelle out of the statement it receives, so the
-instruction being right on paper is the whole of what this feature can do.
+instruction being right on paper is the whole of what this feature can do — and
+the paper now carries it, which is the next section.
+
+## The Geschäftsstelle makes the transfers, and the ruleset says so
+
+```python
+payout = OFFICE_PAYMENT
+```
+
+Q1 §4 routes the signatures; the money leaves the section's account afterwards,
+through the Geschäftsstelle, from the Beleg it receives. So the last step of a
+review here is **not** a payout — nobody on that screen transfers anything —
+and Kompass no longer says it is. What it records is the handoff:
+
+- The leg is headed **„Übergabe an die Geschäftsstelle“** and offers one button,
+  **„Zur Auszahlung übergeben“**. There is no „nur bestätigen“: releasing
+  without sending the Beleg would be a status claiming a handoff with nothing
+  handed over.
+- **Nothing is acknowledged.** The other arrangement asks the reviewer to tick
+  „Ich habe die aufgeführten Überweisungen ausgeführt“; here there is nobody who
+  could truthfully tick it, so the question is not asked. No QR codes are drawn
+  either, for the same reason.
+- A released statement reads **„zur Auszahlung übergeben“** and never
+  „ausgezahlt“. Whether the money has moved is not something this instance can
+  know.
+- **The status moves only once the Beleg has actually gone.** A mail the server
+  refuses leaves the statement where it was, with its signatures intact, and the
+  button retries the handoff.
+
+And the Beleg carries what the Geschäftsstelle has to act on, which it did not
+before: one **Überweisungsauftrag** per booking, with the recipient, the IBAN,
+the reference and the amount — plus the note *getrennt zu überweisen* with the
+Abrechnungsgruppe beside it, on exactly the rows that may not be combined. Until
+now that instruction existed only on the review screen and in the admin, which
+is to say nowhere the person making the transfers could see it.
 
 Pinned by `cases/29_verguetung_wird_getrennt_ueberwiesen.json`, which settles a
 Vergütung, a Fahrt and a Beleg to the **same person** and states the group of

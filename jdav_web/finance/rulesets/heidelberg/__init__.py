@@ -52,6 +52,7 @@ from kompass.rules import PARTICIPANTS
 from kompass.rules import RuleContext
 from kompass.rules import Ruleset
 from kompass.rules import SECTION
+from kompass.rules import SELF_PAYMENT
 from kompass.rules import Transfer
 
 #: The age from which a participant pays the organisation fee.
@@ -90,6 +91,14 @@ class HeidelbergRules(Ruleset):
     #: Whatever the section pays out net, the participants' contributions
     #: cover. One transfer, built by the engine.
     balance = (PARTICIPANTS, SECTION, "participant_contribution")
+    #: The finance department makes the transfers itself, off the review
+    #: screen, and the statement is *ausgezahlt* when it is released.
+    #:
+    #: Stated although it is the default, because the default is a decision
+    #: about who moves money and the point of the declaration is that a
+    #: section says which arrangement it has. A reader of these rules should
+    #: not have to know what Kompass falls back to.
+    payout = SELF_PAYMENT
 
     def inputs(self, ctx: RuleContext) -> list[Input]:
         """The four answers these rules need beyond the statement itself."""

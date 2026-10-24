@@ -173,6 +173,17 @@ class StatementOut(ModelSchema):
     is_valid: bool
     validity: int
     validity_display: str
+    # Who makes the bank transfers once this statement is released —
+    # ``"self"``, the person reviewing it, or ``"office"``, the section's
+    # Geschäftsstelle after a handoff. It is the declaration of the ruleset
+    # this statement is *bound* to, so it is a fact about the statement and
+    # not about the instance, and a client has to read it per statement.
+    #
+    # There is no wording true under both: a release means *ausgezahlt* in one
+    # and *zur Auszahlung übergeben* in the other. A client that showed one
+    # sentence for both would be telling half its users something that did not
+    # happen, which is why this is in the payload at all.
+    payout_mode: str
     transaction_issues: list[TransactionIssueOut] = []
     excursion: ExcursionBrief | None = None
     created_by: MemberBrief | None = None
