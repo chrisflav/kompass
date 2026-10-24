@@ -116,9 +116,17 @@ describe("mailer — E-Mail-Adressen", () => {
     const dialog = within(await screen.findByRole("dialog"));
     await user.type(dialog.getByLabelText(/^Name/), "vorstand");
     await user.click(dialog.getByLabelText(/Nur interne Absender/));
-    await user.click(dialog.getByRole("button", { name: /Weiterleiten an Gruppen/ }));
+    await user.click(
+      within(dialog.getByRole("group", { name: /Weiterleiten an Gruppen/ })).getByRole("button", {
+        name: /^\+ /,
+      }),
+    );
     await user.click(dropdown().getByRole("button", { name: "Klettergruppe" }));
-    await user.click(dialog.getByRole("button", { name: "Weiterleiten an Teilnehmende" }));
+    await user.click(
+      within(dialog.getByRole("group", { name: "Weiterleiten an Teilnehmende" })).getByRole("button", {
+        name: /^\+ /,
+      }),
+    );
     await user.click(dropdown().getByRole("button", { name: "Tobias Werner" }));
     await user.click(dialog.getByRole("button", { name: "Anlegen" }));
 

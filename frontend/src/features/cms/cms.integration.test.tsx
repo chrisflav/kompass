@@ -938,7 +938,11 @@ describe("cms — Beiträge", () => {
     await user.click(dialog.getByRole("button", { name: "Bereich" }));
     await user.click(dropdown().getByRole("button", { name: "Ausbildung" }));
 
-    await user.click(dialog.getByRole("button", { name: "Gruppen" }));
+    await user.click(
+      within(dialog.getByRole("group", { name: "Gruppen" })).getByRole("button", {
+        name: /^\+ /,
+      }),
+    );
     await user.click(dropdown().getByRole("button", { name: "Klettergruppe" }));
 
     await user.click(dialog.getByRole("button", { name: "Anlegen" }));
@@ -1349,7 +1353,11 @@ describe("cms — Beiträge", () => {
     const dialog = within(await screen.findByRole("dialog"));
     expect(dialog.getByRole("button", { name: "Hinzufügen" })).toBeDisabled();
 
-    await user.click(dialog.getByRole("button", { name: "Teilnehmende" }));
+    await user.click(
+      within(dialog.getByRole("group", { name: "Teilnehmende" })).getByRole("button", {
+        name: /^\+ /,
+      }),
+    );
     await user.click(dropdown().getByRole("button", { name: "Hannah Beckers" }));
     await user.type(dialog.getByLabelText("Beschreibung"), "Hat geleitet.");
     await user.type(dialog.getByLabelText(/^Tag/), "Jugendleitung");

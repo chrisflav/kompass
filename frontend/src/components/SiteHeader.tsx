@@ -378,6 +378,9 @@ function ThemeOptions() {
 
 /* --- header --------------------------------------------------------------- */
 
+/** Set on <html> while the mobile drawer is open; locks the page's scrolling. */
+const DRAWER_OPEN_CLASS = "nav-drawer-open";
+
 export function SiteHeader({ variant }: { variant: "public" | "app" }) {
   const { token } = useAuth();
   const me = useMe();
@@ -390,6 +393,24 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => setDrawer(false), [pathname]);
+
+  // While the drawer is open the page behind it must not scroll: otherwise a
+  // swipe on a phone moves the page first and the drawer only after it. The
+  // class is released on close and on unmount; the stylesheet applies the lock
+  // only where the drawer is actually shown. Escape closes the drawer.
+  useEffect(() => {
+    if (!drawer) return;
+    const root = document.documentElement;
+    root.classList.add(DRAWER_OPEN_CLASS);
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setDrawer(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => {
+      root.classList.remove(DRAWER_OPEN_CLASS);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [drawer]);
 
   const name = me.data?.name ?? "Konto";
   const memberId = me.data?.member_id ?? null;

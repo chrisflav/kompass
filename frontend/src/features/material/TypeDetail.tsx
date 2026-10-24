@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { Fragment, useId, useState } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -382,16 +382,16 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
         breadcrumbs={[{ label: "Material", to: BASE }, { label: type.name }]}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" form={formId} busy={save.isPending}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -461,7 +461,7 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
                   In den Korb
                 </Button>
               )}
-            </>
+            </Fragment>
           )
         }
       />
@@ -494,12 +494,17 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
   );
 }
 
-/** Add pieces of a type: one with its IDs, or several identical ones. */
+/**
+ * Add pieces of a type: one with its IDs, or several identical ones. With
+ * ``parent``, the new pieces are built into it.
+ */
 export function AddPartsModal({
   type,
+  parent,
   onClose,
 }: {
   type: Pick<ProductTypeOut, "id" | "name" | "is_psa">;
+  parent?: Pick<PartBrief, "id" | "label" | "product_type">;
   onClose: () => void;
 }) {
   const toast = useToast();
@@ -529,6 +534,7 @@ export function AddPartsModal({
             manufactured_on: form.manufactured_on || null,
             buy_date: form.buy_date || null,
             note: "",
+            parent: parent?.id ?? null,
           },
         }),
       ),
@@ -555,7 +561,14 @@ export function AddPartsModal({
     </Field>
   );
   return (
-    <Modal title={`${type.name}: Teile hinzufügen`} onClose={onClose}>
+    <Modal
+      title={
+        parent
+          ? `${type.name} in ${parent.product_type.name} ${parent.label} einbauen`
+          : `${type.name}: Teile hinzufügen`
+      }
+      onClose={onClose}
+    >
       <form
         className="stack"
         onSubmit={(e) => {

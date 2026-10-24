@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
@@ -288,16 +288,16 @@ function EmailAddressDetailBody({
         breadcrumbs={crumbs}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" busy={mutation.isPending}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -321,7 +321,7 @@ function EmailAddressDetailBody({
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
-            </>
+            </Fragment>
           )
         }
       />
@@ -416,6 +416,7 @@ function EmailAddressForm({
         />
       </Field>
       <Field
+        group
         label="Weiterleiten an Gruppen"
         hint="Gruppe oder mindestens eine teilnehmende Person ist erforderlich."
       >
@@ -429,7 +430,7 @@ function EmailAddressForm({
           <div className="field-error">{fieldErrors.to_groups.join(" ")}</div>
         )}
       </Field>
-      <Field label="Weiterleiten an Teilnehmende">
+      <Field group label="Weiterleiten an Teilnehmende">
         <MultiSelect
           options={memberOptions}
           selected={form.to_members}
@@ -440,7 +441,7 @@ function EmailAddressForm({
           <div className="field-error">{fieldErrors.to_members.join(" ")}</div>
         )}
       </Field>
-      <Field label="Erlaubte Absender-Gruppen">
+      <Field group label="Erlaubte Absender-Gruppen">
         <MultiSelect
           options={groupOptions}
           selected={form.allowed_senders}

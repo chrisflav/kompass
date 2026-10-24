@@ -157,8 +157,14 @@ export function Stock() {
   );
 }
 
-/** Pick a type (or create one), then add its pieces. */
-function NewPartsModal({ onClose }: { onClose: () => void }) {
+/** Pick a type (or create one), then add its pieces, built into ``parent`` if given. */
+export function NewPartsModal({
+  parent,
+  onClose,
+}: {
+  parent?: Pick<PartBrief, "id" | "label" | "product_type">;
+  onClose: () => void;
+}) {
   const toast = useToast();
   const types = useApiQuery(["material", "types", "all"], () =>
     unwrap(client.GET("/api/material/types")),
@@ -186,7 +192,7 @@ function NewPartsModal({ onClose }: { onClose: () => void }) {
     },
   );
   const chosen = (types.data ?? []).find((t) => String(t.id) === typeId);
-  if (chosen) return <AddPartsModal type={chosen} onClose={onClose} />;
+  if (chosen) return <AddPartsModal type={chosen} parent={parent} onClose={onClose} />;
   return (
     <Modal title="Teile anlegen" onClose={onClose}>
       <QueryBoundary query={types}>

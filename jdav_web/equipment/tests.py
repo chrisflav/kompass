@@ -425,8 +425,26 @@ class LendingTestCase(MaterialFixture, TestCase):
         services.lend(self.alice, [self.slings[2]], self.alice, due=days(1))
         with self.assertRaises(ValidationError):
             services.assemble(self.slings[2], self.slings[0], self.alice)
+        with self.assertRaises(ValidationError) as context:
+            services.assemble(self.slings[0], self.slings[2], self.alice)
+        self.assertIn("out on loan", context.exception.messages[0])
+        self.slings[3].status = Part.RETIRED
+        self.slings[3].save()
+        with self.assertRaises(ValidationError) as context:
+            services.assemble(self.slings[0], self.slings[3], self.alice)
+        self.assertIn("retired", context.exception.messages[0])
         services.assemble(self.slings[1], None, self.alice)
         self.assertIsNone(self.slings[1].parent)
+
+    def test_a_piece_of_a_lent_set_stays_in_it(self):
+        services.assemble(self.slings[1], self.slings[0], self.alice)
+        services.lend(self.alice, [self.slings[0]], self.bob, due=days(1))
+        self.slings[1].refresh_from_db()
+        for parent in (None, self.slings[3]):
+            with self.assertRaises(ValidationError):
+                services.assemble(self.slings[1], parent, self.alice)
+        self.slings[1].refresh_from_db()
+        self.assertEqual(self.slings[1].parent, self.slings[0])
 
     def test_components_are_visited_once(self):
         a, b = self.slings[:2]

@@ -7295,6 +7295,16 @@
               "title": "Status"
             },
             "required": false
+          },
+          {
+            "in": "query",
+            "name": "top_level",
+            "schema": {
+              "default": false,
+              "title": "Top Level",
+              "type": "boolean"
+            },
+            "required": false
           }
         ],
         "responses": {
