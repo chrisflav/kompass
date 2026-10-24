@@ -595,8 +595,9 @@ export interface paths {
          * Request Echo
          * @description Send an echo (address-confirmation) request to the member.
          *
-         *     Mirrors ``MemberAdmin.request_echo``: the member must receive the newsletter
-         *     and have a birth date (both mandatory for the echo mail).
+         *     Mirrors ``MemberAdmin.request_echo``: the member must have a birth date
+         *     (mandatory for the echo mail). The newsletter opt-out does not apply: the
+         *     echo is an operational mail, like an invite or a password reset.
          */
         post: operations["members_api_router_request_echo"];
         delete?: never;

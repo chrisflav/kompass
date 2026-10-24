@@ -1491,7 +1491,7 @@
             }
           }
         },
-        "description": "Send an echo (address-confirmation) request to the member.\n\nMirrors ``MemberAdmin.request_echo``: the member must receive the newsletter\nand have a birth date (both mandatory for the echo mail).",
+        "description": "Send an echo (address-confirmation) request to the member.\n\nMirrors ``MemberAdmin.request_echo``: the member must have a birth date\n(mandatory for the echo mail). The newsletter opt-out does not apply: the\necho is an operational mail, like an invite or a password reset.",
         "tags": [
           "members"
         ],
