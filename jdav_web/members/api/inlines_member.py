@@ -26,11 +26,17 @@ the parent member's object-level change permission
   rows can widen who may see/modify members — so every operation, *including
   listing*, is gated strictly on ``members.change_obj_member`` of the owning
   member (not merely ``view``), matching the sensitivity of the data it exposes.
+  That object permission alone is not enough: every member may change their own
+  record, and youth leaders may change the members they are granted. So each
+  operation additionally requires the global ``PermissionMember`` model
+  permission the admin's plain ``StackedInline`` required (``view`` or
+  ``change`` to list, ``add`` / ``change`` / ``delete`` to write).
 """
 
 import os
 
 from contrib.api.perms import authorize
+from contrib.api.perms import authorize_any
 from contrib.api.perms import get_authorized
 from contrib.api.perms import partial_clean
 from django.core.exceptions import ValidationError
@@ -345,7 +351,9 @@ def clear_registration_form(request, member_id: int):
 # --- permission (ACL) rows ------------------------------------------------
 #
 # SENSITIVE: these grant object permissions. Every operation is gated on the
-# owning member's ``change_obj_member`` (escalation guard). The item route uses
+# owning member's ``change_obj_member`` and on the global ``PermissionMember``
+# model permission for the operation (escalation guard: a member may change
+# their own record, but must not grant themselves rights). The item route uses
 # ``/permission-members/{id}`` so it does not shadow the collection routes.
 
 
@@ -358,18 +366,20 @@ def _apply_permission_m2m(permission, data):
 
 @router.get("/{member_id}/permission-members", response=list[MemberPermissionOut])
 def list_permission_members(request, member_id: int):
-    """List a member's ACL row(s) (SENSITIVE → gated on parent ``change``)."""
+    """List a member's ACL row(s) (SENSITIVE → parent ``change`` + model permission)."""
+    authorize_any(request, "members.view_permissionmember", "members.change_permissionmember")
     member = get_authorized(request, Member, member_id, "members.change_obj_member")
     return PermissionMember.objects.filter(member=member).order_by("pk")
 
 
 @router.post("/{member_id}/permission-members", response={201: MemberPermissionOut})
 def create_permission_member(request, member_id: int, payload: MemberPermissionIn):
-    """Create a member's ACL row (SENSITIVE → gated on parent ``change``).
+    """Create a member's ACL row (SENSITIVE → parent ``change`` + model permission).
 
     ``PermissionMember`` is a ``OneToOneField`` to the member, so ``full_clean``
     rejects a second row for the same member (→ 422).
     """
+    authorize(request, "members.add_permissionmember")
     member = get_authorized(request, Member, member_id, "members.change_obj_member")
     permission = PermissionMember(member=member)
     permission.full_clean()
@@ -380,7 +390,8 @@ def create_permission_member(request, member_id: int, payload: MemberPermissionI
 
 @router.patch("/permission-members/{permission_id}", response=MemberPermissionOut)
 def update_permission_member(request, permission_id: int, payload: MemberPermissionIn):
-    """Edit a member's ACL row (SENSITIVE → gated on parent ``change``)."""
+    """Edit a member's ACL row (SENSITIVE → parent ``change`` + model permission)."""
+    authorize(request, "members.change_permissionmember")
     permission = get_object_or_404(PermissionMember, pk=permission_id)
     authorize(request, "members.change_obj_member", permission.member)
     _apply_permission_m2m(permission, payload.dict(exclude_unset=True))
@@ -389,7 +400,8 @@ def update_permission_member(request, permission_id: int, payload: MemberPermiss
 
 @router.delete("/permission-members/{permission_id}", response={204: None})
 def delete_permission_member(request, permission_id: int):
-    """Delete a member's ACL row (SENSITIVE → gated on parent ``change``)."""
+    """Delete a member's ACL row (SENSITIVE → parent ``change`` + model permission)."""
+    authorize(request, "members.delete_permissionmember")
     permission = get_object_or_404(PermissionMember, pk=permission_id)
     authorize(request, "members.change_obj_member", permission.member)
     permission.delete()

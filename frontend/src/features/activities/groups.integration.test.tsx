@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   api,
+  DEFAULT_ME,
   djangoValidation,
   http,
   HttpResponse,
@@ -663,6 +664,61 @@ describe("group detail — Gruppenberechtigungen", () => {
     await user.click(screen.getByRole("tab", { name: "Gruppenberechtigungen" }));
     await screen.findByRole("button", { name: "Entfernen" });
     expect(screen.queryByRole("button", { name: "+ Berechtigungen" })).not.toBeInTheDocument();
+  });
+
+  // The ACL grants rights over members, so like the admin it needs the
+  // PermissionGroup model permissions on top of changing the group.
+  it("is hidden from an account without the PermissionGroup permissions", async () => {
+    useMe({
+      permissions: DEFAULT_ME.permissions.filter((p) => !p.endsWith("_permissiongroup")),
+    });
+    const requested: string[] = [];
+    const record = ({ request }: { request: Request }) => {
+      requested.push(new URL(request.url).pathname);
+    };
+    server.events.on("request:start", record);
+    try {
+      fullDetailReturns();
+      renderRoute("/kompass/groups/7");
+      await screen.findByRole("tab", { name: "Registrierungspasswörter" });
+      expect(screen.queryByRole("tab", { name: "Gruppenberechtigungen" })).not.toBeInTheDocument();
+      expect(requested).not.toContain("/api/members/groups/7/permission-groups");
+    } finally {
+      server.events.removeListener("request:start", record);
+    }
+  });
+
+  it("is read-only to an account that may only view it", async () => {
+    useMe({
+      permissions: [
+        ...DEFAULT_ME.permissions.filter((p) => !p.endsWith("_permissiongroup")),
+        "members.view_permissiongroup",
+      ],
+    });
+    fullDetailReturns({}, [
+      http.get(api("/api/members/groups/7/permission-groups"), () =>
+        HttpResponse.json([
+          {
+            id: 15,
+            list_member_ids: [42],
+            view_member_ids: [],
+            change_member_ids: [],
+            delete_member_ids: [],
+            list_group_ids: [],
+            view_group_ids: [],
+            change_group_ids: [],
+            delete_group_ids: [],
+          },
+        ]),
+      ),
+    ]);
+    const { user } = renderRoute("/kompass/groups/7");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    await user.click(screen.getByRole("tab", { name: "Gruppenberechtigungen" }));
+    const panel = within(document.querySelector(".tab-panel:not([hidden])") as HTMLElement);
+    expect(await panel.findByText("Anna Ärmel")).toBeInTheDocument();
+    expect(panel.queryByRole("button", { name: "Entfernen" })).not.toBeInTheDocument();
+    expect(panel.queryByRole("combobox")).not.toBeInTheDocument();
   });
 });
 
