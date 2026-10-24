@@ -98,7 +98,7 @@ export function UsersList() {
             onSort={view.toggleSort}
             columns={[
               { header: "Benutzername", cell: (u) => u.username, sortKey: "username" },
-              { header: "Teilnehmer*in", cell: (u) => u.member_name || "—", sortKey: "member" },
+              { header: "Teilnehmenden-Profil", cell: (u) => u.member_name || "—", sortKey: "member" },
               { header: "Rechtegruppen", cell: (u) => u.groups.join(", ") || "—" },
               { header: "Aktiv", cell: (u) => yesNo(u.is_active) },
               { header: "Kompass-Zugang", cell: (u) => yesNo(u.is_staff) },
@@ -290,7 +290,7 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
       ),
     },
     {
-      label: "Teilnehmer*in",
+      label: "Teilnehmenden-Profil",
       value: user.member_id ? (
         <Link to={`/kompass/members/${user.member_id}`}>{user.member_name}</Link>
       ) : (

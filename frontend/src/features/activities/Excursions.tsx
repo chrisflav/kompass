@@ -1151,7 +1151,10 @@ function FinanceOverviewModal({
             <p>Erwartete Gesamtausgaben: {euro(o.total_bills_theoretic)}</p>
 
             <h3 className="fieldset-title">Zuschüsse durch den Verein</h3>
-            <p>{o.staff_count} Leiter*innen erhalten laut Richtlinien je:</p>
+            <p>
+              {o.staff_count === 1 ? "1 Leiter*in erhält" : `${o.staff_count} Leiter*innen erhalten`}{" "}
+              laut Richtlinien je:
+            </p>
             <ul>
               <li>
                 {o.nights} Übernachtungen à {euro(o.price_per_night)} = {euro(o.nights_per_yl)}

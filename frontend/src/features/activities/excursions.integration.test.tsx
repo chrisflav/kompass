@@ -325,11 +325,11 @@ describe("activities — Ausfahrten list", () => {
     await user.click(dialog.getByLabelText("Aktivität"));
 
     const groups = within(dialog.getByRole("group", { name: "Gruppen" }));
-    const leaders = within(dialog.getByRole("group", { name: "Jugendleiter*innen" }));
+    const leaders = within(dialog.getByRole("group", { name: "Leiter*innen" }));
     // Clicks on the field's caption and on a picked name leave the picks alone.
     await user.click(dialog.getByText("Gruppen"));
     await user.click(groups.getByText("Klettergruppe"));
-    await user.click(dialog.getByText("Jugendleiter*innen"));
+    await user.click(dialog.getByText("Leiter*innen"));
     await user.click(leaders.getByText("Anna Ärmel"));
     expect(groups.getByRole("button", { name: "Klettergruppe entfernen" })).toBeInTheDocument();
     expect(groups.getByRole("button", { name: "Bouldergruppe entfernen" })).toBeInTheDocument();
@@ -1171,6 +1171,15 @@ describe("activities — Finanzübersicht", () => {
     expect(dialog.getAllByText("Organisationspauschale")).toHaveLength(2);
     expect(dialog.getByText(/Dokumentierte 3 Seminartage/)).toBeInTheDocument();
     expect(dialog.getByText("Zusammenfassung")).toBeInTheDocument();
+    expect(dialog.getByText("2 Leiter*innen erhalten laut Richtlinien je:")).toBeInTheDocument();
+  });
+
+  it("names a single leader in the singular", async () => {
+    overviewReturns({ staff_count: 1 });
+    const { user } = renderRoute("/kompass/excursions/3");
+    await user.click(await screen.findByRole("button", { name: "Finanzübersicht" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByText("1 Leiter*in erhält laut Richtlinien je:")).toBeInTheDocument();
   });
 
   it("shows an em dash for a bill nobody paid in the overview", async () => {

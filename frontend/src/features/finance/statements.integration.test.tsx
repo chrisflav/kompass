@@ -1323,7 +1323,7 @@ describe("review pipeline", () => {
     const twin = { ...TRANSACTION, id: 21, reference: "Verpflegung" };
     const { user } = openStage("bookings", {}, [TRANSACTION, twin]);
 
-    const merge = await screen.findByRole("button", { name: /zusammenfassen/ });
+    const merge = await screen.findByRole("button", { name: "1 Empfänger*in zusammenfassen" });
     let reduced = false;
     server.use(
       http.post(api("/api/finance/statements/1/reduce-transactions"), () => {
@@ -1333,6 +1333,19 @@ describe("review pipeline", () => {
     );
     await user.click(merge);
     await waitFor(() => expect(reduced).toBe(true));
+  });
+
+  it("counts the recipients to merge in the plural", async () => {
+    const other = { ...TRANSACTION, member: { id: 10, name: "Nils Ott" } };
+    openStage("bookings", {}, [
+      TRANSACTION,
+      { ...TRANSACTION, id: 21 },
+      { ...other, id: 22 },
+      { ...other, id: 23 },
+    ]);
+    expect(
+      await screen.findByRole("button", { name: "2 Empfänger*innen zusammenfassen" }),
+    ).toBeEnabled();
   });
 
   it("has nothing to merge for a single booking", async () => {

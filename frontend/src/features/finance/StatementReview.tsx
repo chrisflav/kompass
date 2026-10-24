@@ -700,7 +700,7 @@ function BuchungenStage({
             <Button variant="ghost" busy={busy} disabled={mergeable === 0} onClick={onReduce}>
               {mergeable === 0
                 ? "Nichts zusammenzufassen"
-                : `${mergeable} Empfänger*in zusammenfassen`}
+                : `${mergeable} ${mergeable === 1 ? "Empfänger*in" : "Empfänger*innen"} zusammenfassen`}
             </Button>
             {missingLedger > 0 && (
               <span className="stage-hint">

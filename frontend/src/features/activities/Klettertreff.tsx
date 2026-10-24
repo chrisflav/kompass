@@ -146,7 +146,7 @@ export function KlettertreffList() {
               { header: "Ort", cell: (k) => k.location || "—", sortKey: "location" },
               { header: "Thema", cell: (k) => k.topic || "—", sortKey: "topic" },
               {
-                header: "Jugendleiter*innen",
+                header: "Leiter*innen",
                 cell: (k) => (k.jugendleiter.length ? k.jugendleiter.join(", ") : "—"),
               },
             ]}
@@ -374,7 +374,7 @@ function KlettertreffDetailBody({ kt }: { kt: KlettertreffOut }) {
       ),
     },
     {
-      label: "Jugendleiter*innen",
+      label: "Leiter*innen",
       field: "jugendleiter",
       value: kt.jugendleiter.length ? kt.jugendleiter.map((j) => j.name).join(", ") : "—",
       edit: (
