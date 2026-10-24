@@ -289,10 +289,10 @@ describe("member detail — actions and permissions", () => {
   });
 });
 
-/* The "Nutzer" row mirrors the admin's per-field permission: only a holder of
+/* The "Nutzer*in" row mirrors the admin's per-field permission: only a holder of
  * members.may_set_auth_user gets the select, and the PATCH carries the link
  * only when it actually changed (the backend refuses the field otherwise). */
-describe("member detail — Nutzer (login account)", () => {
+describe("member detail — Nutzer*in (login account)", () => {
   const ACCOUNTS = [
     // 9 is this member's own account in the tests that start out linked.
     { id: 9, username: "anna.aermel", taken: true },

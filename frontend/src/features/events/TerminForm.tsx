@@ -129,7 +129,7 @@ export function TerminForm({
         <Select value={form.group} options={enums.group ?? []} onChange={(v) => set("group", v)} />
         {fieldError("group")}
       </Field>
-      <Field label="Organisator:in">
+      <Field label="Organisator*in">
         <input
           value={form.responsible}
           onChange={(e) => set("responsible", e.target.value)}

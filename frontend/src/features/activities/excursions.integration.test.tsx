@@ -280,7 +280,7 @@ describe("activities — Ausfahrten list", () => {
     await user.click(dropdown().getByRole("button", { name: "Ausbildung" }));
     await user.click(dialog.getByRole("button", { name: "Gruppen" }));
     await user.click(dropdown().getByRole("button", { name: "Klettergruppe" }));
-    await user.click(dialog.getByRole("button", { name: /Jugendleiter/ }));
+    await user.click(dialog.getByRole("button", { name: "Leiter*innen" }));
     await user.click(dropdown().getByRole("button", { name: "Anna Ärmel" }));
     await user.click(dialog.getByRole("button", { name: "Anlegen" }));
 

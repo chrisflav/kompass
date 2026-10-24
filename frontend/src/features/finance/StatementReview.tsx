@@ -399,7 +399,7 @@ function PruefenStage({
                 <span className="beleg-main">
                   <span className="beleg-title">{b.short_description}</span>
                   <span className="beleg-sub">
-                    {b.paid_by ? `ausgelegt von ${b.paid_by.name}` : "kein Zahler eingetragen"}
+                    {b.paid_by ? `ausgelegt von ${b.paid_by.name}` : "kein*e Zahler*in eingetragen"}
                     {!b.has_proof && " · ohne Bild"}
                   </span>
                 </span>

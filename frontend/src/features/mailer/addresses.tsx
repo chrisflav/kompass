@@ -262,7 +262,7 @@ function EmailAddressDetailBody({
       ),
     },
     {
-      label: "Erlaubte Absender",
+      label: "Erlaubte Absender*innen",
       field: "allowed_senders",
       value: address.allowed_senders.map((g) => g.name).join(", ") || "—",
       edit: (
@@ -408,7 +408,7 @@ function EmailAddressForm({
         />
         {fieldErrors.name && <div className="field-error">{fieldErrors.name.join(" ")}</div>}
       </Field>
-      <Field label="Nur interne Absender">
+      <Field label="Nur interne Absender*innen">
         <input
           type="checkbox"
           checked={form.internal_only}

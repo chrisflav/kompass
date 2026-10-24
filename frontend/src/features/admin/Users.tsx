@@ -78,17 +78,17 @@ export function UsersList() {
   return (
     <div>
       <PageHeader
-        breadcrumbs={[{ label: "Benutzer" }]}
+        breadcrumbs={[{ label: "Benutzer*innen" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={can("auth.add_user") && <Button onClick={() => setCreating(true)}>Neuer Benutzer</Button>}
+        actions={can("auth.add_user") && <Button onClick={() => setCreating(true)}>Neue*r Benutzer*in</Button>}
       />
       {creating && (
-        <Modal title="Neuer Benutzer" onClose={() => setCreating(false)}>
+        <Modal title="Neue*r Benutzer*in" onClose={() => setCreating(false)}>
           <UserCreateForm onDone={() => setCreating(false)} />
         </Modal>
       )}
       <ListToolbar view={view} />
-      <QueryBoundary query={query} empty="Keine Benutzer sichtbar.">
+      <QueryBoundary query={query} empty="Keine Benutzer*innen sichtbar.">
         {() => (
           <DataTable
             rows={view.rows}
@@ -98,11 +98,11 @@ export function UsersList() {
             onSort={view.toggleSort}
             columns={[
               { header: "Benutzername", cell: (u) => u.username, sortKey: "username" },
-              { header: "Teilnehmende:r", cell: (u) => u.member_name || "—", sortKey: "member" },
+              { header: "Teilnehmer*in", cell: (u) => u.member_name || "—", sortKey: "member" },
               { header: "Rechtegruppen", cell: (u) => u.groups.join(", ") || "—" },
               { header: "Aktiv", cell: (u) => yesNo(u.is_active) },
               { header: "Kompass-Zugang", cell: (u) => yesNo(u.is_staff) },
-              { header: "Administrator", cell: (u) => yesNo(u.is_superuser) },
+              { header: "Administrator*in", cell: (u) => yesNo(u.is_superuser) },
               {
                 header: "Zuletzt angemeldet",
                 cell: (u) => (u.last_login ? formatDate(u.last_login) : "—"),
@@ -134,7 +134,7 @@ function UserCreateForm({ onDone }: { onDone: () => void }) {
     {
       invalidate: [["auth", "users"]],
       onSuccess: (created: LoginUserOut) => {
-        toast.success("Benutzer angelegt.");
+        toast.success("Benutzer*in angelegt.");
         onDone();
         navigate(`/kompass/users/${created.id}`);
       },
@@ -262,7 +262,7 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
     {
       invalidate: [["auth", "users"]],
       onSuccess: () => {
-        toast.success("Benutzer gelöscht.");
+        toast.success("Benutzer*in gelöscht.");
         navigate("/kompass/users");
       },
       onError: (e: Error) => toast.error(e.message),
@@ -290,7 +290,7 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
       ),
     },
     {
-      label: "Teilnehmende:r",
+      label: "Teilnehmer*in",
       value: user.member_id ? (
         <Link to={`/kompass/members/${user.member_id}`}>{user.member_name}</Link>
       ) : (
@@ -306,11 +306,11 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
       hint: "Ohne diesen Haken kann sich die Person nicht in Kompass anmelden.",
     },
     {
-      label: "Administrator",
+      label: "Administrator*in",
       field: "is_superuser",
       value: yesNo(user.is_superuser),
       edit: checkbox("is_superuser"),
-      hint: "Administratoren haben alle Rechte, unabhängig von den Rechtegruppen.",
+      hint: "Administrator*innen haben alle Rechte, unabhängig von den Rechtegruppen.",
     },
     {
       label: "Rechtegruppen",
@@ -341,7 +341,7 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
       }}
     >
       <PageHeader
-        breadcrumbs={[{ label: "Benutzer", to: "/kompass/users" }, { label: user.username }]}
+        breadcrumbs={[{ label: "Benutzer*innen", to: "/kompass/users" }, { label: user.username }]}
         actions={
           editing ? (
             <>

@@ -335,7 +335,7 @@ function RegistrationDetailBody({ member, crumbs }: { member: MemberOut; crumbs:
     },
     { label: "DAV-Ausweisnummer", value: member.dav_badge_no || "—" },
     { label: "Echo erhalten", value: boolBadge(member.echoed) },
-    { label: "Nutzer", value: member.user_display || "—" },
+    { label: "Nutzer*in", value: member.user_display || "—" },
     { label: "Bestätigt", value: boolBadge(member.confirmed) },
     { label: "Erstellt", value: formatDate(member.created) },
   ];

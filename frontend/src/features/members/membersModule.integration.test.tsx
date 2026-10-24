@@ -411,9 +411,9 @@ describe("members list — extras", () => {
     const { user } = renderRoute("/kompass/members");
     await user.click(await screen.findByLabelText("Zeile auswählen"));
     await user.click(screen.getByRole("button", { name: /Aktionen/ }));
-    await user.click(screen.getByRole("button", { name: "Als Nutzer einladen" }));
+    await user.click(screen.getByRole("button", { name: "Als Nutzer*in einladen" }));
     const dialog = within(await screen.findByRole("dialog"));
-    await user.click(dialog.getAllByRole("button", { name: "Als Nutzer einladen" })[0]);
+    await user.click(dialog.getAllByRole("button", { name: "Als Nutzer*in einladen" })[0]);
 
     await waitFor(() => expect(invited).toBe(1));
     expect(await screen.findByText("1 Einladungen verschickt.")).toBeInTheDocument();
@@ -772,7 +772,7 @@ describe("member detail — uploads and actions", () => {
 
     for (const label of [
       "Echo anfordern",
-      "Als Nutzer einladen",
+      "Als Nutzer*in einladen",
       "Passwort-Reset anfordern",
       "Anmeldebogen anfordern",
     ]) {

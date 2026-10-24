@@ -183,7 +183,7 @@ export function MessagesList() {
                 cell: (m) => m.subject || "(ohne Betreff)",
                 sortKey: "subject",
               },
-              { header: "Empfänger", cell: (m) => m.recipients },
+              { header: "Empfänger*innen", cell: (m) => m.recipients },
               { header: "Erstellt", cell: (m) => formatDate(m.created_at), sortKey: "created" },
               {
                 header: "Status",
@@ -306,7 +306,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
 
   async function sendNow() {
     if (!valid()) return;
-    if (!(await confirm("Nachricht jetzt an alle Empfänger versenden?"))) return;
+    if (!(await confirm("Nachricht jetzt an alle Empfänger*innen versenden?"))) return;
     setFieldErrors({});
     try {
       const msg = await create.mutateAsync(form);
@@ -358,7 +358,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
           placeholder="Teilnehmende hinzufügen"
         />
       </Field>
-      <Field label="Freizeit-Teilnehmer">
+      <Field label="Freizeit-Teilnehmende">
         <SingleSelect
           options={excursionOptions}
           value={form.to_freizeit ?? null}
@@ -520,7 +520,7 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
         <Badge tone="warning">Entwurf</Badge>
       ),
     },
-    { label: "Empfänger", value: message.recipients },
+    { label: "Empfänger*innen", value: message.recipients },
     { label: "Erstellt von", value: message.created_by?.name ?? "—" },
     {
       label: "Gruppen",
@@ -713,7 +713,7 @@ function SubmitAction({ message }: { message: MessageOut }) {
       variant="ghost"
       busy={mutation.isPending}
       onClick={async () => {
-        if (await confirm("Nachricht jetzt an alle Empfänger versenden?"))
+        if (await confirm("Nachricht jetzt an alle Empfänger*innen versenden?"))
           mutation.mutate(undefined);
       }}
     >

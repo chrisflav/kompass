@@ -42,7 +42,7 @@ describe("users list", () => {
     expect(await screen.findByText("jdav_admin")).toBeInTheDocument();
     expect(screen.getByText("Tobias Werner")).toBeInTheDocument();
     expect(screen.getByText("Standard")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Neuer Benutzer" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Neue*r Benutzer*in" })).toBeInTheDocument();
   });
 
   it("explains a 403 without leaking the permission codename", async () => {
@@ -56,7 +56,7 @@ describe("users list", () => {
 
     expect(await screen.findByText("Dazu fehlt dir die Berechtigung.")).toBeInTheDocument();
     expect(screen.queryByText(/auth\.view_user/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Neuer Benutzer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Neue*r Benutzer*in" })).not.toBeInTheDocument();
   });
 
   it("surfaces Django's own password rules on create", async () => {
@@ -68,7 +68,7 @@ describe("users list", () => {
     );
     const { user } = renderRoute("/kompass/users");
     await screen.findByText("jdav_admin");
-    await user.click(screen.getByRole("button", { name: "Neuer Benutzer" }));
+    await user.click(screen.getByRole("button", { name: "Neue*r Benutzer*in" }));
 
     const dialog = within(await screen.findByRole("dialog"));
     await user.type(dialog.getByLabelText(/Benutzername/), "neu");
@@ -137,13 +137,13 @@ describe("users list — search, filter and create", () => {
     listReturns();
     renderRoute("/kompass/users");
     await screen.findByText("jdav_admin");
-    expect(screen.queryByRole("button", { name: "Neuer Benutzer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Neue*r Benutzer*in" })).not.toBeInTheDocument();
   });
 
   it("says so when no account is visible", async () => {
     listReturns([]);
     renderRoute("/kompass/users");
-    expect(await screen.findByText("Keine Benutzer sichtbar.")).toBeInTheDocument();
+    expect(await screen.findByText("Keine Benutzer*innen sichtbar.")).toBeInTheDocument();
   });
 
   it("creates an account and opens it", async () => {
@@ -171,7 +171,7 @@ describe("users list — search, filter and create", () => {
       http.get(api("/api/logindata/permission-groups"), () => HttpResponse.json(GROUPS)),
     );
     const { user } = renderRoute("/kompass/users");
-    await user.click(await screen.findByRole("button", { name: "Neuer Benutzer" }));
+    await user.click(await screen.findByRole("button", { name: "Neue*r Benutzer*in" }));
 
     const dialog = within(await screen.findByRole("dialog"));
     await user.type(dialog.getByLabelText(/Benutzername/), "neu");
@@ -186,7 +186,7 @@ describe("users list — search, filter and create", () => {
         password2: "Sup3rSecret!",
       }),
     );
-    expect(await screen.findByText("Benutzer angelegt.")).toBeInTheDocument();
+    expect(await screen.findByText("Benutzer*in angelegt.")).toBeInTheDocument();
     // An account with no linked member shows an em dash, not a broken link.
     expect(await screen.findAllByText("—")).not.toHaveLength(0);
   });
@@ -202,7 +202,7 @@ describe("users list — search, filter and create", () => {
       ),
     );
     const { user } = renderRoute("/kompass/users");
-    await user.click(await screen.findByRole("button", { name: "Neuer Benutzer" }));
+    await user.click(await screen.findByRole("button", { name: "Neue*r Benutzer*in" }));
 
     const dialog = within(screen.getByRole("dialog"));
     await user.type(dialog.getByLabelText(/Benutzername/), "jdav_admin");
@@ -222,7 +222,7 @@ describe("users list — remaining paths", () => {
   it("closes the create modal with ×", async () => {
     server.use(http.get(api("/api/logindata/users"), () => HttpResponse.json(USERS)));
     const { user } = renderRoute("/kompass/users");
-    await user.click(await screen.findByRole("button", { name: "Neuer Benutzer" }));
+    await user.click(await screen.findByRole("button", { name: "Neue*r Benutzer*in" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Schließen" }),
     );
@@ -342,7 +342,7 @@ describe("user detail", () => {
     const username = screen.getByDisplayValue("hannah.becker");
     await user.clear(username);
     await user.type(username, "hannah.b");
-    // Aktiv / Mitarbeiter*in / Administrator, in that order.
+    // Aktiv / Kompass-Zugang / Administrator*in, in that order.
     const [active] = screen.getAllByRole("checkbox");
     await user.click(active);
     await user.click(screen.getByRole("button", { name: "+ Rechtegruppe hinzufügen" }));
@@ -674,7 +674,7 @@ describe("permission groups", () => {
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
 
     const dialog = within(await screen.findByRole("dialog"));
-    expect(dialog.getByText(/5 Benutzer verlieren die darin enthaltenen Rechte/)).toBeInTheDocument();
+    expect(dialog.getByText(/5 Benutzer\*innen verlieren die darin enthaltenen Rechte/)).toBeInTheDocument();
     await user.click(dialog.getByRole("button", { name: "Löschen" }));
 
     await waitFor(() => expect(deleted).toBe(true));

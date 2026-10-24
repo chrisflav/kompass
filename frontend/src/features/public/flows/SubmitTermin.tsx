@@ -163,7 +163,7 @@ function SubmitTerminForm({ enums }: { enums: TerminEnums }) {
       <Field label="Voraussetzungen">
         <textarea value={form.voraussetzungen} onChange={(e) => set({ voraussetzungen: e.target.value })} rows={2} />
       </Field>
-      <Field label="Organisator:in">
+      <Field label="Organisator*in">
         <input value={form.responsible} onChange={(e) => set({ responsible: e.target.value })} />
       </Field>
       <Field label="Telefon">

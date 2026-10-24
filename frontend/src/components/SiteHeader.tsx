@@ -136,7 +136,7 @@ const ADMIN_NAV: NavArea[] = [
   ] },
   { label: "Verwaltung", items: [
     { to: "/kompass/events", label: "Termine" },
-    { to: "/kompass/users", label: "Benutzer" },
+    { to: "/kompass/users", label: "Benutzer*innen" },
     { to: "/kompass/permission-groups", label: "Rechtegruppen" },
     { to: "/kompass/registration-passwords", label: "Registrierungspasswörter" },
     { to: "/kompass/feedback", label: "Feedback" },

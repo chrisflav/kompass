@@ -282,7 +282,7 @@ msgid "These rules do not ask for %(key)s."
 msgstr "Diese Regeln fragen %(key)s nicht ab."
 
 msgid "Only youth leaders of this excursion may receive contributions."
-msgstr "Nur Jugendleiter*innen dieser Ausfahrt können Zuschüsse erhalten."
+msgstr "Nur Leiter*innen dieser Ausfahrt können Zuschüsse erhalten."
 
 #, python-format
 msgid ""
@@ -513,7 +513,7 @@ msgid "Reference"
 msgstr "Verwendungszweck"
 
 msgid "Recipient"
-msgstr "Empfänger"
+msgstr "Empfänger*in"
 
 msgid "Paid"
 msgstr "Bezahlt"

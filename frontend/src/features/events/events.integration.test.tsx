@@ -62,7 +62,7 @@ async function fillRequired(
   await user.type(scope.getByLabelText("Titel"), "Klettersteig Allgäu");
   await user.type(scope.getByLabelText("Von"), "2026-07-04");
   await user.type(scope.getByLabelText("Bis"), "2026-07-05");
-  await user.type(scope.getByLabelText("Organisator:in"), "Ingo Iller");
+  await user.type(scope.getByLabelText("Organisator*in"), "Ingo Iller");
   await user.type(scope.getByLabelText("E-Mail"), "ingo@example.org");
 }
 
