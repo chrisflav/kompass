@@ -258,7 +258,7 @@ function makeForm(group: GroupOut) {
 function GroupDetailBody({ group }: { group: GroupOut }) {
   const navigate = useNavigate();
   const confirm = useConfirmDialog();
-  const { can } = usePermissions();
+  const { can, canAny } = usePermissions();
   const removeMutation = useApiMutation(
     () =>
       unwrap(
@@ -569,17 +569,24 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
               />
             ),
           },
-          {
-            id: "berechtigungen",
-            label: "Gruppenberechtigungen",
-            content: (
-              <PermissionGroupsInline
-                groupId={group.id}
-                editing={editing}
-                registerFlush={getRegistrar("permissions")}
-              />
-            ),
-          },
+          // Like the admin, the ACL needs the PermissionGroup model permissions
+          // on top of being able to change the group.
+          ...(can("members.change_group") &&
+          canAny("members.view_permissiongroup", "members.change_permissiongroup")
+            ? [
+                {
+                  id: "berechtigungen",
+                  label: "Gruppenberechtigungen",
+                  content: (
+                    <PermissionGroupsInline
+                      groupId={group.id}
+                      editing={editing}
+                      registerFlush={getRegistrar("permissions")}
+                    />
+                  ),
+                },
+              ]
+            : []),
         ]}
       />
     </form>
@@ -762,6 +769,10 @@ function PermissionGroupsInline({
   registerFlush: (fn: () => Promise<void>) => void;
 }) {
   const invalidate = [["groups", groupId, "permission-groups"]];
+  const { can } = usePermissions();
+  const canAdd = can("members.add_permissiongroup");
+  const canChange = can("members.change_permissiongroup");
+  const canDelete = can("members.delete_permissiongroup");
   const listQuery = useApiQuery(["groups", groupId, "permission-groups"], () =>
     unwrap(
       client.GET("/api/members/groups/{group_id}/permission-groups", {
@@ -885,15 +896,15 @@ function PermissionGroupsInline({
       rows={rows}
       rowKey={(row) => row.key}
       editing={editing}
-      onDelete={(row) => removeRow(row)}
-      onAdd={rows.length === 0 ? () => addRow({ ...emptyPermGroup }) : undefined}
+      onDelete={canDelete ? (row) => removeRow(row) : undefined}
+      onAdd={canAdd && rows.length === 0 ? () => addRow({ ...emptyPermGroup }) : undefined}
       addLabel="Berechtigungen"
       empty={editing ? "Keine Berechtigungen – oben anlegen." : "Keine Berechtigungen."}
       columns={[
         {
           header: "Berechtigungen",
           cell: (row) =>
-            editing ? (
+            editing && (row.id === null ? canAdd : canChange) ? (
               <div className="stack">
                 {PERM_MEMBER_FIELDS.map((f) => editSelect(row, f.field, f.label, memberOptions))}
                 {PERM_GROUP_FIELDS.map((f) => editSelect(row, f.field, f.label, groupOptions))}

@@ -74,6 +74,16 @@ def authorize(request, perm, obj=None):
         raise PermissionDenied(perm)
 
 
+def authorize_any(request, *perms):
+    """Raise :class:`PermissionDenied` unless the user holds one of the global ``perms``.
+
+    Mirrors the admin's view gate, which admits either ``view_<model>`` or
+    ``change_<model>``.
+    """
+    if not any(request.user.has_perm(perm) for perm in perms):
+        raise PermissionDenied(perms[0])
+
+
 def get_authorized(request, model, pk, perm, manager="objects"):
     """Fetch ``model`` instance ``pk`` and authorize ``perm`` on it, or 403/404."""
     queryset = getattr(model, manager).all()
