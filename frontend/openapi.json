@@ -16323,7 +16323,7 @@
           },
           "internal_only": {
             "default": false,
-            "description": "Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *",
+            "description": "Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *.",
             "title": "Restrict to internal email addresses",
             "type": "boolean"
           }
@@ -16381,7 +16381,7 @@
           },
           "internal_only": {
             "default": false,
-            "description": "Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *",
+            "description": "Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *.",
             "title": "Restrict to internal email addresses",
             "type": "boolean"
           }
