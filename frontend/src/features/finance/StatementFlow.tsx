@@ -918,6 +918,29 @@ function AnswerForm({ statement, form }: { statement: StatementOut; form: Statem
       ),
     [form.inputs],
   );
+  /**
+   * Take in the answer to a question the rules have just started asking.
+   *
+   * The draft is seeded once, from the form of the render this component was
+   * mounted on, and it has to be: it holds what has been typed and not sent,
+   * so re-seeding it from every fetch would overwrite an edit with the value
+   * it is an edit of. But a question the rules *reveal* — the Fahrten table
+   * that appears once the Regelwerk is chosen — arrives with an answer the
+   * draft has never heard of, and the control then renders as empty while the
+   * answer sits in storage. A seeded row looked eaten by the question that had
+   * not been asked yet.
+   *
+   * So keys are added and never replaced. A key the draft already has keeps
+   * what it has, which is exactly what makes this safe for the question that
+   * went away and came back: an answer given while the form was in flight is
+   * still the person's, not the server's.
+   */
+  useEffect(() => {
+    setAnswers((previous) => {
+      const arrived = Object.entries(form.answers).filter(([key]) => !(key in previous));
+      return arrived.length === 0 ? previous : { ...previous, ...Object.fromEntries(arrived) };
+    });
+  }, [form.answers]);
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);

@@ -1580,14 +1580,18 @@ describe("submission flow — Erstattung", () => {
      * window between "the regime is saved" and "the client knows what the rules
      * ask now" is as wide as the test needs.
      */
-    function rulesBackend(initial: Record<string, unknown>) {
+    function rulesBackend(
+      initial: Record<string, unknown>,
+      asking: (answers: Record<string, unknown>) => Record<string, unknown>[] = (answers) =>
+        answers.regime === "tourenleitung" ? [REGIME, LISTE] : [REGIME],
+    ) {
       const stored: Record<string, unknown> = { ...initial };
       const patches: Record<string, unknown>[] = [];
       const refused: string[] = [];
       let waiting = 0;
       let held: Promise<void> | null = null;
       let release = () => {};
-      const asked = () => (stored.regime === "tourenleitung" ? [REGIME, LISTE] : [REGIME]);
+      const asked = () => asking(stored);
       server.use(
         http.get(api("/api/finance/statements/1/form"), async () => {
           if (held) {
@@ -1644,10 +1648,13 @@ describe("submission flow — Erstattung", () => {
     }
 
     /** Open the reimbursement leg against a server that answers as the rules do. */
-    function openRules(initial: Record<string, unknown>) {
+    function openRules(
+      initial: Record<string, unknown>,
+      asking?: (answers: Record<string, unknown>) => Record<string, unknown>[],
+    ) {
       flowReturns();
       detailReturns();
-      const backend = rulesBackend(initial);
+      const backend = rulesBackend(initial, asking);
       const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=reimbursement");
       return { backend, user };
     }
@@ -1718,6 +1725,38 @@ describe("submission flow — Erstattung", () => {
       await waitFor(() => expect(screen.queryByRole("checkbox")).toBeNull());
       expect(backend.refused).toEqual([]);
       expect(backend.stored.participant_list_filed).toBe(false);
+    });
+
+    it("shows the answer a question the rules have just revealed arrives with", async () => {
+      // The other end of the same narrowing, and a gap the holding fix left.
+      //
+      // A ruleset may narrow to its *first* question — Ludwigsburg asks only
+      // the Regelwerk until it has one, because a kilometre has two rates and
+      // a night two meanings until then — and the Fahrten table it then
+      // reveals comes with the row the excursion seeded at creation. The draft
+      // was seeded once, off the form this leg mounted on, so it had never
+      // heard of that key and rendered the table empty: the seeded row looked
+      // eaten by the question nobody had been asked yet.
+      //
+      // Neuter it — drop the effect that merges arriving keys — and the table
+      // appears with "Noch keine Zeile" over a row that is in storage.
+      const seeded = { member: null, approach: "pkw", kilometers: 120 };
+      const gated = (answers: Record<string, unknown>) =>
+        answers.regime ? [REGIME, REISEN] : [REGIME];
+      const { backend, user } = openRules({ reisen: [seeded] }, gated);
+
+      await screen.findByText("Regelwerk");
+      expect(screen.queryByText("Fahrten")).toBeNull();
+
+      await pickRegime(user, "Ehrenamt und Verwaltung");
+
+      expect(await screen.findByText("Fahrten")).toBeInTheDocument();
+      expect(screen.getByLabelText("Kilometer, Zeile 1")).toHaveValue(120);
+      expect(screen.getByLabelText("Verkehrsmittel, Zeile 1")).toHaveTextContent("PKW");
+      // Revealing a question is not a refusal looking for somewhere to land:
+      // the question set changed under the client and nothing was re-asserted.
+      expect(backend.patches).toEqual([{ regime: "ehrenamt" }]);
+      expect(backend.refused).toEqual([]);
     });
   });
 });
