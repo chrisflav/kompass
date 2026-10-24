@@ -534,6 +534,7 @@ class MemberUpdate(Schema):
     comments: str | None = None
     active: bool | None = None
     photos_may_be_taken: bool | None = None
+    gets_newsletter: bool | None = None
     may_cancel_appointment_independently: bool | None = None
     # Relational fields (applied via *_id / .set() in the route).
     group_ids: list[int] | None = None
@@ -574,6 +575,7 @@ MEMBER_UPDATE_SCALAR_FIELDS = (
     "comments",
     "active",
     "photos_may_be_taken",
+    "gets_newsletter",
     "may_cancel_appointment_independently",
 )
 

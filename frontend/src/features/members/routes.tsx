@@ -290,6 +290,7 @@ function makeMemberDraft(m: MemberOut) {
     tetanus_vaccination: m.tetanus_vaccination ?? "",
     medication: m.medication ?? "",
     photos_may_be_taken: m.photos_may_be_taken ?? false,
+    gets_newsletter: m.gets_newsletter ?? false,
     may_cancel:
       m.may_cancel_appointment_independently === null ||
       m.may_cancel_appointment_independently === undefined
@@ -325,7 +326,12 @@ type MemberTextKey =
   | "good_conduct_certificate_presented_date";
 type MemberAreaKey = "comments" | "alpine_experience" | "allergies" | "medication";
 type MemberBoolKey =
-  "active" | "swimming_badge" | "photos_may_be_taken" | "has_key" | "has_free_ticket_gym";
+  | "active"
+  | "swimming_badge"
+  | "photos_may_be_taken"
+  | "gets_newsletter"
+  | "has_key"
+  | "has_free_ticket_gym";
 
 /* --- list ----------------------------------------------------------------
  * Full parity with the Django MemberAdmin changelist: all list_display columns
@@ -1177,7 +1183,12 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
       edit: maySetAuthUser ? userEdit : undefined,
       field: "user",
     },
-    { label: "Newsletter", value: boolBadge(member.gets_newsletter) },
+    {
+      label: "Newsletter",
+      value: boolBadge(member.gets_newsletter),
+      edit: check("gets_newsletter"),
+      field: "gets_newsletter",
+    },
     { label: "Bestätigt", value: boolBadge(member.confirmed) },
   ];
 
@@ -1345,6 +1356,7 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
           tetanus_vaccination: form.tetanus_vaccination,
           medication: form.medication,
           photos_may_be_taken: form.photos_may_be_taken,
+          gets_newsletter: form.gets_newsletter,
           may_cancel_appointment_independently:
             form.may_cancel === "" ? null : form.may_cancel === "true",
           good_conduct_certificate_presented_date:

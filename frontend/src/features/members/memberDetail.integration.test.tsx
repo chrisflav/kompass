@@ -207,6 +207,28 @@ describe("member detail", () => {
     expect(await screen.findByText("Gespeichert.")).toBeInTheDocument();
   });
 
+  it("lets the newsletter flag be switched back on", async () => {
+    // Echo requests go only to newsletter recipients (Feedback #8).
+    detailReturns({ gets_newsletter: false });
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(api("/api/members/42"), async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...MEMBER, gets_newsletter: true });
+      }),
+    );
+    const { user } = renderRoute("/kompass/members/42");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+
+    const row = screen.getByText("Newsletter").closest(".detail-row") as HTMLElement;
+    const newsletter = within(row).getByRole("checkbox");
+    expect(newsletter).not.toBeChecked();
+    await user.click(newsletter);
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+
+    await waitFor(() => expect(body).toMatchObject({ gets_newsletter: true }));
+  });
+
   it("keeps edit mode and shows the field error when the save is rejected", async () => {
     detailReturns();
     server.use(

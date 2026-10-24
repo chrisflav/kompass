@@ -1387,6 +1387,7 @@ describe("member detail — every field", () => {
       birth_date: "2026-03-04",
       active: false,
       photos_may_be_taken: false,
+      gets_newsletter: false,
       has_key: true,
       has_free_ticket_gym: true,
       gender: 0,

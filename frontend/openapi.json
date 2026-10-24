@@ -14158,6 +14158,17 @@
             ],
             "title": "Photos May Be Taken"
           },
+          "gets_newsletter": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gets Newsletter"
+          },
           "may_cancel_appointment_independently": {
             "anyOf": [
               {
