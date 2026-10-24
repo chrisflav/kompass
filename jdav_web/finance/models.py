@@ -42,7 +42,10 @@ from .rules import leads_excursion
 from .rules import may_approve
 from .rules import not_submitted
 from .rules_api import Member as RuleMember
+from .rules_api import OFFICE_PAYMENT
+from .rules_api import PAYOUT_MODES
 from .rules_api import SECTION
+from .rules_api import SELF_PAYMENT
 from .rules_api import SETTLEMENT_GROUP_LENGTH
 from .store import Approval
 from .store import RuleSet
@@ -337,6 +340,46 @@ class Statement(CommonModel):
             "LJP_TAX": float(settings.LJP_TAX),
             "captured_at": timezone.now().isoformat(),
         }
+
+    @property
+    def payout_mode(self):
+        """Who makes this statement's bank transfers — ``"self"`` or ``"office"``.
+
+        The declaration of the rules this statement is **bound** to
+        (:attr:`kompass.rules.Ruleset.payout`), read off its own snapshot, so
+        it costs no query and no evaluation: it is a string the version was
+        imported with.
+
+        Bound rather than current, which is the decision in this property. A
+        section that changes how it pays imports a new version, and the
+        statements created before it keep the old arrangement — the same rule
+        that keeps June's rates on a statement opened in June. The alternative,
+        reading whatever version is in force at the moment somebody looks, would
+        make a settled statement's terminal act change meaning afterwards: a
+        payout released as *zur Auszahlung übergeben* would read as *ausgezahlt*
+        once the section took the transfers back in house, which is the record
+        saying something that did not happen. The cost is the other way round
+        and it is bounded: a statement opened before the change is reviewed
+        under the old wording, once, and re-settling it under a correction is
+        the deliberate act #561 is for.
+
+        A statement bound to no version at all — an instance that has imported
+        none — reads ``"self"``, like a ruleset that declares nothing.
+        """
+        snapshot = self.ruleset_snapshot or {}
+        declared = snapshot.get("payout") or SELF_PAYMENT
+        return declared if declared in PAYOUT_MODES else SELF_PAYMENT
+
+    @property
+    def payout_handoff(self):
+        """Whether releasing this statement is a handoff rather than a payment.
+
+        The one question every mode-dependent branch asks. ``True`` means the
+        section's Geschäftsstelle makes the transfers, so what Kompass records
+        is that the statement was handed over — and :meth:`_pay_out` will not
+        record even that until the summary has actually gone.
+        """
+        return self.payout_mode == OFFICE_PAYMENT
 
     @property
     def submitted(self):

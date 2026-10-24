@@ -46,6 +46,8 @@ from django.utils.translation import gettext_lazy as _
 from finance.parties import MEMBER
 from finance.parties import PARTICIPANTS
 from finance.parties import SECTION
+from finance.rules_api import OFFICE_PAYMENT
+from finance.rules_api import SELF_PAYMENT
 from finance.rules_api import SETTLEMENT_GROUP_LENGTH
 from members.models import Member
 
@@ -63,9 +65,20 @@ IMMUTABLE_FIELDS = (
     "engine_version",
     "context_version",
     "params",
+    "payout",
     "valid_from",
     "supersedes_id",
 )
+
+#: How a version's :attr:`~kompass.rules.Ruleset.payout` reads in the admin.
+#:
+#: The two sentences are the terminal act of the review under each mode, which
+#: is the only thing the mode decides — so this says what a version *does*
+#: rather than naming a mode somebody would have to look up.
+PAYOUT_MODE_CHOICES = [
+    (SELF_PAYMENT, _("The reviewer makes the transfers (ausgezahlt)")),
+    (OFFICE_PAYMENT, _("The office makes the transfers (zur Auszahlung übergeben)")),
+]
 
 #: How a party is stored on an :class:`Obligation` (see
 #: :mod:`finance.parties` for why the strings live elsewhere).
@@ -160,6 +173,18 @@ class RuleSet(models.Model):
         help_text=_("The Kompass and interpreter version the sources were imported into."),
     )
     context_version = models.PositiveIntegerField(verbose_name=_("Context version"), default=1)
+    payout = models.CharField(
+        verbose_name=_("Payout mode"),
+        max_length=10,
+        choices=PAYOUT_MODE_CHOICES,
+        default=SELF_PAYMENT,
+        help_text=_(
+            "Who makes the bank transfers once a statement is released, as this "
+            "version of the rules declares it. Immutable, like the rest of what a "
+            "version says: a section that changes how it pays imports a new version, "
+            "and a statement keeps the arrangement it was created under."
+        ),
+    )
     params = models.JSONField(
         verbose_name=_("Parameters"),
         default=dict,
@@ -253,6 +278,7 @@ class RuleSet(models.Model):
             "params": dict(self.params),
             "engine_version": self.engine_version,
             "context_version": self.context_version,
+            "payout": self.payout,
             "revision": self.revision,
         }
 

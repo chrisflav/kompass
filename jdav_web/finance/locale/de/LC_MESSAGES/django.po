@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-24 20:04+0200\n"
+"POT-Creation-Date: 2026-10-24 23:35+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -576,6 +576,12 @@ msgstr "Überweisung"
 msgid "Transactions"
 msgstr "Überweisungen"
 
+msgid "The reviewer makes the transfers (ausgezahlt)"
+msgstr "Die prüfende Person überweist selbst (ausgezahlt)"
+
+msgid "The office makes the transfers (zur Auszahlung übergeben)"
+msgstr "Die Geschäftsstelle überweist (zur Auszahlung übergeben)"
+
 msgid "Member"
 msgstr "Mitglied"
 
@@ -626,6 +632,21 @@ msgstr ""
 
 msgid "Context version"
 msgstr "Kontext-Version"
+
+msgid "Payout mode"
+msgstr "Auszahlungsweg"
+
+msgid ""
+"Who makes the bank transfers once a statement is released, as this version "
+"of the rules declares it. Immutable, like the rest of what a version says: a "
+"section that changes how it pays imports a new version, and a statement "
+"keeps the arrangement it was created under."
+msgstr ""
+"Wer die Überweisungen ausführt, wenn eine Abrechnung freigegeben ist – so "
+"wie diese Version des Regelwerks es erklärt. Unveränderlich wie alles, was "
+"eine Version aussagt: Eine Sektion, die ihren Auszahlungsweg ändert, "
+"importiert eine neue Version, und eine Abrechnung behält den Weg, unter dem "
+"sie angelegt wurde."
 
 msgid "Parameters"
 msgstr "Parameter"

@@ -6390,6 +6390,8 @@ export interface components {
             validity: number;
             /** Validity Display */
             validity_display: string;
+            /** Payout Mode */
+            payout_mode: string;
             /**
              * Transaction Issues
              * @default []
