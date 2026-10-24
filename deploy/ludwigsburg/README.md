@@ -12,7 +12,7 @@ for every figure.
 └── rules/
     ├── __init__.py         the rules: inputs, transfers, checks, approval
     ├── rates.py            every figure, each with the clause it comes from
-    └── cases/*.json        twenty-six worked examples; these gate activation
+    └── cases/*.json        twenty-nine worked examples; these gate activation
 ```
 
 The policy it implements comes from four documents:
@@ -24,9 +24,9 @@ The policy it implements comes from four documents:
 | **Q3** | Reisekostenrichtlinie **Tourenleitungen**, Ä1 – 01/2025 | 13.01.2025 | what is reimbursed |
 | **Q4** | „Finanzzeug LuBu“ | undated, informal | three standing Sonderabsprachen |
 
-Of Q4 only point 1 — the three Sonderabsprachen — is treated as policy. The
-rest of that file is explicitly a vision and is not implemented; see "What this
-ruleset does not do".
+Of Q4 the three Sonderabsprachen and its sentence about tax are treated as
+policy. The rest of that file is explicitly a vision and is not implemented;
+see "What this ruleset does not do".
 
 ## Two regimes, and why the first question is a question
 
@@ -145,6 +145,7 @@ much as a decision — see reading 11 below.
 | Tagegeld nach Land und Dauer, inkl. Tagestouren | Q2 § 5 | `rates.per_diem` |
 | Verpflegungsmehraufwand bei Arbeitseinsätzen in Höhe des Tagegelds | Q2 § 7 | `rates.per_diem`, same rule |
 | Tourenleitervergütung 2,50 €/Stunde mit DAV-Lizenz | Q3 § 4 | `_tour_leader_fee` |
+| Steuerrelevante Beträge werden getrennt überwiesen | **Q4** | `_tour_leader_fee`, `settlement_group=TAX_RELEVANT` |
 | Belegpflicht (jeder Beleg braucht ein Bild) | Q1 §§ 1.2–1.3 | `checks` |
 | 3+1 und Teilnehmerliste als Voraussetzung | Q3, Vorbemerkung | `checks`, **self-reported** |
 | Freigabe bis 1.000 € durch die Leitung allein | Q1 § 1.2 | `approval`, constraint 1 |
@@ -169,6 +170,56 @@ the seven parameter names Kompass serves, so every figure is a constant in
 exactly as a parameter would be, so changing a rate is a new version either
 way. The numbers under `[finance]` and `[LJP]` in `settings.toml` therefore do
 not affect what this ruleset pays — they only change the version hash.
+
+## „Steuerrelevant getrennt überweisen“, now expressed rather than assumed
+
+Q4 says it in one line:
+
+> Steuerrelevante Abrechnungen werden getrennt von anderen überwiesen aber als
+> ein Prozess bearbeitet.
+
+Until this version that line was a requirement Kompass could not express, and
+it is listed in the specification's Teil G.3 among the features that do not
+exist. It exists now, and it is **this ruleset's own declaration** rather than
+a special case Kompass makes for tax: `_tour_leader_fee` puts a *settlement
+group* on its transfer —
+
+```python
+settlement_group=TAX_RELEVANT      # TAX_RELEVANT = "steuerrelevant"
+```
+
+— and Kompass bundles amounts into one bank transfer only within one group.
+Everything follows from that one token:
+
+- The Tourenleitervergütung **never shares a transfer** with Fahrtkosten,
+  Tagegeld, Übernachtungspauschalen or a Beleg, however the rest is bundled.
+  It is an Ehrenamtspauschale under § 3 Nr. 26 EStG and the section has to be
+  able to point at the payment that carried it.
+- **One process, as Q4 asks.** One statement, one form, one Freigabe, one
+  summary — two transfers at the end of it. Nothing about the approval route or
+  the figures changes, and nothing has to be split by hand.
+- Two Vergütungen on the same statement **do** share a transfer: they are in
+  the same group. That is why this is a token and not a „getrennt überweisen“
+  flag — a flag could only say „diese einzeln“, and the next separation the
+  Sonderabsprachen bring will be a second token here rather than a second
+  mechanism in Kompass.
+- Every other transfer names no group at all and is bundled exactly as before.
+
+What the Geschäftsstelle sees is the payment instruction it has to act on:
+two amounts, each under its own reference — „Tourenleitervergütung“ on its own
+line, instead of the one amount under
+`"Fahrtkosten EUR 24.00, Tourenleitervergütung EUR 15.00"` that the bundling
+used to produce. **Kompass stops at that handoff in Ludwigsburg**: the transfer
+itself is made by the Geschäftsstelle out of the statement it receives, so the
+instruction being right on paper is the whole of what this feature can do.
+
+Pinned by `cases/29_verguetung_wird_getrennt_ueberwiesen.json`, which settles a
+Vergütung, a Fahrt and a Beleg to the **same person** and states the group of
+each — including the empty one on the two that may merge, which is the half
+that keeps working: a case naming the group only on the Vergütung would go on
+passing if a later edit swept everything into one token, at which point they
+merge again. What a case cannot show is the merging itself — that needs
+ledgers and bookings — and Kompass's own suite pins it there.
 
 ## What this ruleset does not do
 
@@ -201,11 +252,12 @@ more rules:
 - **Service-Center-Rechnungen** (Q1 § 2.1: up to 5.000 € without a signature).
   These are the Geschäftsstelle's invoices and do not come through Kompass's
   statements at all.
-- **Everything in Q4 after point 1.** A hierarchy with delegated personal
-  limits, a „hinterfragen“ state between approve and reject, processing by
-  mail, every step attached to the statement as a document, and paying
-  tax-relevant amounts out separately. These are Kompass features that do not
-  exist, not rules — the specification's Teil G.3 lists them one by one.
+- **Most of what Q4 asks for beyond its Sonderabsprachen.** A hierarchy with
+  delegated personal limits, a „hinterfragen“ state between approve and reject,
+  processing by mail, and every step attached to the statement as a document.
+  These are Kompass features that do not exist, not rules — the specification's
+  Teil G.3 lists them one by one. **„Steuerrelevant getrennt überweisen“ is no
+  longer one of them**: see below.
 - **Deadlines and reminders** („Abrechnung innerhalb eines Monats“). There is
   no clock in a rule, on purpose. A reminder is a scheduled task in Kompass.
 
@@ -375,7 +427,7 @@ docker run --rm \
 
 ### What the cases prove, and the one thing they cannot
 
-The twenty-seven cases in `rules/cases/` pin the figures of both regimes, with
+The twenty-nine cases in `rules/cases/` pin the figures of both regimes, with
 and without a trip: the per-kilometre rate with no passengers, with three, and
 at the cap; the flat rate per night and the two reasons it may not be claimed;
 the Tagegeld; the Tourenleitervergütung; a purchase with no excursion, where
@@ -394,6 +446,11 @@ Two more are one stored row read under each regime in turn, which is how the
 `Mitfahrende` column being Q3's alone is pinned from both sides: the count lies
 unread under Q2 and the plain rate is paid (4), and the identical answer pays
 the supplement again under Q3 (27).
+
+One is about **which amounts may not share a bank transfer** (29): a Vergütung,
+a Fahrt and a Beleg to one person, with the settlement group stated on each —
+`"steuerrelevant"` on the Vergütung and `""` on the two that may be bundled.
+See „Steuerrelevant getrennt überweisen“ above.
 
 **What no case can prove is the seed.** A seed is written when a statement gets
 an excursion, and a case file is a context with no edit history — so what a

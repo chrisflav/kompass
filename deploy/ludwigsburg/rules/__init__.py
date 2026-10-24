@@ -88,7 +88,11 @@ the Verpflegungsmehraufwand „in Höhe des entsprechenden Tagegeldes“.
 
 **Tourenleitervergütung** — Q3 only: 2,50 € per hour to one Tourenleitung with
 a DAV licence. The hourly rate only; its caps are not this engine's to keep,
-and the README says so.
+and the README says so. It is the one transfer here that names a **settlement
+group** (:data:`TAX_RELEVANT`): it is tax-relevant under § 3 Nr. 26 EStG, so it
+may not share a bank transfer with anything else, which is Q4's „steuerrelevante
+Abrechnungen werden getrennt von anderen überwiesen aber als ein Prozess
+bearbeitet“ said in the rules instead of hoped for on the payout screen.
 
 **Teilnehmerbeiträge** — not computed here at all. Whatever the section pays
 out net is what the participants' contributions have to cover, and the engine
@@ -213,6 +217,24 @@ MAX_PASSENGERS = 8
 #: answers so far, and a narrowed form is something the engine already serves
 #: and already enforces.
 REGIME = "regime"
+
+#: The settlement group of everything that is tax-relevant (Q4).
+#:
+#: „Steuerrelevante Abrechnungen werden getrennt von anderen überwiesen aber
+#: als ein Prozess bearbeitet.“ One statement, one approval, one process — and
+#: two bank transfers, because the Tourenleitervergütung is an
+#: Ehrenamtspauschale under § 3 Nr. 26 EStG and the section has to be able to
+#: point at the payment that carried it. Put on the transfer rather than
+#: arranged by hand on the payout screen: amounts to one person out of one
+#: ledger are bundled into one transfer only within a settlement group, so the
+#: Vergütung never shares a transfer with somebody's mileage however the rest
+#: is merged, and two Vergütungen to one person still travel together.
+#:
+#: A token and not a ``separate`` flag, which is what makes the next separation
+#: free: the Sonderabsprachen are a living document, and a second thing that
+#: has to be paid out on its own gets a second token here rather than a second
+#: mechanism in Kompass.
+TAX_RELEVANT = "steuerrelevant"
 
 #: The questions asked while no regime is chosen — which is this one, alone.
 #:
@@ -816,6 +838,16 @@ class LudwigsburgRules(Ruleset):
         statement and has no memory — Q3 puts all three on the Tourenleitung
         and on the Geschäftsstelle's annual confirmation, which is where they
         stay.
+
+        This is the one transfer in this ruleset that names a settlement group
+        (:data:`TAX_RELEVANT`). It is an Ehrenamtspauschale under § 3 Nr. 26
+        EStG, and Q4 says plainly that „steuerrelevante Abrechnungen werden
+        getrennt von anderen überwiesen aber als ein Prozess bearbeitet“: the
+        statement is settled and approved as one thing, and this amount reaches
+        the Tourenleitung as a transfer of its own. Nothing else about the rule
+        changes — the recipient, the rate and the arithmetic are Q3's — and a
+        second Vergütung on the same statement still shares a transfer with
+        this one, because they are in the same group.
         """
         if regime != TOURENLEITUNG:
             return []
@@ -832,6 +864,7 @@ class LudwigsburgRules(Ruleset):
                 rule_id="tour_leader_fee",
                 label="Tourenleitervergütung",
                 explanation=f"{hours} Stunden × {euro(TOUR_LEADER_FEE_PER_HOUR)} €",
+                settlement_group=TAX_RELEVANT,
             )
         ]
 
