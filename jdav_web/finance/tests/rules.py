@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
 from django.conf import settings
+from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
@@ -8,6 +9,7 @@ from finance.models import Ledger
 from finance.models import Statement
 from finance.rules import is_creator
 from finance.rules import leads_excursion
+from finance.rules import may_approve
 from finance.rules import not_submitted
 from members.models import FEMALE
 from members.models import Freizeit
@@ -105,6 +107,41 @@ class FinanceRulesTestCase(TestCase):
         del mock_statement.excursion
         result = leads_excursion(self.user1, mock_statement)
         self.assertFalse(result)
+
+    def test_an_object_permission_asked_without_an_object_answers(self):
+        """``has_perm("finance.view_obj_statement")`` with no row was a 500.
+
+        django-rules pads a missing object with ``None``
+        (``Predicate._apply``), and three of these predicates met it with an
+        ``assert`` — so any global check against an object permission raised
+        ``AssertionError`` out of the permission backend rather than
+        answering. It is a question, and for an object permission the answer
+        is no; the one clause of ``view_obj`` that is itself global still
+        answers yes, which is what says the chain was evaluated rather than
+        short-circuited to a refusal.
+        """
+        predicates = {
+            "is_creator": is_creator,
+            "not_submitted": not_submitted,
+            "leads_excursion": leads_excursion,
+            "may_approve": may_approve,
+        }
+        for name, pred in predicates.items():
+            with self.subTest(predicate=name):
+                self.assertFalse(pred(self.user1, None))
+        user = User.objects.get(pk=self.user1.pk)
+        for name in ("view_obj", "change_obj", "delete_obj", "approve_obj"):
+            with self.subTest(permission=name):
+                self.assertFalse(user.has_perm(f"finance.{name}_statement"))
+        user.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="finance", codename="view_global_statement"
+            )
+        )
+        self.assertTrue(
+            User.objects.get(pk=user.pk).has_perm("finance.view_obj_statement"),
+            "the global clause of it answers for itself",
+        )
 
     def test_leads_excursion_statement_excursion_is_none(self):
         """Test leads_excursion predicate with statement having None excursion"""
