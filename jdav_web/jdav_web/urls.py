@@ -29,11 +29,27 @@ from oauth2_provider import views as oauth2_views
 from .api import api
 from .views import BuiltinLoginView
 from .views import media_access
+from .views import superuser_only
 
 admin.site.index_title = _("Startpage")
 admin.site.site_header = "Kompass"
 
 urlpatterns = []
+
+# django-oauth-toolkit's urlconf, with its application management views
+# (`applications/...`) restricted to superusers: registering a client decides
+# which grants and redirect URIs this provider honours. The frontend's own
+# client is created by `manage.py ensure_frontend_oauth_app`. Everything else,
+# including `authorized_tokens/` (which only lists the caller's own tokens), is
+# kept as the toolkit ships it.
+oauth2_urlpatterns = [
+    (
+        path(str(p.pattern), superuser_only(p.callback), name=p.name)
+        if str(p.pattern).startswith("applications/")
+        else p
+    )
+    for p in oauth2_urls.urlpatterns
+]
 
 # The REST API is mounted outside i18n_patterns and before the startpage
 # catch-all, so it is shadowed by neither a language prefix (a locale redirect
@@ -96,7 +112,7 @@ urlpatterns += i18n_patterns(
     # issuer is derived from `reverse()`, so moving it would move the `iss`
     # claim and the discovery document with it. The frontend reaches it on its
     # own domain, whose nginx rewrites `/o/` onto the prefix for that host only.
-    path("o/", include(oauth2_urls)),
+    path("o/", include((oauth2_urlpatterns, oauth2_urls.app_name))),
     re_path(r"^", include("startpage.urls", namespace="startpage")),
 )
 

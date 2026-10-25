@@ -12,6 +12,7 @@ from django.core.management import call_command
 from django.test import override_settings
 from django.test import RequestFactory
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 from oauth2_provider.models import get_application_model
 from oauth2_provider.models import get_grant_model
@@ -268,3 +269,87 @@ class BackChannelOAuthUrlsTestCase(TestCase):
         )
         self.assertEqual(exchanged.status_code, 200, exchanged.content)
         self.assertIn("access_token", exchanged.json())
+
+
+class OAuthApplicationManagementTestCase(TestCase):
+    """Only a superuser may register or manage OAuth2 clients.
+
+    django-oauth-toolkit's application views admit any signed-in user, who
+    could then register a client with the password grant or any redirect URI.
+    The provider's own endpoints and a user's view of their own tokens stay as
+    they were.
+    """
+
+    # The session is opened through the model backend, so where OIDC is
+    # configured `SessionRefresh` does not send these GETs to the provider.
+    backend = "django.contrib.auth.backends.ModelBackend"
+
+    def setUp(self):
+        self.user = User.objects.create_user("nutzer", password="ein-langes-pw-42")
+        self.superuser = User.objects.create_superuser("chef", password="ein-langes-pw-42")
+        self.application = Application.objects.create(
+            name="Fremde App",
+            user=self.user,
+            client_type=Application.CLIENT_CONFIDENTIAL,
+            authorization_grant_type=Application.GRANT_AUTHORIZATION_CODE,
+            redirect_uris="https://example.org/callback",
+            client_secret="test-secret",
+        )
+
+    def management_urls(self):
+        return [
+            reverse("oauth2_provider:list"),
+            reverse("oauth2_provider:register"),
+            reverse("oauth2_provider:detail", args=[self.application.pk]),
+            reverse("oauth2_provider:update", args=[self.application.pk]),
+            reverse("oauth2_provider:delete", args=[self.application.pk]),
+        ]
+
+    def test_a_signed_in_user_is_refused(self):
+        self.client.force_login(self.user, backend=self.backend)
+        for url in self.management_urls():
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 403)
+        registered = self.client.post(
+            reverse("oauth2_provider:register"),
+            {
+                "name": "Passwort-App",
+                "client_type": Application.CLIENT_CONFIDENTIAL,
+                "authorization_grant_type": Application.GRANT_PASSWORD,
+                "redirect_uris": "https://evil.example/callback",
+                "algorithm": "",
+            },
+        )
+        self.assertEqual(registered.status_code, 403)
+        self.assertFalse(Application.objects.filter(name="Passwort-App").exists())
+        deleted = self.client.post(reverse("oauth2_provider:delete", args=[self.application.pk]))
+        self.assertEqual(deleted.status_code, 403)
+        self.assertTrue(Application.objects.filter(pk=self.application.pk).exists())
+
+    def test_an_anonymous_visitor_is_sent_to_sign_in(self):
+        res = self.client.get(reverse("oauth2_provider:register"))
+        self.assertEqual(res.status_code, 302)
+        self.assertIn(settings.LOGIN_URL, res["Location"])
+
+    def test_a_superuser_may_manage_applications(self):
+        self.client.force_login(self.superuser, backend=self.backend)
+        for url in (reverse("oauth2_provider:list"), reverse("oauth2_provider:register")):
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_a_user_still_sees_their_own_tokens(self):
+        self.client.force_login(self.user, backend=self.backend)
+        res = self.client.get(reverse("oauth2_provider:authorized-token-list"))
+        self.assertEqual(res.status_code, 200)
+
+    def test_the_authorization_endpoint_is_not_restricted(self):
+        self.client.force_login(self.user, backend=self.backend)
+        res = self.client.get(
+            reverse("oauth2_provider:authorize"),
+            {
+                "client_id": self.application.client_id,
+                "response_type": "code",
+                "redirect_uri": "https://example.org/callback",
+            },
+        )
+        self.assertEqual(res.status_code, 200)
