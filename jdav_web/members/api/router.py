@@ -1,6 +1,7 @@
 """Members API routes."""
 
 from contrib.api.perms import authorize
+from contrib.api.perms import Forbidden
 from contrib.api.perms import get_authorized
 from contrib.api.perms import partial_clean
 from contrib.api.perms import set_scalar_fields
@@ -10,6 +11,8 @@ from django.core.exceptions import ValidationError
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
+from logindata.rights import account_refusal
+from logindata.rights import member_change_refusal
 from members.models import ActivityCategory
 from members.models import annotate_activity_score
 from members.models import Freizeit
@@ -114,6 +117,13 @@ def _apply_member_update(request, member, payload):
         authorize(request, "members.may_set_auth_user")
     if any(field in data for field in MEMBER_ORGANIZATIONAL_FIELDS):
         authorize(request, "members.may_change_organizationals")
+    changes = {key: data[key] for key in ("email",) if key in data}
+    if data.get("user_id") is not None:
+        # An unknown id is left to ``partial_clean`` below (422).
+        changes["user"] = User.objects.filter(pk=data["user_id"]).first()
+    refusal = member_change_refusal(request.user, member, changes)
+    if refusal:
+        raise Forbidden(refusal)
     changed = set_scalar_fields(
         member, data, MEMBER_UPDATE_SCALAR_FIELDS + MEMBER_ORGANIZATIONAL_FIELDS
     )
@@ -813,6 +823,10 @@ def request_password_reset(request, member_id: int):
     """Send a password-reset mail to a member who already has login data."""
     authorize(request, "members.may_invite_as_user")
     member = get_object_or_404(Member, pk=member_id)
+    # The mail goes to the account's owner, but it still resets their password.
+    refusal = member.user and account_refusal(request.user, member.user)
+    if refusal:
+        raise Forbidden(refusal)
     if not member.request_password_reset():
         raise ValidationError(_("Member has no linked account or no internal email address."))
     return member

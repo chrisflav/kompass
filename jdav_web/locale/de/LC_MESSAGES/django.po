@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-25 17:25+0100\n"
+"POT-Creation-Date: 2026-10-25 18:39+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -207,6 +207,14 @@ msgstr ""
 
 msgid "You cannot change an account that has rights you do not hold yourself."
 msgstr "Du kannst kein Konto ändern, das Rechte hat, die du selbst nicht hast."
+
+msgid ""
+"Only a superuser may do this for an account or member record that has rights "
+"through the member access lists or by leading groups or excursions."
+msgstr ""
+"Nur Administrator*innen können das für ein Konto oder einen Teilnehmenden-"
+"Datensatz tun, der über die Zugriffslisten oder als Leitung von Gruppen oder "
+"Ausfahrten Rechte hat."
 
 #, python-format
 msgid "You cannot grant permissions you do not hold yourself: %(permissions)s"

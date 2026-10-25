@@ -647,6 +647,20 @@ class Member(Person):
             or "*" in settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER
         )
 
+    def _send_login_link(self, subject, text):
+        """Mail the login link to the primary, internal address only.
+
+        Whoever holds the link can set the password of the linked account, so
+        it never goes to ``alternative_email``: that address is not checked to
+        be internal, and anyone who may edit the member could set it.
+        """
+        send_mail(
+            subject,
+            text.format(name=self.prename, link=get_invite_as_user_key(self.invite_as_user_key)),
+            settings.DEFAULT_SENDING_MAIL,
+            [self.email],
+        )
+
     def invite_as_user(self):
         """Invites the member to join Kompass as a user."""
         if not self.has_internal_email():
@@ -657,12 +671,7 @@ class Member(Person):
             return False
         self.invite_as_user_key = uuid.uuid4().hex
         self.save()
-        self.send_mail(
-            _("Set login data for Kompass"),
-            settings.INVITE_AS_USER_TEXT.format(
-                name=self.prename, link=get_invite_as_user_key(self.invite_as_user_key)
-            ),
-        )
+        self._send_login_link(_("Set login data for Kompass"), settings.INVITE_AS_USER_TEXT)
         return True
 
     def request_password_reset(self):
@@ -673,12 +682,7 @@ class Member(Person):
             return False
         self.invite_as_user_key = uuid.uuid4().hex
         self.save()
-        self.send_mail(
-            _("Reset your Kompass password"),
-            settings.PASSWORD_RESET_TEXT.format(
-                name=self.prename, link=get_invite_as_user_key(self.invite_as_user_key)
-            ),
-        )
+        self._send_login_link(_("Reset your Kompass password"), settings.PASSWORD_RESET_TEXT)
         return True
 
     def led_groups(self):
