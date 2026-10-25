@@ -444,7 +444,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
               <UserMenu memberId={memberId} name={name} />
             </>
           ) : (
-            <NavLink to="/login" className="btn topbar-login">
+            <NavLink to="/login" state={{ from: "/kompass" }} className="btn topbar-login">
               Anmelden
             </NavLink>
           )}
@@ -536,7 +536,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
             </div>
           ) : (
             <div className="drawer-group">
-              <NavLink to="/login" className="drawer-item">
+              <NavLink to="/login" state={{ from: "/kompass" }} className="drawer-item">
                 Anmelden
               </NavLink>
             </div>

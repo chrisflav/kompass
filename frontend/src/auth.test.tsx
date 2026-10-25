@@ -200,9 +200,12 @@ describe("central 401 handling", () => {
     renderRoute("/kompass/groups");
 
     // The expired token is dropped once, centrally, and the route guard takes
-    // over — rather than every page rendering its own "not authorised" state.
+    // over — rather than every page rendering its own "not authorised" state —
+    // sending the user straight back to the provider to sign in again.
     await waitFor(() => expect(localStorage.getItem("kompass_token")).toBeNull());
-    expect(await screen.findByRole("heading", { name: "Kompass" })).toBeInTheDocument();
+    await waitFor(() => expect(assigned).toHaveLength(1));
+    expect(new URL(assigned[0]).pathname).toBe("/o/authorize/");
+    expect(sessionStorage.getItem("kompass_pkce_return")).toBe("/kompass/groups");
   });
 
   it("does not try to log out again when there is no token left", async () => {
