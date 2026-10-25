@@ -2318,9 +2318,8 @@ describe("review pipeline", () => {
     stage: string,
     overrides: Record<string, unknown> = {},
     transactions: unknown[] = [],
-    permissions: string[] = ["finance.process_statementsubmitted", "finance.view_ledger"],
   ) {
-    useMe({ permissions });
+    useMe({ permissions: ["finance.process_statementsubmitted", "finance.view_ledger"] });
     detailReturns({ ...SUBMITTED, ...overrides });
     server.use(
       http.get(api("/api/finance/statements/1/transactions"), () =>

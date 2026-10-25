@@ -230,7 +230,6 @@ export function AnsweredForm({ form }: { form: StatementFormOut }) {
         const declared = step.keys
           .map((key) => form.inputs.find((declaration) => declaration.key === key))
           .filter((declaration): declaration is InputDeclarationOut => declaration !== undefined);
-        if (declared.length === 0) return null;
         // A table is a block and not a cell: the readout's columns are a few
         // characters wide, which is right for a figure and unreadable for five
         // journeys. The same split the editable form makes, for the same

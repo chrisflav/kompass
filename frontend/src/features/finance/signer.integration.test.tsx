@@ -280,6 +280,21 @@ async function kontoCell(): Promise<HTMLElement> {
   return within(row).getByText(/Topf|kein Konto/).closest("td") as HTMLElement;
 }
 
+/**
+ * Every question on screen against its answer, as the signer reads them.
+ *
+ * Scoped to the answer groups, because the approval record above them states
+ * its own facts the same way — who may sign, who has, what is still verlangt —
+ * and the two are different surfaces about different things.
+ */
+function readings(): Record<string, string> {
+  const pairs: Record<string, string> = {};
+  for (const term of document.querySelectorAll(".answer-group dt")) {
+    pairs[term.textContent ?? ""] = term.nextElementSibling?.textContent ?? "";
+  }
+  return pairs;
+}
+
 /** The statement a missing account has locked. */
 const LOCKED = {
   statement: { is_valid: false, validity: 2, validity_display: "Eine Buchung hat kein Konto." },
@@ -346,22 +361,25 @@ describe("the named signer — the statement, not only its arithmetic", () => {
   it("shows the questions and the answers the payout was computed from", async () => {
     openAsSigner("payout");
 
-    // The grouping is the ruleset's own, so she reads them as the person
-    // filling them in saw them.
+    // The grouping is the ruleset's own, so she reads the questions as the
+    // person filling them in saw them.
     expect(await screen.findByText("Grundlage")).toBeInTheDocument();
     expect(screen.getByText("Angaben")).toBeInTheDocument();
-    // A choice reads as its label and not as the value that is stored.
-    expect(screen.getByText("Regelwerk")).toBeInTheDocument();
-    expect(screen.getByText("Übungsleiterpauschale")).toBeInTheDocument();
-    // The nights, the hours and the Tagegeld — none of which this surface
-    // showed at all.
-    expect(screen.getByText("Übernachtungen")).toBeInTheDocument();
-    expect(screen.getByText("Betreuungsstunden")).toBeInTheDocument();
-    const tagegeld = screen.getByText("Tagegeld an").closest("div") as HTMLElement;
-    expect(within(tagegeld).getByText("Mila Nowak")).toBeInTheDocument();
-    // A derived reading is a fact about the statement and reads like any other.
-    expect(screen.getByText("Gefahrene Kilometer")).toBeInTheDocument();
-    expect(screen.getByText("412")).toBeInTheDocument();
+    // Every question against its own answer, as a map, because a payload
+    // whose answers were dropped renders a form of dashes and a test that
+    // looked for the labels alone would call that a statement.
+    expect(readings()).toEqual({
+      // A choice reads as its label and never as the value that is stored.
+      Regelwerk: "Übungsleiterpauschale",
+      // A derived reading is a fact about the statement and reads like the
+      // rest of it.
+      "Gefahrene Kilometer": "412",
+      // The nights, the hours and the Tagegeld — none of which this surface
+      // showed at all.
+      Übernachtungen: "3",
+      Betreuungsstunden: "26",
+      "Tagegeld an": "Mila Nowak",
+    });
   });
 
   it("reads a travel table as rows rather than as the JSON it is stored as", async () => {
