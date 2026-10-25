@@ -51,6 +51,31 @@ msgstr "Bitte gib dein Feedback ein."
 msgid "Feedback is limited to %(limit)s characters."
 msgstr "Feedback ist auf %(limit)s Zeichen begrenzt."
 
+msgid "Please enter a response."
+msgstr "Bitte gib eine Antwort ein."
+
+#, python-format
+msgid "A response is limited to %(limit)s characters."
+msgstr "Eine Antwort ist auf %(limit)s Zeichen begrenzt."
+
+msgid ""
+"The sender cannot be answered: the feedback was sent without an account, or "
+"the account has no email address."
+msgstr ""
+"Die Person kann keine Antwort erhalten: Das Feedback wurde ohne Konto "
+"gesendet, oder zum Konto ist keine E-Mail-Adresse hinterlegt."
+
+msgid "The email could not be sent. Please try again later."
+msgstr ""
+"Die E-Mail konnte nicht gesendet werden. Bitte versuche es später noch "
+"einmal."
+
+msgid "Your feedback is now marked as resolved."
+msgstr "Dein Feedback ist damit als erledigt markiert."
+
+msgid "Response to your feedback"
+msgstr "Antwort auf dein Feedback"
+
 msgid "(empty)"
 msgstr "(leer)"
 
@@ -77,6 +102,18 @@ msgstr "Erledigt am"
 
 msgid "Resolved by"
 msgstr "Erledigt von"
+
+msgid "Author"
+msgstr "Verfasst von"
+
+msgid "Sent on"
+msgstr "Gesendet am"
+
+msgid "Feedback response"
+msgstr "Antwort auf Feedback"
+
+msgid "Feedback responses"
+msgstr "Antworten auf Feedback"
 
 msgid "Startpage"
 msgstr "Startseite"

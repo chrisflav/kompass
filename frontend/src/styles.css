@@ -3524,6 +3524,23 @@ button.etappe-body:hover {
   background: var(--panel);
 }
 
+.feedback-thread {
+  margin-top: 1.5rem;
+}
+
+.feedback-response {
+  padding: 0.75rem 1rem;
+  margin-top: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.feedback-response-text {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  margin-top: 0.35rem;
+}
+
 /* How a payout figure is arrived at, printed under its label so two lines can
    never be mistaken for one another (the allowance was being read as the
    travel subsidy when the allowance row happened to be empty). */
@@ -3781,6 +3798,11 @@ button.etappe-body:hover {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
+}
+
+/* A piece whose PSA ID was searched for, offered above the types. */
+.material-hit {
+  margin: 0 0 0.75rem;
 }
 
 .material-grid {

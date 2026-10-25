@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { client, unwrap } from "../../api/http";
@@ -11,6 +11,8 @@ import {
   Button,
   DataTable,
   DetailList,
+  Field,
+  Modal,
   PageHeader,
   QueryBoundary,
   useConfirmDialog,
@@ -159,6 +161,7 @@ function FeedbackDetail({ feedback }: { feedback: FeedbackOut }) {
   const { can } = usePermissions();
   const qc = useQueryClient();
   const resolved = Boolean(feedback.resolved_at);
+  const [responding, setResponding] = useState(false);
 
   const toggleResolved = useApiMutation(
     () =>
@@ -212,6 +215,16 @@ function FeedbackDetail({ feedback }: { feedback: FeedbackOut }) {
             <Button variant="ghost" onClick={() => navigate(FEEDBACK)}>
               Zurück
             </Button>
+            {can("feedback.change_feedback") && (
+              <Button
+                variant="ghost"
+                disabled={!feedback.can_respond}
+                title={feedback.can_respond ? undefined : NO_RESPONSE_HINT}
+                onClick={() => setResponding(true)}
+              >
+                Antworten
+              </Button>
+            )}
             {can("feedback.change_feedback") && (
               <Button
                 variant={resolved ? "ghost" : "primary"}
@@ -285,6 +298,101 @@ function FeedbackDetail({ feedback }: { feedback: FeedbackOut }) {
           ],
         ]}
       />
+
+      <section className="feedback-thread" aria-label="Antworten">
+        <h3>Antworten</h3>
+        {feedback.responses.length === 0 && (
+          <p className="muted">
+            {feedback.can_respond ? "Noch keine Antwort gesendet." : NO_RESPONSE_HINT}
+          </p>
+        )}
+        {feedback.responses.map((r) => (
+          <article key={r.id} className="feedback-response">
+            <div className="muted">
+              {formatReceived(r.created)}
+              {r.author && ` · ${r.author.name}`}
+            </div>
+            <div className="feedback-response-text">{r.message}</div>
+          </article>
+        ))}
+      </section>
+
+      {responding && <RespondModal feedback={feedback} onClose={() => setResponding(false)} />}
     </div>
+  );
+}
+
+const NO_RESPONSE_HINT =
+  "Antworten geht nur, wenn das Feedback mit einem Konto gesendet wurde, zu dem eine E-Mail-Adresse hinterlegt ist.";
+
+/** Mail an answer to the sender, optionally closing the note with it. */
+function RespondModal({ feedback, onClose }: { feedback: FeedbackOut; onClose: () => void }) {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const resolved = Boolean(feedback.resolved_at);
+  const [message, setMessage] = useState("");
+  const [resolve, setResolve] = useState(false);
+  const respond = useApiMutation(
+    () =>
+      unwrap(
+        client.POST("/api/feedback/{feedback_id}/respond", {
+          params: { path: { feedback_id: feedback.id } },
+          body: { message, resolve: resolve && !resolved },
+        }),
+      ),
+    {
+      invalidate: [["feedback"]],
+      onSuccess: (data) => {
+        qc.setQueryData(["feedback", feedback.id], data);
+        toast.success("Antwort gesendet.");
+        onClose();
+      },
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+  return (
+    <Modal title="Antworten" onClose={onClose}>
+      <form
+        className="stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          respond.mutate(undefined);
+        }}
+      >
+        <p className="muted">
+          Die Antwort geht per E-Mail an {feedback.submitted_by?.name} und zitiert das Feedback.
+        </p>
+        <Field label="Antwort">
+          <textarea
+            rows={6}
+            required
+            maxLength={5000}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+          />
+        </Field>
+        {!resolved && (
+          <label
+            className="field"
+            style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem" }}
+          >
+            <input
+              type="checkbox"
+              checked={resolve}
+              onChange={(e) => setResolve(e.target.checked)}
+            />
+            <span className="field-label">Zugleich als erledigt markieren</span>
+          </label>
+        )}
+        <div className="row-actions">
+          <Button type="submit" busy={respond.isPending} disabled={!message.trim()}>
+            Senden
+          </Button>
+          <Button variant="ghost" onClick={onClose}>
+            Abbrechen
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

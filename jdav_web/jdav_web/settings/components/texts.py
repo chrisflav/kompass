@@ -544,6 +544,36 @@ Viele Grüße
 Dein KOMPASS""",
 )
 
+MATERIAL_INSPECTION_REMINDER_TEXT = get_text(
+    "material_inspection_reminder",
+    default="""Hallo {name},
+
+bei folgendem PSA-Material, das gerade bei dir ist, steht bald die Prüfung an
+oder ist schon überfällig:
+
+{parts}
+
+Bitte gib es rechtzeitig vor dem Termin beim Materialteam zur Prüfung ab.
+Ansprechpersonen:
+
+{contacts}
+
+Erreichen kannst du das Materialteam über den Materialbereich:
+
+{material}
+
+Abgeben kannst du es auch hier:
+
+{locations}
+
+Dein Material findest du hier:
+
+{link}
+
+Viele Grüße
+Dein KOMPASS""",
+)
+
 MATERIAL_PIECE_RETIRED_TEXT = get_text(
     "material_piece_retired",
     default="""Hallo {name},
@@ -557,6 +587,22 @@ Ist nichts mehr übrig, ist die Reservierung storniert. Vielleicht findest du
 anderes Material hier:
 
 {link}
+
+Viele Grüße
+Dein KOMPASS""",
+)
+
+FEEDBACK_RESPONSE_TEXT = get_text(
+    "feedback_response",
+    default="""Hallo {name},
+
+vielen Dank für dein Feedback! {responder} hat dir geantwortet:
+
+{response}
+{status}
+Du hattest geschrieben:
+
+{message}
 
 Viele Grüße
 Dein KOMPASS""",

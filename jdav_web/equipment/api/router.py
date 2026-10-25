@@ -23,6 +23,8 @@ from contrib.api.perms import get_member
 from contrib.api.perms import set_scalar_fields
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Exists
+from django.db.models import OuterRef
 from django.db.models import Prefetch
 from django.db.models import ProtectedError
 from django.db.models import Q
@@ -272,7 +274,11 @@ def list_types(
     start: date | None = None,
     end: date | None = None,
 ):
-    """The catalogue: every type with pieces, and how many are free in the period."""
+    """The catalogue: every type with pieces, and how many are free in the period.
+
+    ``q`` also finds a type by the PSA ID or serial number of one of its pieces
+    still in use.
+    """
     member = get_member(request)
     start, end = _period(start, end)
     types = ProductType.objects.prefetch_related(
@@ -287,6 +293,11 @@ def list_types(
             | Q(manufacturer__icontains=q)
             | Q(product_group__icontains=q)
             | Q(tags__name__icontains=q)
+            | Exists(
+                Part.objects.filter(product_type=OuterRef("pk"))
+                .exclude(status=Part.RETIRED)
+                .filter(Q(psa_id__icontains=q) | Q(serial_number__icontains=q))
+            )
         ).distinct()
     if tag is not None:
         types = types.filter(tags=tag)
@@ -459,6 +470,14 @@ def list_parts(
         parts = parts.exclude(status=Part.RETIRED)
     lent = services.open_loan_dues()
     return [serialize.part_brief(p, lent_until=lent.get(p.pk)) for p in parts]
+
+
+@router.get("/parts/match", response=list[PartBrief])
+def match_parts(request, code: str):
+    """The piece whose PSA ID is ``code``, ignoring case, so a search can lead straight to it."""
+    get_member(request)
+    parts = Part.objects.select_related("product_type", "group", "holder", "location")
+    return [serialize.part_brief(p) for p in parts.filter(psa_id__iexact=code.strip())]
 
 
 @router.get("/parts/lookup", response=PartOut)
