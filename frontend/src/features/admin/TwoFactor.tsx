@@ -52,16 +52,32 @@ function FieldError({ errors }: { errors?: string[] }) {
  */
 export function TwoFactorPage() {
   const query = useApiQuery(STATUS_KEY, () => unwrap(client.GET("/api/logindata/two-factor")));
+  const [dialog, setDialog] = useState<Dialog | null>(null);
+  const close = () => setDialog(null);
+  const added = (result: FactorAdded) =>
+    setDialog(result.recovery_codes.length ? { kind: "codes", codes: result.recovery_codes } : null);
+
   return (
     <div>
       <PageHeader
         breadcrumbs={[{ label: "Zwei-Faktor-Authentifizierung" }]}
         subtitle="Schützt dein Konto, auch wenn jemand dein Passwort kennt."
+        actions={
+          query.data?.available && (
+            <Button onClick={() => setDialog({ kind: "choose" })}>Faktor hinzufügen</Button>
+          )
+        }
       />
+      <p className="fieldset-help">
+        Mit einem zweiten Faktor fragt Kompass bei der Anmeldung nach dem Passwort zusätzlich nach
+        einem Code aus einer Authenticator-App oder nach einem Sicherheitsschlüssel. Ein Passkey —
+        ein Sicherheitsschlüssel, der dich selbst per PIN oder Fingerabdruck prüft — meldet dich
+        sogar ganz ohne Passwort an.
+      </p>
       <QueryBoundary query={query}>
         {(status: TwoFactorStatus) =>
           status.available ? (
-            <TwoFactorBody status={status} />
+            <TwoFactorBody status={status} onDialog={setDialog} />
           ) : (
             <EmptyState>
               Die Anmeldung und ihre Faktoren verwaltet euer Identitätsanbieter, nicht Kompass.
@@ -69,93 +85,7 @@ export function TwoFactorPage() {
           )
         }
       </QueryBoundary>
-    </div>
-  );
-}
-
-type Dialog =
-  | { kind: "totp" }
-  | { kind: "key" }
-  | { kind: "rename"; factor: FactorOut }
-  | { kind: "remove"; factor: FactorOut }
-  | { kind: "regenerate" }
-  | { kind: "codes"; codes: string[] };
-
-function TwoFactorBody({ status }: { status: TwoFactorStatus }) {
-  const [dialog, setDialog] = useState<Dialog | null>(null);
-  const close = () => setDialog(null);
-  const added = (result: FactorAdded) =>
-    setDialog(result.recovery_codes.length ? { kind: "codes", codes: result.recovery_codes } : null);
-
-  return (
-    <div className="stack">
-      <p className="fieldset-help">
-        Mit einem zweiten Faktor fragt Kompass bei der Anmeldung nach dem Passwort zusätzlich nach
-        einem Code aus einer Authenticator-App oder nach einem Sicherheitsschlüssel. Ein Passkey —
-        ein Sicherheitsschlüssel, der dich selbst per PIN oder Fingerabdruck prüft — meldet dich
-        sogar ganz ohne Passwort an.
-      </p>
-      <div className="row-actions">
-        <Button type="button" onClick={() => setDialog({ kind: "totp" })}>
-          Authenticator-App hinzufügen
-        </Button>
-        {webauthnSupported() && (
-          <Button type="button" variant="ghost" onClick={() => setDialog({ kind: "key" })}>
-            Sicherheitsschlüssel hinzufügen
-          </Button>
-        )}
-      </div>
-      {status.factors.length === 0 ? (
-        <EmptyState>Du hast noch keinen zweiten Faktor eingerichtet.</EmptyState>
-      ) : (
-        <>
-          <DataTable
-            rows={status.factors}
-            rowKey={(f) => `${f.kind}-${f.id}`}
-            columns={[
-              { header: "Name", cell: (f) => f.name },
-              { header: "Art", cell: kindLabel },
-              { header: "Hinzugefügt", cell: (f) => formatDate(f.created) },
-              {
-                header: "Zuletzt benutzt",
-                cell: (f) => (f.last_used ? formatDate(f.last_used) : <span className="muted">nie</span>),
-              },
-              {
-                header: "",
-                cell: (f) => (
-                  <div className="row-actions inline-actions">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setDialog({ kind: "rename", factor: f })}
-                    >
-                      Umbenennen
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setDialog({ kind: "remove", factor: f })}
-                    >
-                      Entfernen
-                    </Button>
-                  </div>
-                ),
-              },
-            ]}
-          />
-          <h3>Wiederherstellungscodes</h3>
-          <p className="fieldset-help">
-            Hast du keinen deiner Faktoren zur Hand, meldest du dich mit einem Wiederherstellungscode
-            an. Jeder Code gilt nur einmal. Du hast noch{" "}
-            <strong>{status.recovery_codes_remaining}</strong> unbenutzte Codes.
-          </p>
-          <div className="row-actions">
-            <Button type="button" variant="ghost" onClick={() => setDialog({ kind: "regenerate" })}>
-              Neue Codes erzeugen
-            </Button>
-          </div>
-        </>
-      )}
+      {dialog?.kind === "choose" && <ChooseFactorModal onClose={close} onChoose={setDialog} />}
       {dialog?.kind === "totp" && <AddTotpModal onClose={close} onAdded={added} />}
       {dialog?.kind === "key" && <AddKeyModal onClose={close} onAdded={added} />}
       {dialog?.kind === "rename" && <RenameModal factor={dialog.factor} onClose={close} />}
@@ -165,6 +95,99 @@ function TwoFactorBody({ status }: { status: TwoFactorStatus }) {
       )}
       {dialog?.kind === "codes" && <RecoveryCodesModal codes={dialog.codes} onClose={close} />}
     </div>
+  );
+}
+
+type Dialog =
+  | { kind: "choose" }
+  | { kind: "totp" }
+  | { kind: "key" }
+  | { kind: "rename"; factor: FactorOut }
+  | { kind: "remove"; factor: FactorOut }
+  | { kind: "regenerate" }
+  | { kind: "codes"; codes: string[] };
+
+function TwoFactorBody({
+  status,
+  onDialog,
+}: {
+  status: TwoFactorStatus;
+  onDialog: (d: Dialog) => void;
+}) {
+  if (status.factors.length === 0) {
+    return <EmptyState>Du hast noch keinen zweiten Faktor eingerichtet.</EmptyState>;
+  }
+  return (
+    <>
+      <DataTable
+        rows={status.factors}
+        rowKey={(f) => `${f.kind}-${f.id}`}
+        columns={[
+          { header: "Name", cell: (f) => f.name },
+          { header: "Art", cell: kindLabel },
+          { header: "Hinzugefügt", cell: (f) => formatDate(f.created) },
+          {
+            header: "Zuletzt benutzt",
+            cell: (f) => (f.last_used ? formatDate(f.last_used) : <span className="muted">nie</span>),
+          },
+          {
+            header: "",
+            cell: (f) => (
+              <div className="row-actions inline-actions">
+                <Button type="button" variant="ghost" onClick={() => onDialog({ kind: "rename", factor: f })}>
+                  Umbenennen
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => onDialog({ kind: "remove", factor: f })}>
+                  Entfernen
+                </Button>
+              </div>
+            ),
+          },
+        ]}
+      />
+      <h3 className="fieldset-title">Wiederherstellungscodes</h3>
+      <p className="fieldset-help">
+        Hast du keinen deiner Faktoren zur Hand, meldest du dich mit einem Wiederherstellungscode an.
+        Jeder Code gilt nur einmal. Du hast noch <strong>{status.recovery_codes_remaining}</strong>{" "}
+        unbenutzte Codes.
+      </p>
+      <div className="row-actions">
+        <Button type="button" variant="ghost" onClick={() => onDialog({ kind: "regenerate" })}>
+          Neue Codes erzeugen
+        </Button>
+      </div>
+    </>
+  );
+}
+
+const HINT = { margin: "0.35rem 0 0" };
+
+/** Which kind of factor to add; a security key only where the browser can talk to one. */
+function ChooseFactorModal({ onClose, onChoose }: { onClose: () => void; onChoose: (d: Dialog) => void }) {
+  return (
+    <Modal title="Faktor hinzufügen" onClose={onClose} size="sm">
+      <div className="stack">
+        <div>
+          <Button type="button" onClick={() => onChoose({ kind: "totp" })}>
+            Authenticator-App
+          </Button>
+          <p className="muted small" style={HINT}>
+            Ein Code aus einer App wie Aegis oder Google Authenticator.
+          </p>
+        </div>
+        {webauthnSupported() && (
+          <div>
+            <Button type="button" onClick={() => onChoose({ kind: "key" })}>
+              Sicherheitsschlüssel
+            </Button>
+            <p className="muted small" style={HINT}>
+              Ein YubiKey, dein Smartphone oder der Fingerabdrucksensor deines Geräts; als Passkey
+              auch ohne Passwort.
+            </p>
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }
 

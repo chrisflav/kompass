@@ -111,8 +111,11 @@ class WebAuthnCredential(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="webauthn_credentials"
     )
     name = models.CharField(_("name"), max_length=100)
-    # base64url, as the browser reports it.
-    credential_id = models.CharField(max_length=1024, unique=True)
+    # base64url, as the browser reports it. Up to 1023 bytes, too long for a
+    # unique index on every MySQL/MariaDB configuration, so lookups and the
+    # uniqueness go through its SHA-256 instead.
+    credential_id = models.TextField()
+    credential_id_hash = models.CharField(max_length=64, unique=True)
     public_key = models.BinaryField()
     sign_count = models.BigIntegerField(default=0)
     discoverable = models.BooleanField(default=False)

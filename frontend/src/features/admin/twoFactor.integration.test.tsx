@@ -44,6 +44,13 @@ const wrongPassword = () =>
     { status: 422 },
   );
 
+/** The header's add action, then the kind of factor in its dialog. */
+async function chooseFactor(user: ReturnType<typeof renderRoute>["user"], kind: string) {
+  await user.click(await screen.findByRole("button", { name: "Faktor hinzufügen" }));
+  const dialog = within(await screen.findByRole("dialog", { name: "Faktor hinzufügen" }));
+  await user.click(dialog.getByRole("button", { name: kind }));
+}
+
 beforeAll(async () => {
   await import("../../kompassRoutes");
 });
@@ -62,11 +69,20 @@ describe("two-factor authentication", () => {
     expect(await screen.findByText("Du hast noch keinen zweiten Faktor eingerichtet.")).toBeInTheDocument();
   });
 
+  it("offers a security key only where the browser can use one", async () => {
+    statusReturns();
+    const { user } = renderRoute("/kompass/security");
+    await user.click(await screen.findByRole("button", { name: "Faktor hinzufügen" }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Faktor hinzufügen" }));
+    expect(dialog.getByRole("button", { name: "Authenticator-App" })).toBeInTheDocument();
+    expect(dialog.queryByRole("button", { name: "Sicherheitsschlüssel" })).toBeNull();
+  });
+
   it("says who manages the factors where an identity provider signs in", async () => {
     statusReturns([], { available: false });
     renderRoute("/kompass/security");
     expect(await screen.findByText(/verwaltet euer Identitätsanbieter/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Authenticator-App hinzufügen" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Faktor hinzufügen" })).toBeNull();
   });
 
   it("adds an authenticator app and shows the recovery codes once", async () => {
@@ -88,7 +104,7 @@ describe("two-factor authentication", () => {
       }),
     );
     const { user } = renderRoute("/kompass/security");
-    await user.click(await screen.findByRole("button", { name: "Authenticator-App hinzufügen" }));
+    await chooseFactor(user, "Authenticator-App");
 
     let dialog = within(await screen.findByRole("dialog"));
     await user.type(dialog.getByLabelText(/Dein Passwort/), "geheim");
@@ -131,7 +147,7 @@ describe("two-factor authentication", () => {
       ),
     );
     const { user } = renderRoute("/kompass/security");
-    await user.click(await screen.findByRole("button", { name: "Authenticator-App hinzufügen" }));
+    await chooseFactor(user, "Authenticator-App");
     const dialog = within(await screen.findByRole("dialog"));
     await user.type(dialog.getByLabelText(/Dein Passwort/), "falsch");
     await user.click(dialog.getByRole("button", { name: "Weiter" }));
@@ -177,7 +193,7 @@ describe("two-factor authentication", () => {
       }),
     );
     const { user } = renderRoute("/kompass/security");
-    await user.click(await screen.findByRole("button", { name: "Sicherheitsschlüssel hinzufügen" }));
+    await chooseFactor(user, "Sicherheitsschlüssel");
     const dialog = within(await screen.findByRole("dialog"));
     await user.clear(dialog.getByLabelText(/Name/));
     await user.type(dialog.getByLabelText(/Name/), "YubiKey");
@@ -220,7 +236,7 @@ describe("two-factor authentication", () => {
       ),
     );
     const { user } = renderRoute("/kompass/security");
-    await user.click(await screen.findByRole("button", { name: "Sicherheitsschlüssel hinzufügen" }));
+    await chooseFactor(user, "Sicherheitsschlüssel");
     const dialog = within(await screen.findByRole("dialog"));
     await user.type(dialog.getByLabelText(/Dein Passwort/), "geheim");
     await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));

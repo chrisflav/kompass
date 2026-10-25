@@ -233,6 +233,9 @@ class TwoFactorModuleTestCase(TestCase):
     def test_registering_a_key(self):
         key = add_key(self.user)
         self.assertTrue(key.discoverable)
+        # Found by the digest of its ID, which fits a unique index anywhere.
+        self.assertEqual(len(key.credential_id_hash), 64)
+        self.assertEqual(key.credential_id_hash, two_factor.credential_hash(key.credential_id))
         self.assertEqual(key.sign_count, 0)
         options, _challenge = two_factor.registration_options(self.user)
         # Asks for a resident key without insisting, and excludes keys already there.

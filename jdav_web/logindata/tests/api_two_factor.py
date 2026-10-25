@@ -96,6 +96,8 @@ class TwoFactorApiTestCase(ApiTestCase):
         PersonalAccessToken.objects.create(access_token=pat, name="Skript", read_only=False)
         r = self.call("get", "", headers={"HTTP_AUTHORIZATION": "Bearer " + pat.token})
         self.assertEqual(r.status_code, 403)
+        # Saying so about these settings, not about access tokens.
+        self.assertIn("Zwei-Faktor", r.json()["detail"])
 
     def test_adding_an_authenticator_app(self):
         setup = self.setup_totp()

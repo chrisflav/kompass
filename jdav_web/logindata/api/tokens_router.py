@@ -79,12 +79,15 @@ class PersonalTokenCreated(PersonalTokenOut):
     token: str
 
 
-def require_session(request):
-    """Refuse any bearer token but one the frontend obtained by signing in."""
+def require_session(request, message=None):
+    """Refuse any bearer token but one the frontend obtained by signing in.
+
+    ``message`` says what cannot be managed otherwise; access tokens by default.
+    """
     access_token = getattr(request, "access_token", None)
     application = access_token.application if access_token is not None else None
     if application is None or application.client_id != settings.FRONTEND_OAUTH_CLIENT_ID:
-        raise Forbidden(_("Access tokens can only be managed after signing in."))
+        raise Forbidden(message or _("Access tokens can only be managed after signing in."))
 
 
 def _owner(user):

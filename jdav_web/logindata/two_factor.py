@@ -312,6 +312,11 @@ def factor_removed(user):
 # --- WebAuthn ---------------------------------------------------------------
 
 
+def credential_hash(credential_id):
+    """The indexed stand-in for a (base64url) credential ID, see ``WebAuthnCredential``."""
+    return hashlib.sha256(str(credential_id).encode()).hexdigest()
+
+
 def _user_handle(user):
     return str(user.pk).encode()
 
@@ -356,7 +361,9 @@ def register_credential(user, name, credential, challenge):
     except (WebAuthnException, ValueError, KeyError) as e:
         raise InvalidCredential(str(e)) from e
     credential_id = bytes_to_base64url(verified.credential_id)
-    if WebAuthnCredential.objects.filter(credential_id=credential_id).exists():
+    if WebAuthnCredential.objects.filter(
+        credential_id_hash=credential_hash(credential_id)
+    ).exists():
         raise InvalidCredential("This key is already registered.")
     extensions = credential.get("clientExtensionResults") or {}
     resident = (extensions.get("credProps") or {}).get("rk") is True
@@ -364,6 +371,7 @@ def register_credential(user, name, credential, challenge):
         user=user,
         name=name,
         credential_id=credential_id,
+        credential_id_hash=credential_hash(credential_id),
         public_key=verified.credential_public_key,
         sign_count=verified.sign_count,
         discoverable=resident and verified.user_verified,
@@ -390,7 +398,7 @@ def authentication_options(credentials, user_verification):
 def authenticate_credential(credentials, credential, challenge, require_user_verification):
     """Verify an assertion against one of ``credentials`` and return that credential."""
     try:
-        stored = credentials.get(credential_id=credential["id"])
+        stored = credentials.get(credential_id_hash=credential_hash(credential["id"]))
         verified = verify_authentication_response(
             credential=credential,
             expected_challenge=base64url_to_bytes(challenge),

@@ -113,6 +113,12 @@ class RecoveryCodesOut(Schema):
     codes: list[str]
 
 
+def _require_session(request):
+    require_session(
+        request, _("Two-factor authentication can only be managed after signing in to Kompass.")
+    )
+
+
 def _require_available():
     if not two_factor.available():
         raise Forbidden(_("Two-factor authentication is handled by your identity provider."))
@@ -200,7 +206,7 @@ def _added(request, factor, first):
 @router.get("/two-factor", response=TwoFactorStatus)
 def two_factor_status(request):
     """The requesting user's second factors."""
-    require_session(request)
+    _require_session(request)
     user = request.user
     factors = [*user.totp_devices.all(), *user.webauthn_credentials.all()]
     return {
@@ -214,7 +220,7 @@ def two_factor_status(request):
 @router.post("/two-factor/totp/setup", response=TOTPSetup)
 def start_totp(request, payload: PasswordIn):
     """Start adding an authenticator app: check the password, hand out a secret."""
-    require_session(request)
+    _require_session(request)
     _require_available()
     _reauthenticate(request, payload.password)
     secret = two_factor.new_totp_secret()
@@ -228,7 +234,7 @@ def start_totp(request, payload: PasswordIn):
 @router.post("/two-factor/totp", response={201: FactorAdded})
 def confirm_totp(request, payload: TOTPConfirmIn):
     """Save the authenticator app once it produced a valid code."""
-    require_session(request)
+    _require_session(request)
     _require_available()
     setup, secret = _from_state(request, "totp", payload.state)
     name = _clean_name(payload.name)
@@ -250,7 +256,7 @@ def confirm_totp(request, payload: TOTPConfirmIn):
 @router.post("/two-factor/webauthn/setup", response=WebAuthnSetup)
 def start_webauthn(request, payload: PasswordIn):
     """Start adding a security key: check the password, hand out the creation options."""
-    require_session(request)
+    _require_session(request)
     _require_available()
     _reauthenticate(request, payload.password)
     options, challenge = two_factor.registration_options(request.user)
@@ -260,7 +266,7 @@ def start_webauthn(request, payload: PasswordIn):
 @router.post("/two-factor/webauthn", response={201: FactorAdded})
 def confirm_webauthn(request, payload: WebAuthnConfirmIn):
     """Verify the browser's answer to the creation options and save the key."""
-    require_session(request)
+    _require_session(request)
     _require_available()
     setup, challenge = _from_state(request, "webauthn", payload.state)
     name = _clean_name(payload.name)
@@ -278,7 +284,7 @@ def confirm_webauthn(request, payload: WebAuthnConfirmIn):
 
 @router.patch("/two-factor/{kind}/{factor_id}", response=FactorOut)
 def rename_factor(request, kind: FactorKind, factor_id: int, payload: RenameIn):
-    require_session(request)
+    _require_session(request)
     factor = get_object_or_404(_factor_model(kind), pk=factor_id, user=request.user)
     factor.name = _clean_name(payload.name)
     factor.save(update_fields=["name"])
@@ -288,7 +294,7 @@ def rename_factor(request, kind: FactorKind, factor_id: int, payload: RenameIn):
 @router.post("/two-factor/{kind}/{factor_id}/remove", response={204: None})
 def remove_factor(request, kind: FactorKind, factor_id: int, payload: PasswordIn):
     """Remove a factor; the recovery codes go with the last one."""
-    require_session(request)
+    _require_session(request)
     _require_available()
     factor = get_object_or_404(_factor_model(kind), pk=factor_id, user=request.user)
     _reauthenticate(request, payload.password)
@@ -307,7 +313,7 @@ def remove_factor(request, kind: FactorKind, factor_id: int, payload: PasswordIn
 @router.post("/two-factor/recovery-codes", response=RecoveryCodesOut)
 def regenerate_recovery_codes(request, payload: PasswordIn):
     """Replace the recovery codes with new ones; the old ones stop working."""
-    require_session(request)
+    _require_session(request)
     _require_available()
     if not two_factor.enabled_for(request.user):
         raise ValidationError(_("Set up a second factor first."))
