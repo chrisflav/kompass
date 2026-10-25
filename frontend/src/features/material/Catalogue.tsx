@@ -16,6 +16,7 @@ import {
   BASE,
   DeficitButton,
   mediaUrl,
+  partStatusLabel,
   period,
   setTypes,
   useOwnerGroups,
@@ -219,6 +220,7 @@ export function Catalogue() {
             <p key={part.id} className="material-hit">
               <Link to={`${BASE}/parts/${part.id}`}>
                 Teil <span className="mono">{part.psa_id}</span> – {part.product_type.name}
+                {part.status !== "active" && ` (${partStatusLabel(part.status)})`}
               </Link>
             </p>
           ))}

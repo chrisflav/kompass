@@ -104,6 +104,11 @@ const PART_STATUS: Record<string, [string, "success" | "warning" | "danger" | "n
   retired: ["ausgesondert", "neutral"],
 };
 
+/** A piece's status in words, e.g. "ausgesondert". */
+export function partStatusLabel(status: string): string {
+  return (PART_STATUS[status] ?? [status])[0];
+}
+
 export function PartStatus({ status }: { status: string }) {
   const [label, tone] = PART_STATUS[status] ?? [status, "neutral"];
   return <Badge tone={tone}>{label}</Badge>;

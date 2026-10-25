@@ -6862,7 +6862,7 @@
             }
           }
         },
-        "description": "The catalogue: every type with pieces, and how many are free in the period.\n\n``q`` also finds a type by the PSA ID or serial number of one of its pieces.",
+        "description": "The catalogue: every type with pieces, and how many are free in the period.\n\n``q`` also finds a type by the PSA ID or serial number of one of its pieces\nstill in use.",
         "tags": [
           "material"
         ],

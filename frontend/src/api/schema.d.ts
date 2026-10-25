@@ -2632,7 +2632,8 @@ export interface paths {
          * List Types
          * @description The catalogue: every type with pieces, and how many are free in the period.
          *
-         *     ``q`` also finds a type by the PSA ID or serial number of one of its pieces.
+         *     ``q`` also finds a type by the PSA ID or serial number of one of its pieces
+         *     still in use.
          */
         get: operations["equipment_api_router_list_types"];
         put?: never;

@@ -482,6 +482,19 @@ describe("material — Materialbrowser", () => {
     await waitFor(() => expect(currentUrl()).toBe("/kompass/material/parts/1"));
   });
 
+  it("says when the piece searched for is retired", async () => {
+    server.use(
+      http.get(api("/api/material/parts/match"), () =>
+        HttpResponse.json([part(1, { psa_id: "H01", label: "H01", status: "retired" })]),
+      ),
+    );
+    const { user } = renderRoute("/kompass/material");
+    await user.type(await screen.findByLabelText("Material suchen"), "H01");
+    expect(
+      await screen.findByRole("link", { name: "Teil H01 – Bandschlinge 120 cm (ausgesondert)" }),
+    ).toHaveAttribute("href", "/kompass/material/parts/1");
+  });
+
   it("puts a whole set of a type kept by size in the cart", async () => {
     server.use(http.get(api("/api/material/types"), () => HttpResponse.json([CARD, FRIENDS])));
     const { user } = renderRoute("/kompass/material");

@@ -23,6 +23,8 @@ from contrib.api.perms import get_member
 from contrib.api.perms import set_scalar_fields
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Exists
+from django.db.models import OuterRef
 from django.db.models import Prefetch
 from django.db.models import ProtectedError
 from django.db.models import Q
@@ -274,7 +276,8 @@ def list_types(
 ):
     """The catalogue: every type with pieces, and how many are free in the period.
 
-    ``q`` also finds a type by the PSA ID or serial number of one of its pieces.
+    ``q`` also finds a type by the PSA ID or serial number of one of its pieces
+    still in use.
     """
     member = get_member(request)
     start, end = _period(start, end)
@@ -290,8 +293,11 @@ def list_types(
             | Q(manufacturer__icontains=q)
             | Q(product_group__icontains=q)
             | Q(tags__name__icontains=q)
-            | Q(parts__psa_id__icontains=q)
-            | Q(parts__serial_number__icontains=q)
+            | Exists(
+                Part.objects.filter(product_type=OuterRef("pk"))
+                .exclude(status=Part.RETIRED)
+                .filter(Q(psa_id__icontains=q) | Q(serial_number__icontains=q))
+            )
         ).distinct()
     if tag is not None:
         types = types.filter(tags=tag)

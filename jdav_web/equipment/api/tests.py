@@ -337,6 +337,15 @@ class MaterialApiTestCase(ApiMixin, TestCase):
         r = self.get("alice", "/types", q="sn-47")
         self.assertEqual([c["name"] for c in r.json()], ["Bandschlinge 120 cm"])
         self.assertEqual(self.get("alice", "/types", q="X99").json(), [])
+        # A retired piece no longer brings up its type.
+        self.harness.status = Part.RETIRED
+        self.harness.save()
+        self.assertEqual(self.get("alice", "/types", q="g1").json(), [])
+
+    def test_catalogue_search_finds_the_type_of_a_piece_not_its_sets(self):
+        self.setUpSet()
+        r = self.get("alice", "/types", q="c05-1")
+        self.assertEqual([c["name"] for c in r.json()], ["CAM 0.5"])
 
     def test_match_parts(self):
         r = self.get("alice", "/parts/match", code=" g1 ")
@@ -351,6 +360,11 @@ class MaterialApiTestCase(ApiMixin, TestCase):
         self.assertEqual(self.get("alice", "/parts/match", code="G").json(), [])
         self.assertEqual(self.get("alice", "/parts/match", code="b77").json(), [])
         self.assertEqual(self.get("nomember", "/parts/match", code="G1").status_code, 403)
+        # A retired piece is still found by its ID, and says it is retired.
+        self.harness.status = Part.RETIRED
+        self.harness.save()
+        r = self.get("alice", "/parts/match", code="G1")
+        self.assertEqual([p["status"] for p in r.json()], [Part.RETIRED])
 
     # --- pieces ----------------------------------------------------------
 
