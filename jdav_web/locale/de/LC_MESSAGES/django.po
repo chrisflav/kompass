@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 23:57+0200\n"
+"POT-Creation-Date: 2026-10-25 16:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -87,6 +87,11 @@ msgstr "Berechtigungen"
 msgid "Important dates"
 msgstr "Wichtigen Daten"
 
+msgid "Only superusers can reset the two-factor authentication of a superuser."
+msgstr ""
+"Nur Superuser können die Zwei-Faktor-Authentifizierung eines Superusers "
+"zurücksetzen."
+
 msgid "You cannot delete your own account."
 msgstr "Du kannst dein eigenes Konto nicht löschen."
 
@@ -111,8 +116,43 @@ msgstr "Wähle eine der angebotenen Gültigkeitsdauern."
 msgid "Only superusers can create tokens for other accounts."
 msgstr "Nur Superuser können Tokens für andere Konten erstellen."
 
+msgid "Two-factor authentication is handled by your identity provider."
+msgstr "Die Zwei-Faktor-Authentifizierung übernimmt dein Identitätsanbieter."
+
+msgid "Too many failed attempts. Please wait a few minutes and try again."
+msgstr ""
+"Zu viele Fehlversuche. Bitte warte ein paar Minuten und versuche es dann "
+"erneut."
+
+msgid "The password is not correct."
+msgstr "Das Passwort ist nicht korrekt."
+
+msgid "This setup has expired. Please start again."
+msgstr "Die Einrichtung ist abgelaufen. Bitte beginne von vorn."
+
+msgid "Give it a name."
+msgstr "Gib einen Namen an."
+
+msgid "At most 100 characters."
+msgstr "Höchstens 100 Zeichen."
+
+msgid "The code is not correct. Please try again."
+msgstr "Der Code ist nicht korrekt. Bitte versuche es erneut."
+
+msgid "The security key could not be registered."
+msgstr "Der Sicherheitsschlüssel konnte nicht registriert werden."
+
+msgid "Set up a second factor first."
+msgstr "Richte zuerst einen zweiten Faktor ein."
+
 msgid "Authentication"
 msgstr "Authentifizierung"
+
+msgid "That did not work. Please try again."
+msgstr "Das hat nicht geklappt. Bitte versuche es erneut."
+
+msgid "Signing in with this security key did not work."
+msgstr "Die Anmeldung mit diesem Sicherheitsschlüssel hat nicht geklappt."
 
 msgid "Permission group"
 msgstr "Berechtigungsgruppe"
@@ -155,6 +195,21 @@ msgstr "Persönliche Zugangstokens"
 
 msgid "Can create personal access tokens"
 msgstr "Kann persönliche Zugangstokens erstellen"
+
+msgid "last used"
+msgstr "zuletzt benutzt"
+
+msgid "Authenticator app"
+msgstr "Authenticator-App"
+
+msgid "Authenticator apps"
+msgstr "Authenticator-Apps"
+
+msgid "Security key"
+msgstr "Sicherheitsschlüssel"
+
+msgid "Security keys"
+msgstr "Sicherheitsschlüssel"
 
 msgid "Registration"
 msgstr "Registrierung"
@@ -395,12 +450,40 @@ msgstr "Zu Gruppe einladen"
 msgid "Add another %(verbose_name)s"
 msgstr "%(verbose_name)s hinzufügen"
 
-msgid "Sign in"
-msgstr "Anmelden"
-
 msgid "Please sign in to continue."
 msgstr "Bitte melde dich an, um fortzufahren."
 
 msgid "Your username and password did not match. Please try again."
 msgstr ""
 "Benutzername und Passwort passen nicht zusammen. Bitte versuche es erneut."
+
+msgid "The security key did not respond. Please try again."
+msgstr ""
+"Der Sicherheitsschlüssel hat nicht geantwortet. Bitte versuche es erneut."
+
+msgid "Sign in"
+msgstr "Anmelden"
+
+msgid "or"
+msgstr "oder"
+
+msgid "Sign in with a security key"
+msgstr "Mit Sicherheitsschlüssel anmelden"
+
+msgid "Confirm it is you with your second factor."
+msgstr "Bestätige mit deinem zweiten Faktor, dass du es bist."
+
+msgid "Use security key"
+msgstr "Sicherheitsschlüssel verwenden"
+
+msgid "Code from your authenticator app"
+msgstr "Code aus deiner Authenticator-App"
+
+msgid "Confirm"
+msgstr "Bestätigen"
+
+msgid "Use a recovery code"
+msgstr "Wiederherstellungscode verwenden"
+
+msgid "Recovery code"
+msgstr "Wiederherstellungscode"

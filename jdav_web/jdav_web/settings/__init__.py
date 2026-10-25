@@ -76,6 +76,7 @@ base_settings = [
     "components/locale.py",
     "components/logging.py",
     "components/oauth.py",
+    "components/two_factor.py",
 ]
 
 include(*base_settings)

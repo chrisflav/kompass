@@ -25,6 +25,7 @@ dependencies = [
     "mysqlclient",
     "openpyxl",
     "pymemcache",
+    "pyotp>=2.10.0",
     "pypdf",
     "redis",
     "rules",
@@ -33,6 +34,7 @@ dependencies = [
     "sphinxawesome-theme",
     "tomli",
     "uwsgi",
+    "webauthn>=3.0.1",
     "xlsxwriter",
 ]
 

@@ -1,0 +1,40 @@
+{% extends "registration/login_base.html" %}
+{% load i18n %}
+{% block content %}
+    <p class="sub">{% translate "Confirm it is you with your second factor." %}</p>
+    {% if error %}
+      <p class="errors">{{ error }}</p>
+    {% endif %}
+    <p class="errors" data-webauthn-error hidden>{% translate "The security key did not respond. Please try again." %}</p>
+    {% if has_keys %}
+      <form method="post" data-webauthn-form data-options-url="{% url 'login-two-factor-options' %}">
+        {% csrf_token %}
+        <input type="hidden" name="method" value="webauthn">
+        <input type="hidden" name="credential">
+        <button type="submit">{% translate "Use security key" %}</button>
+      </form>
+    {% endif %}
+    {% if has_totp %}
+      {% if has_keys %}<p class="divider">{% translate "or" %}</p>{% endif %}
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="method" value="totp">
+        <label>{% translate "Code from your authenticator app" %}
+          <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code"
+                 pattern="[0-9 ]*" maxlength="8" required {% if not has_keys or method == "totp" %}autofocus{% endif %}>
+        </label>
+        <button type="submit"{% if has_keys %} class="secondary"{% endif %}>{% translate "Confirm" %}</button>
+      </form>
+    {% endif %}
+    <details{% if method == "recovery" %} open{% endif %}>
+      <summary>{% translate "Use a recovery code" %}</summary>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="method" value="recovery">
+        <label>{% translate "Recovery code" %}
+          <input type="text" name="code" autocomplete="off" spellcheck="false" required>
+        </label>
+        <button type="submit" class="secondary">{% translate "Confirm" %}</button>
+      </form>
+    </details>
+{% endblock %}

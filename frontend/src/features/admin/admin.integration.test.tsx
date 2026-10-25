@@ -327,6 +327,41 @@ describe("user detail", () => {
     expect(savedUser).toBe(false);
   });
 
+  it("resets the second factors of someone who lost them", async () => {
+    let reset = false;
+    server.use(
+      http.get(api("/api/logindata/users/2"), () =>
+        HttpResponse.json({ ...DETAIL, two_factor_enabled: !reset }),
+      ),
+      http.get(api("/api/logindata/permission-groups"), () => HttpResponse.json(GROUPS)),
+      http.post(api("/api/logindata/users/2/reset-two-factor"), () => {
+        reset = true;
+        return HttpResponse.json({ ...DETAIL, two_factor_enabled: false });
+      }),
+    );
+    const { user } = renderRoute("/kompass/users/2");
+    expect(await screen.findByText("eingerichtet")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Zurücksetzen" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByText(/genügt wieder das Passwort/)).toBeInTheDocument();
+    await user.click(dialog.getByRole("button", { name: "Zurücksetzen" }));
+    expect(await screen.findByText("Zwei-Faktor-Authentifizierung zurückgesetzt.")).toBeInTheDocument();
+    expect(await screen.findByText("nicht eingerichtet")).toBeInTheDocument();
+  });
+
+  it("offers no reset without the right to change accounts", async () => {
+    useMe({ permissions: ["auth.view_user"] });
+    server.use(
+      http.get(api("/api/logindata/users/2"), () =>
+        HttpResponse.json({ ...DETAIL, two_factor_enabled: true }),
+      ),
+      http.get(api("/api/logindata/permission-groups"), () => HttpResponse.json(GROUPS)),
+    );
+    renderRoute("/kompass/users/2");
+    expect(await screen.findByText("eingerichtet")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Zurücksetzen" })).toBeNull();
+  });
+
   it("edits an account's flags and rights groups", async () => {
     detailReturns();
     let patched: Record<string, unknown> | null = null;

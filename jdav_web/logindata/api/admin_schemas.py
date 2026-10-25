@@ -63,6 +63,7 @@ class LoginUserOut(Schema):
     groups: list[AuthGroupBrief] = []
     member_id: int | None = None
     member_name: str | None = None
+    two_factor_enabled: bool = False
 
 
 class LoginUserCreate(Schema):

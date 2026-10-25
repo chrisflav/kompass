@@ -15,13 +15,17 @@ confirmation check and hashing behave exactly as in the admin; their errors
 surface as 422 through the root API's ``ValidationError`` handler.
 """
 
+import logging
+
 from contrib.api.perms import authorize
+from contrib.api.perms import Forbidden
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
+from logindata import two_factor
 from logindata.models import AuthGroup
 from logindata.models import LoginDatum
 from logindata.models import RegistrationPassword
@@ -40,6 +44,8 @@ from .admin_schemas import RegistrationPasswordOut
 from .admin_schemas import SetPasswordIn
 
 router = Router()
+
+logger = logging.getLogger(__name__)
 
 
 def _raise_form_errors(form):
@@ -64,6 +70,7 @@ def _user_payload(user):
         "groups": [_group_brief(g) for g in user.groups.all()],
         "member_id": member.pk if member else None,
         "member_name": member.name if member else None,
+        "two_factor_enabled": two_factor.enabled_for(user),
     }
 
 
@@ -161,6 +168,31 @@ def set_user_password(request, user_id: int, payload: SetPasswordIn):
     if not form.is_valid():
         _raise_form_errors(form)
     form.save()
+    return _user_payload(user)
+
+
+@router.post("/users/{user_id}/reset-two-factor", response=LoginUserOut)
+def reset_two_factor(request, user_id: int):
+    """Remove every second factor of a user who lost theirs; they sign in with the password.
+
+    The same permission as setting their password, which is what this is the
+    counterpart of. A superuser's factors are reset only by a superuser, so the
+    permission cannot be used to weaken the login of a more powerful account.
+    """
+    authorize(request, "auth.change_user")
+    user = get_object_or_404(LoginDatum, pk=user_id)
+    if user.is_superuser and not request.user.is_superuser:
+        raise Forbidden(
+            _("Only superusers can reset the two-factor authentication of a superuser.")
+        )
+    two_factor.remove_all(user)
+    logger.warning(
+        "Two-factor authentication of %s (id %s) reset by %s (id %s).",
+        user.username,
+        user.pk,
+        request.user.username,
+        request.user.pk,
+    )
     return _user_payload(user)
 
 
