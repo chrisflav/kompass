@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-25 15:38+0100\n"
+"POT-Creation-Date: 2026-10-25 16:54+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -123,6 +123,23 @@ msgstr "Berechtigungen"
 
 msgid "Important dates"
 msgstr "Wichtigen Daten"
+
+msgid "Only a superuser may change a superuser account."
+msgstr ""
+"Nur Administrator*innen können das Konto einer Administrator*in ändern."
+
+#, python-format
+msgid "You cannot grant permissions you do not hold yourself: %(permissions)s"
+msgstr ""
+"Du kannst keine Rechte vergeben, die du selbst nicht hast: %(permissions)s"
+
+msgid "Only a superuser may grant or revoke superuser status."
+msgstr ""
+"Nur Administrator*innen können Administrator*innen-Rechte vergeben oder "
+"entziehen."
+
+msgid "You cannot grant Kompass access without having it yourself."
+msgstr "Du kannst keinen Kompass-Zugang vergeben, ohne ihn selbst zu haben."
 
 msgid "You cannot delete your own account."
 msgstr "Du kannst dein eigenes Konto nicht löschen."
