@@ -212,7 +212,9 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
   const toast = useToast();
   const navigate = useNavigate();
   const confirm = useConfirmDialog();
-  const { can } = usePermissions();
+  const { can, isSuperuser } = usePermissions();
+  // A superuser's account is changed by superusers only; the API refuses the rest.
+  const mayChange = isSuperuser || !user.is_superuser;
   const [editing, setEditing] = useState(false);
   const [settingPassword, setSettingPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -306,7 +308,7 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
       label: "Administrator",
       field: "is_superuser",
       value: yesNo(user.is_superuser),
-      edit: checkbox("is_superuser"),
+      edit: isSuperuser ? checkbox("is_superuser") : undefined,
       hint: "Administratoren haben alle Rechte, unabhängig von den Rechtegruppen.",
     },
     {
@@ -354,12 +356,12 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
-              {can("auth.change_user") && (
+              {mayChange && can("auth.change_user") && (
                 <Button type="button" variant="ghost" onClick={() => setSettingPassword(true)}>
                   Passwort setzen
                 </Button>
               )}
-              {can("auth.delete_user") && (
+              {mayChange && can("auth.delete_user") && (
                 <Button
                   type="button"
                   variant="danger"
@@ -378,7 +380,7 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
                   Löschen
                 </Button>
               )}
-              {can("auth.change_user") && (
+              {mayChange && can("auth.change_user") && (
                 <Button
                   type="button"
                   onClick={() => {

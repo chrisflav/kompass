@@ -78,6 +78,14 @@ msgstr "Berechtigungen"
 msgid "Important dates"
 msgstr "Wichtigen Daten"
 
+msgid "Only a superuser may grant or revoke superuser status."
+msgstr ""
+"Nur Administrator*innen können Administrator*innen-Rechte vergeben oder "
+"entziehen."
+
+msgid "You cannot grant Kompass access without having it yourself."
+msgstr "Du kannst keinen Kompass-Zugang vergeben, ohne ihn selbst zu haben."
+
 msgid "You cannot delete your own account."
 msgstr "Du kannst dein eigenes Konto nicht löschen."
 
@@ -113,6 +121,18 @@ msgstr "Aktives Registrierungspasswort"
 
 msgid "Active registration passwords"
 msgstr "Aktive Registrierungspasswörter"
+
+msgid "Only a superuser may change a superuser account."
+msgstr ""
+"Nur Administrator*innen können das Konto einer Administrator*in ändern."
+
+msgid "You cannot change an account that has rights you do not hold yourself."
+msgstr "Du kannst kein Konto ändern, das Rechte hat, die du selbst nicht hast."
+
+#, python-format
+msgid "You cannot grant permissions you do not hold yourself: %(permissions)s"
+msgstr ""
+"Du kannst keine Rechte vergeben, die du selbst nicht hast: %(permissions)s"
 
 msgid "Registration"
 msgstr "Registrierung"
