@@ -119,11 +119,13 @@ def _apply_member_update(request, member, payload):
     if any(field in data for field in MEMBER_ORGANIZATIONAL_FIELDS):
         authorize(request, "members.may_change_organizationals")
     changes = {key: data[key] for key in ("email",) if key in data}
-    if "user_id" in data:
+    if data.get("user_id") is not None:
         # An unknown id is left to ``partial_clean`` below (422).
-        changes["user"] = (
-            User.objects.filter(pk=data["user_id"]).first() if data["user_id"] is not None else None
-        )
+        user = User.objects.filter(pk=data["user_id"]).first()
+        if user is not None:
+            changes["user"] = user
+    elif "user_id" in data:
+        changes["user"] = None
     refusal = member_change_refusal(request.user, member, changes)
     if refusal:
         raise Forbidden(refusal)

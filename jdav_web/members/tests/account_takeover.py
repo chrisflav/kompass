@@ -2,11 +2,14 @@
 
 Whoever controls a member's linked account or its primary email decides who
 can sign in as that account: the invite and password-reset mails carry a link
-that sets its password. So linking an account, changing the primary email of a
-linked member and requesting a password reset are refused where the account
-(or, for a link, the member record) holds rights the caller lacks -- in the
-API and in the classic admin alike -- and the login link is never mailed to
-``alternative_email``.
+that sets its password. So linking or unlinking an account, changing the
+primary email of a linked member and requesting a password reset are refused
+where the account (or, for a link, the member record) holds rights the caller
+lacks -- in the API and in the classic admin alike -- and the login link is
+never mailed to ``alternative_email``. A record with rights but no account is
+the account an invitation would create: a non-superuser may neither change its
+primary email nor invite it. Login keys expire, and die with a change of the
+email or the account they were issued for.
 """
 
 import datetime
@@ -145,6 +148,11 @@ class AccountTakeoverApiTestCase(TestCase):
 
     def test_an_unknown_account_is_left_to_validation(self):
         r = self.patch(self.target, {"user_id": 987654}, self.actor)
+        self.assertEqual(r.status_code, 422, r.content)
+
+    def test_an_unknown_account_is_no_unlink(self):
+        Group.objects.create(name="Gemsen").leiters.add(self.plain_member)
+        r = self.patch(self.plain_member, {"user_id": 987654}, self.actor)
         self.assertEqual(r.status_code, 422, r.content)
 
     # --- changing the primary email ---------------------------------------
@@ -422,6 +430,19 @@ class AccountTakeoverAdminTestCase(TestCase):
         self.assertIn("{}: {}".format(self.target.name, MEMBER_RIGHTS), messages)
         self.assertEqual([m.to for m in mail.outbox], [["neu@{}".format(DOMAIN)]])
 
+    def test_the_invite_button_refuses_a_record_with_rights(self):
+        Group.objects.create(name="Gemsen").leiters.add(self.target)
+        self.client.force_login(self.actor, backend="django.contrib.auth.backends.ModelBackend")
+        mail.outbox = []
+        response = self.client.post(
+            reverse("admin:members_member_inviteasuser", args=(self.target.pk,)),
+            {"apply": ""},
+        )
+        self.assertEqual(response.status_code, 302)
+        messages = [str(m) for m in get_messages(response.wsgi_request)]
+        self.assertIn("{}: {}".format(self.target.name, MEMBER_RIGHTS), messages)
+        self.assertEqual(mail.outbox, [])
+
     def test_the_invite_action_lets_a_superuser_invite_a_record_with_rights(self):
         Group.objects.create(name="Gemsen").leiters.add(self.target)
         self.invite_action(self.superuser, self.target)
@@ -502,6 +523,23 @@ class LoginKeyTestCase(TestCase):
                 member.user = None
                 member.email = "neu@{}".format(DOMAIN)
                 member.save()
+
+    def test_unlinking_clears_a_reset_key(self):
+        self.linked.request_password_reset()
+        self.linked.user = None
+        self.linked.save()
+        self.linked.refresh_from_db()
+        self.assertEqual(self.linked.invite_as_user_key, "")
+
+    def test_a_reset_key_does_not_outlive_its_account(self):
+        # Deleting the account unlinks it without `save`; the key must not
+        # turn into an invitation for a new account.
+        self.linked.request_password_reset()
+        key = self.linked.invite_as_user_key
+        self.account.delete()
+        self.linked.refresh_from_db()
+        self.assertIsNone(self.linked.user)
+        self.assertIsNone(Member.for_login_key(key))
 
     def test_a_partial_save_of_the_email_clears_the_key_too(self):
         self.member.invite_as_user()

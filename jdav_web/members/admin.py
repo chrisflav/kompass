@@ -89,8 +89,8 @@ _thread_locals = threading.local()
 class AccountGuardAdminMixin:
     """Refuse a member form that would take over an account (see ``logindata.rights``).
 
-    Linking an account, or changing the primary email a linked account's
-    password mails go to, decides who can sign in as it.
+    Linking or unlinking an account, or changing the primary email its login
+    mails go to, decides who can sign in as it.
     """
 
     def get_form(self, request, obj=None, **kwargs):

@@ -139,13 +139,16 @@ class Member(Person):
     invite_as_user_key = models.CharField(max_length=32, default="")
     # A login key sets the password of the account linked when it was issued
     # (or creates one, if there was none) until it expires; see ``for_login_key``.
+    # Deleting that account keeps its id here, so a reset key does not turn
+    # into an invitation.
     invite_as_user_key_expire = models.DateTimeField(null=True, blank=True, editable=False)
     invite_as_user_key_user = models.ForeignKey(
         User,
         null=True,
         blank=True,
         editable=False,
-        on_delete=models.SET_NULL,
+        on_delete=models.DO_NOTHING,
+        db_constraint=False,
         related_name="+",
     )
     waitinglist_application_date = models.DateTimeField(

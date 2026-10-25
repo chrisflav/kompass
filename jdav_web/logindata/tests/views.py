@@ -87,6 +87,28 @@ class RegisterViewTestCase(TestCase):
             response, _("Something went wrong. The registration key is invalid or has expired.")
         )
 
+    def test_register_with_expired_key_shows_failed(self):
+        Member.objects.filter(pk=self.member.pk).update(
+            invite_as_user_key_expire=timezone.now() - timedelta(seconds=1)
+        )
+        url = reverse("logindata:register")
+        response = self.client.post(
+            url, {"key": self.member.invite_as_user_key, "password": "test_password"}
+        )
+        self.assertContains(
+            response, _("Something went wrong. The registration key is invalid or has expired.")
+        )
+
+    def test_register_with_key_for_another_account_shows_failed(self):
+        # An invitation key does not become a reset for an account linked later.
+        later = User.objects.create_user(username="later_user", password="secret")
+        Member.objects.filter(pk=self.member.pk).update(user=later)
+        url = reverse("logindata:register")
+        response = self.client.get(url, {"key": self.member.invite_as_user_key})
+        self.assertContains(
+            response, _("Something went wrong. The registration key is invalid or has expired.")
+        )
+
     def test_register_get_with_valid_key_shows_password_form(self):
         """Test GET request with valid key shows password entry form."""
         url = reverse("logindata:register")
