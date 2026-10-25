@@ -47,7 +47,47 @@ class Feedback(models.Model):
     def is_resolved(self):
         return self.resolved_at is not None
 
+    @property
+    def can_respond(self):
+        """Whether the sender can be answered by mail: signed in, with an address."""
+        member = self.submitted_by
+        return member is not None and any(
+            getattr(member, email_fd) for email_fd, _confirmed, _key in member.email_fields
+        )
+
     class Meta:
         verbose_name = _("Feedback")
         verbose_name_plural = _("Feedback")
         ordering = ["-created"]
+
+
+class FeedbackResponse(models.Model):
+    """An answer mailed to the sender of a piece of feedback.
+
+    A note can be answered several times; the replies form a short thread on it.
+    """
+
+    feedback = models.ForeignKey(
+        Feedback,
+        verbose_name=_("Feedback"),
+        on_delete=models.CASCADE,
+        related_name="responses",
+    )
+    author = models.ForeignKey(
+        Member,
+        verbose_name=_("Author"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="feedback_responses",
+    )
+    message = models.TextField(verbose_name=_("Message"))
+    created = models.DateTimeField(verbose_name=_("Sent on"), auto_now_add=True)
+
+    def __str__(self):
+        return self.message.strip()[:60] or str(_("(empty)"))
+
+    class Meta:
+        verbose_name = _("Feedback response")
+        verbose_name_plural = _("Feedback responses")
+        ordering = ["created"]

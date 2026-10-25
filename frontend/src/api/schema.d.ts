@@ -3864,6 +3864,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/feedback/{feedback_id}/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Respond To Feedback
+         * @description Answer the sender by mail, keeping the answer on the note.
+         *
+         *     With ``resolve``, the note is marked as dealt with in the same step.
+         */
+        post: operations["feedback_api_router_respond_to_feedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/feedback/{feedback_id}/reopen": {
         parameters: {
             query?: never;
@@ -9063,12 +9085,32 @@ export interface components {
             /** Resolved At */
             resolved_at?: string | null;
             resolved_by?: components["schemas"]["MemberBrief"] | null;
+            /** Responses */
+            responses: components["schemas"]["FeedbackResponseOut"][];
+            /** Can Respond */
+            can_respond: boolean;
             /** Message */
             message: string;
             /** Page */
             page_url?: string | null;
             /** Browser */
             user_agent?: string | null;
+        };
+        /**
+         * FeedbackResponseOut
+         * @description One answer in the thread under a note.
+         */
+        FeedbackResponseOut: {
+            /** Id */
+            id: number;
+            /**
+             * Created
+             * Format: date-time
+             */
+            created: string;
+            author?: components["schemas"]["MemberRef"] | null;
+            /** Message */
+            message: string;
         };
         /**
          * FeedbackIn
@@ -9112,6 +9154,19 @@ export interface components {
             message: string;
             /** Page */
             page_url?: string | null;
+        };
+        /**
+         * RespondIn
+         * @description An answer to the sender, and whether to resolve the note with it.
+         */
+        RespondIn: {
+            /** Message */
+            message: string;
+            /**
+             * Resolve
+             * @default false
+             */
+            resolve: boolean;
         };
         /**
          * EchoVerifyOut
@@ -16048,6 +16103,32 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackOut"];
+                };
+            };
+        };
+    };
+    feedback_api_router_respond_to_feedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                feedback_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RespondIn"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

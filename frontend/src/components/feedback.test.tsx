@@ -128,6 +128,8 @@ describe("feedback inbox", () => {
       page_url: "http://localhost/kompass/events",
       has_context: true,
       resolved_at: null,
+      responses: [],
+      can_respond: true,
     },
     {
       id: 1,
@@ -137,6 +139,8 @@ describe("feedback inbox", () => {
       page_url: "",
       has_context: false,
       resolved_at: "2026-09-15T09:00:00Z",
+      responses: [],
+      can_respond: false,
     },
   ];
 
@@ -267,5 +271,133 @@ describe("feedback inbox", () => {
     expect(await screen.findByText(/von Hannah Beckers/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Wieder öffnen" }));
     await waitFor(() => expect(reopened).toBe(true));
+  });
+
+  it("answers the sender and resolves in the same step", async () => {
+    useMe({ permissions: ["feedback.change_feedback"] });
+    listReturns();
+    let body: unknown = null;
+    let current: Record<string, unknown> = { ...ROWS[0], user_agent: "" };
+    server.use(
+      http.get(api("/api/feedback/2"), () => HttpResponse.json(current)),
+      http.post(api("/api/feedback/2/respond"), async ({ request }) => {
+        body = await request.json();
+        current = {
+          ...ROWS[0],
+          user_agent: "",
+          resolved_at: "2026-10-11T12:00:00Z",
+          resolved_by: { id: 7, name: "Hannah Beckers" },
+          responses: [
+            {
+              id: 1,
+              message: "Ist behoben, danke!",
+              created: "2026-10-11T12:00:00Z",
+              author: { id: 7, name: "Hannah Beckers" },
+            },
+          ],
+        };
+        return HttpResponse.json(current);
+      }),
+    );
+    const { user } = renderRoute("/kompass/feedback/2");
+    expect(await screen.findByText("Noch keine Antwort gesendet.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Antworten" }));
+
+    const dialog = within(await screen.findByRole("dialog"));
+    const send = dialog.getByRole("button", { name: "Senden" });
+    expect(send).toBeDisabled();
+    const resolve = dialog.getByLabelText("Zugleich als erledigt markieren");
+    expect(resolve).not.toBeChecked();
+    // The same limit the server enforces.
+    expect(dialog.getByLabelText("Antwort")).toHaveAttribute("maxlength", "5000");
+    await user.type(dialog.getByLabelText("Antwort"), "Ist behoben, danke!");
+    await user.click(resolve);
+    await user.click(send);
+
+    await waitFor(() => expect(body).toEqual({ message: "Ist behoben, danke!", resolve: true }));
+    expect(await screen.findByText("Antwort gesendet.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("Ist behoben, danke!")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Wieder öffnen" })).toBeInTheDocument();
+  });
+
+  it("offers no resolving when answering resolved feedback", async () => {
+    useMe({ permissions: ["feedback.change_feedback"] });
+    listReturns();
+    server.use(
+      http.get(api("/api/feedback/2"), () =>
+        HttpResponse.json({ ...ROWS[0], user_agent: "", resolved_at: "2026-10-11T12:00:00Z" }),
+      ),
+    );
+    const { user } = renderRoute("/kompass/feedback/2");
+    await user.click(await screen.findByRole("button", { name: "Antworten" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.queryByLabelText("Zugleich als erledigt markieren")).not.toBeInTheDocument();
+  });
+
+  it("keeps the dialog open when the answer cannot be sent", async () => {
+    useMe({ permissions: ["feedback.change_feedback"] });
+    listReturns();
+    server.use(
+      http.get(api("/api/feedback/2"), () => HttpResponse.json({ ...ROWS[0], user_agent: "" })),
+      http.post(api("/api/feedback/2/respond"), () =>
+        HttpResponse.json(
+          {
+            detail: ["Die E-Mail konnte nicht gesendet werden."],
+            errors: { message: ["Die E-Mail konnte nicht gesendet werden."] },
+          },
+          { status: 422 },
+        ),
+      ),
+    );
+    const { user } = renderRoute("/kompass/feedback/2");
+    await user.click(await screen.findByRole("button", { name: "Antworten" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.type(dialog.getByLabelText("Antwort"), "Danke!");
+    await user.click(dialog.getByRole("button", { name: "Senden" }));
+    expect(await screen.findByText(/konnte nicht gesendet werden/)).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("cannot answer a sender without an address, and says why", async () => {
+    useMe({ permissions: ["feedback.change_feedback"] });
+    listReturns();
+    server.use(
+      http.get(api("/api/feedback/1"), () => HttpResponse.json({ ...ROWS[1], user_agent: "" })),
+    );
+    renderRoute("/kompass/feedback/1");
+    expect(await screen.findByRole("button", { name: "Antworten" })).toBeDisabled();
+    expect(screen.getByText(/Antworten geht nur, wenn/)).toBeInTheDocument();
+  });
+
+  it("shows the earlier answers as a thread", async () => {
+    listReturns();
+    server.use(
+      http.get(api("/api/feedback/2"), () =>
+        HttpResponse.json({
+          ...ROWS[0],
+          user_agent: "",
+          responses: [
+            {
+              id: 1,
+              message: "Wir schauen es uns an.",
+              created: "2026-09-15T08:00:00Z",
+              author: null,
+            },
+            {
+              id: 2,
+              message: "Jetzt behoben.",
+              created: "2026-09-16T08:00:00Z",
+              author: { id: 7, name: "Jonas Keller" },
+            },
+          ],
+        }),
+      ),
+    );
+    renderRoute("/kompass/feedback/2");
+    const thread = within(await screen.findByRole("region", { name: "Antworten" }));
+    expect(await thread.findByText("Wir schauen es uns an.")).toBeInTheDocument();
+    expect(thread.getByText("Jetzt behoben.")).toBeInTheDocument();
+    expect(thread.getByText(/Jonas Keller/)).toBeInTheDocument();
   });
 });

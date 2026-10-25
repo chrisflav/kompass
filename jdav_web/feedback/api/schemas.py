@@ -3,7 +3,9 @@
 import datetime
 
 from feedback.models import Feedback
+from feedback.models import FeedbackResponse
 from members.api.schemas import MemberBrief
+from members.api.schemas import MemberRef
 from ninja import ModelSchema
 from ninja import Schema
 
@@ -18,6 +20,25 @@ class FeedbackIn(Schema):
     message: str
     page_url: str = ""
     user_agent: str = ""
+
+
+class RespondIn(Schema):
+    """An answer to the sender, and whether to resolve the note with it."""
+
+    message: str
+    resolve: bool = False
+
+
+class FeedbackResponseOut(ModelSchema):
+    """One answer in the thread under a note."""
+
+    id: int
+    created: datetime.datetime
+    author: MemberRef | None = None
+
+    class Meta:
+        model = FeedbackResponse
+        fields = ["message"]
 
 
 class FeedbackBrief(ModelSchema):
@@ -43,6 +64,8 @@ class FeedbackOut(ModelSchema):
     has_context: bool
     resolved_at: datetime.datetime | None = None
     resolved_by: MemberBrief | None = None
+    responses: list[FeedbackResponseOut]
+    can_respond: bool
 
     class Meta:
         model = Feedback
