@@ -178,14 +178,35 @@ describe("completeLogin — the exchange leg", () => {
 });
 
 describe("AuthProvider logout", () => {
-  it("clears the stored token", async () => {
+  it("ends the sign-in at the backend and leaves for the start page", async () => {
     localStorage.setItem("kompass_token", "abc123");
+    const sent: (string | null)[] = [];
+    server.use(
+      http.post(api("/api/logindata/logout"), ({ request }) => {
+        sent.push(request.headers.get("Authorization"));
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
     const user = userEvent.setup();
     renderAuth();
-    expect(screen.getByTestId("token")).toHaveTextContent("abc123");
 
     await user.click(screen.getByRole("button", { name: "Abmelden" }));
-    expect(screen.getByTestId("token")).toHaveTextContent("none");
+    await waitFor(() => expect(assigned).toEqual(["/"]));
+    // The token is revoked and the provider's session ended in one request.
+    expect(sent).toEqual(["Bearer abc123"]);
+    expect(getToken()).toBeNull();
+    // So /login does not sign the user straight back in.
+    expect(sessionStorage.getItem("kompass_logged_out")).toBe("1");
+  });
+
+  it("still signs out when the backend cannot be reached", async () => {
+    localStorage.setItem("kompass_token", "abc123");
+    server.use(http.post(api("/api/logindata/logout"), () => HttpResponse.error()));
+    const user = userEvent.setup();
+    renderAuth();
+
+    await user.click(screen.getByRole("button", { name: "Abmelden" }));
+    await waitFor(() => expect(assigned).toEqual(["/"]));
     expect(getToken()).toBeNull();
   });
 });

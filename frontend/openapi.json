@@ -12109,6 +12109,27 @@
         ]
       }
     },
+    "/api/logindata/logout": {
+      "post": {
+        "operationId": "logindata_api_session_router_logout",
+        "summary": "Logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Revoke the bearer token of this request and end the browser's session.\n\nA personal access token is left alone: it belongs to a script, not to the\nbrowser signing out, and is ended from the token list instead.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
     "/api/ludwigsburgalpin/public/enums": {
       "get": {
         "operationId": "ludwigsburgalpin_api_public_public_termin_enums",

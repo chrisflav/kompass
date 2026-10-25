@@ -4486,6 +4486,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/logindata/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Revoke the bearer token of this request and end the browser's session.
+         *
+         *     A personal access token is left alone: it belongs to a script, not to the
+         *     browser signing out, and is ended from the token list instead.
+         */
+        post: operations["logindata_api_session_router_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ludwigsburgalpin/public/enums": {
         parameters: {
             query?: never;
@@ -17159,6 +17182,24 @@ export interface operations {
             path: {
                 token_id: number;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    logindata_api_session_router_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;

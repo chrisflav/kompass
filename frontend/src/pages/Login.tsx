@@ -2,50 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 
 import { useSite } from "../api/site";
-import { useAuth } from "../auth";
+import { autostartVerdict, markLoginFailed, markLoginStart, useAuth } from "../auth";
 import { ContourField, KompassMark } from "../components/Contour";
 import { Button, useDocumentTitle } from "../components/ui";
-
-// When /login last left for the provider on its own, and whether the callback
-// since came back refusing. Together they keep the automatic start from looping.
-const AUTOSTART_KEY = "kompass_login_autostart";
-const FAILED_KEY = "kompass_login_failed";
-const AUTOSTART_WINDOW_MS = 60_000;
-
-/** Whether /login may leave for the provider without a click: "held" after a
- *  recent automatic start or a refused callback, "unknown" when storage cannot
- *  be read. Either answer shows the button instead. */
-function autostartVerdict(): "go" | "held" | "unknown" {
-  try {
-    if (sessionStorage.getItem(FAILED_KEY)) return "held";
-    const last = Number(sessionStorage.getItem(AUTOSTART_KEY));
-    return last && Date.now() - last < AUTOSTART_WINDOW_MS ? "held" : "go";
-  } catch {
-    return "unknown";
-  }
-}
-
-/** Records an attempt to leave for the provider; false if it cannot be
- *  recorded, since an unrecorded start could not be told apart from a loop. */
-function markStart(): boolean {
-  try {
-    sessionStorage.setItem(AUTOSTART_KEY, String(Date.now()));
-    sessionStorage.removeItem(FAILED_KEY);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function markOutcome(failed: boolean) {
-  try {
-    sessionStorage.removeItem(AUTOSTART_KEY);
-    if (failed) sessionStorage.setItem(FAILED_KEY, "1");
-    else sessionStorage.removeItem(FAILED_KEY);
-  } catch {
-    // Nothing to keep or clear without storage; the button is the fallback.
-  }
-}
 
 export function Login() {
   useDocumentTitle("Anmelden");
@@ -59,9 +18,10 @@ export function Login() {
   // Sent here from a protected page or the header, the user wants the
   // provider's login form, so go there directly. A token that is rejected the
   // moment it is used would then bounce login → provider → callback → login
-  // forever, so a second automatic start within the window, or one after a
-  // refused callback, stops at the card and its button instead. Judged once,
-  // on the first render, so the marker set below does not flip it.
+  // forever, so a second automatic start before a signed-in request has gone
+  // through, or one after a refused callback, stops at the card and its button
+  // instead; so does the first visit after signing out. Judged once, on the
+  // first render, so the marker set below does not flip it.
   const [verdict] = useState(() => (from ? autostartVerdict() : null));
   const held = verdict === "held";
   const [redirecting, setRedirecting] = useState(verdict === "go" && !token);
@@ -72,7 +32,7 @@ export function Login() {
   useEffect(() => {
     if (!redirecting || started.current) return;
     started.current = true;
-    if (!markStart()) {
+    if (!markLoginStart()) {
       setRedirecting(false);
       return;
     }
@@ -89,7 +49,7 @@ export function Login() {
   async function onLogin() {
     setError(null);
     setBusy(true);
-    markStart();
+    markLoginStart();
     try {
       await beginLogin(returnTo);
     } catch {
@@ -168,10 +128,7 @@ export function AuthCallback() {
     if (exchanged.current || !code || !state || denied) return;
     exchanged.current = true;
     completeLogin(code, state)
-      .then((next) => {
-        markOutcome(false);
-        setTarget(next);
-      })
+      .then(setTarget)
       .catch((err: unknown) =>
         setError(err instanceof Error ? err.message : "Anmeldung fehlgeschlagen."),
       );
@@ -181,9 +138,13 @@ export function AuthCallback() {
   }, []);
 
   // Whatever went wrong, the next visit to /login must wait for a click rather
-  // than send the user round the same failure again.
+  // than send the user round the same failure again. Not while a token is
+  // held: that is a signed-in user replaying an old callback with the back
+  // button, and nothing failed for them.
   useEffect(() => {
-    if (error) markOutcome(true);
+    if (error && !token) markLoginFailed();
+    // Judged when the error appears; the token alone changes nothing here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [error]);
 
   if (target) return <Navigate to={target} replace />;
