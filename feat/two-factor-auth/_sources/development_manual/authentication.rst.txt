@@ -38,7 +38,10 @@ way around it.
 Attempts are counted per account before they are checked: every five of them
 without a successful second factor lock the second step, first for fifteen
 minutes, then twice as long each further time, up to a day. Wrong passwords
-when changing factors count too. The first lock is mailed to the user.
+when changing factors count too. The first lock is mailed to the user, once
+until a second factor succeeds again. Adding the first factor revokes the
+account's other OAuth2 tokens (not the session doing it, nor personal access
+tokens): a token obtained with the password alone does not outlive it.
 
 TOTP secrets are stored encrypted with a key derived from ``SECRET_KEY``. When
 rotating it, keep the old key in Django's ``SECRET_KEY_FALLBACKS``, or every

@@ -63,9 +63,9 @@ Wird ein Faktor entfernt oder deine Zwei-Faktor-Authentifizierung zurückgesetzt
 eine E-Mail. Warst du das nicht, melde dich bitte sofort.
 
 .. note::
-   Nach fünf falschen Codes sperrt Kompass die Anmeldung mit zweitem Faktor für 15 Minuten, bei
+   Nach fünf Fehlversuchen sperrt Kompass die Anmeldung mit zweitem Faktor für 15 Minuten, bei
    weiteren Fehlversuchen jedes Mal doppelt so lang (höchstens einen Tag). Bei der ersten Sperre
-   bekommst du eine E-Mail: Wer so weit kommt, kennt dein Passwort.
+   bekommst du eine E-Mail.
 
    Meldet sich deine Sektion über einen externen Identitätsanbieter (OIDC) an, verwaltet dieser
    die Zwei-Faktor-Authentifizierung, nicht Kompass.
