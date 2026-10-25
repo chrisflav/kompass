@@ -19,6 +19,10 @@ A type may also be kept by size, as a counted stock without IDs (the sizes of a
 set of Friends). A reservation or loan then takes a number of pieces of a size,
 and a size is free as far as its stock exceeds the most taken on any day of the
 period.
+
+A type may also be a set of other types whose pieces have IDs (a set of cams
+of seven sizes). The set has no pieces of its own: it is reserved as its
+pieces, and it is free as often as each of its member types has enough free.
 """
 
 from collections import Counter
@@ -197,10 +201,39 @@ def availability(product_types, start=None, end=None, member=None):
     ``sizes`` (free per size id) and ``sets`` (how many whole sets are free, or
     None for a type without sizes). Without a period, "free" means free today.
     Sizes are read through ``product_type.sizes``, so prefetch them for a list.
+
+    A set type (one with ``set_entries``, prefetched likewise) counts whole
+    sets: ``total`` is how many exist, ``available`` and ``sets`` how many are
+    free, and ``entries`` holds what is free of each member type, per entry id.
     """
     today = timezone.localdate()
     start = start or today
     end = end or start
+    product_types = list(product_types)
+    entries = {pt.pk: list(pt.set_entries.all()) for pt in product_types}
+    known = {pt.pk for pt in product_types}
+    members = {
+        e.product_type_id: e.product_type
+        for rows in entries.values()
+        for e in rows
+        if e.product_type_id not in known
+    }
+    counts = _counts(product_types + list(members.values()), start, end, member)
+    for product_type in product_types:
+        rows = entries[product_type.pk]
+        if rows:
+            entry = counts[product_type.pk]
+            for key in ("total", "available", "available_direct"):
+                entry[key] = min(counts[e.product_type_id][key] // e.per_set for e in rows)
+            entry["sets"] = entry["available"]
+            entry["entries"] = {e.pk: counts[e.product_type_id]["available"] for e in rows}
+    for pk in members:
+        del counts[pk]
+    return counts
+
+
+def _counts(product_types, start, end, member):
+    """:func:`availability` of pieces and sizes, without looking at sets."""
     blocked = blocked_part_ids(start, end)
     own = member_group_ids(member)
     counts = {
@@ -211,6 +244,7 @@ def availability(product_types, start=None, end=None, member=None):
             "groups": {},
             "sizes": {},
             "sets": None,
+            "entries": {},
         }
         for pt in product_types
     }
@@ -304,6 +338,12 @@ def allocate(lines, start, end, borrower):
                 chosen.append(part)
                 pinned.add(part.pk)
                 taken.add(part.pk)
+            continue
+        if line.product_type.is_set:
+            problems.append(
+                _("%(type)s is a set. Reserve the pieces it is made of.")
+                % {"type": line.product_type}
+            )
             continue
         candidates = [
             p

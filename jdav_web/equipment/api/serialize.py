@@ -164,8 +164,21 @@ def size(obj, available=None):
     }
 
 
+def set_entry(obj, available):
+    return {
+        "id": obj.pk,
+        "product_type": type_ref(obj.product_type),
+        "per_set": obj.per_set,
+        "position": obj.position,
+        "available": available,
+    }
+
+
 def type_card(product_type, counts, own):
-    """``counts`` comes from :func:`services.availability`; ``own`` are the member's group ids."""
+    """``counts`` comes from :func:`services.availability`; ``own`` are the member's group ids.
+
+    Prefetch ``set_entries__product_type`` for a list.
+    """
     entry = counts[product_type.pk]
     groups = [
         {
@@ -191,6 +204,9 @@ def type_card(product_type, counts, own):
         "groups": groups,
         "sizes": [size(s, entry["sizes"][s.pk]) for s in product_type.sizes.all()],
         "sets": entry["sets"],
+        "set_entries": [
+            set_entry(e, entry["entries"][e.pk]) for e in product_type.set_entries.all()
+        ],
     }
 
 
@@ -253,6 +269,9 @@ def type_detail(product_type, start, end, member, manager):
             "calendar": calendar,
             "parts": parts,
             "retired_parts": retired_parts,
+            "in_sets": [
+                type_ref(e.set_type) for e in product_type.in_sets.select_related("set_type")
+            ],
         }
     )
     return data

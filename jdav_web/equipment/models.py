@@ -14,6 +14,7 @@ date, does.
 from datetime import timedelta
 
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -52,7 +53,9 @@ class Location(models.Model):
 class ProductType(models.Model):
     """One kind of material, such as "Petzl Spirit Express 12 cm".
 
-    Reservations, availability and the catalogue count per type.
+    Reservations, availability and the catalogue count per type. A type may
+    instead be a *set* of other types (see ``SetEntry``): it then has no pieces
+    or sizes of its own, and what is free of it is what is free of its members.
     """
 
     name = models.CharField(_("name"), max_length=100)
@@ -76,6 +79,10 @@ class ProductType(models.Model):
         if self.manufacturer:
             return "{} {}".format(self.manufacturer, self.name)
         return self.name
+
+    @property
+    def is_set(self):
+        return self.set_entries.exists()
 
     class Meta:
         verbose_name = _("product type")
@@ -171,6 +178,9 @@ class Part(models.Model):
             )
         if self.parent_id is not None and self.parent_id == self.pk:
             errors["parent"] = _("A piece cannot be assembled into itself.")
+        # A set may keep retired pieces from before it became one, but gets no new ones.
+        if self.pk is None and self.product_type_id is not None and self.product_type.is_set:
+            errors["product_type"] = _("A set has no pieces of its own.")
         if errors:
             raise ValidationError(errors)
 
@@ -267,10 +277,80 @@ class Size(models.Model):
     def __str__(self):
         return "{} {}".format(self.product_type, self.name)
 
+    def clean(self):
+        if self.product_type_id is None:
+            return
+        if self.product_type.is_set:
+            raise ValidationError({"product_type": _("A set has no sizes of its own.")})
+        # A set is reserved as pieces of its types; counted sizes cannot serve that.
+        if self.product_type.in_sets.exists():
+            raise ValidationError(
+                {"product_type": _("A type in a set is kept as pieces, not by size.")}
+            )
+
     class Meta:
         verbose_name = _("size")
         verbose_name_plural = _("sizes")
         ordering = ["product_type__name", "position", "pk"]
+
+
+class SetEntry(models.Model):
+    """One member type of a set type, such as the 0.5 cam of a set of seven cams.
+
+    A set is made of pieces with IDs of their own, each type also lent on its
+    own. One set holds ``per_set`` pieces of each member type, and a set is free
+    as often as each of its members has that many free. Reserving a set reserves
+    its pieces: a set type has no pieces or sizes of its own, and sets are not
+    nested.
+    """
+
+    set_type = models.ForeignKey(
+        ProductType,
+        verbose_name=_("set"),
+        related_name="set_entries",
+        on_delete=models.CASCADE,
+    )
+    product_type = models.ForeignKey(
+        ProductType,
+        verbose_name=_("product type"),
+        related_name="in_sets",
+        on_delete=models.PROTECT,
+    )
+    per_set = models.PositiveIntegerField(
+        _("per set"), default=1, validators=[MinValueValidator(1)]
+    )
+    position = models.PositiveIntegerField(_("position"), default=0)
+
+    def __str__(self):
+        return "{} × {}".format(self.per_set, self.product_type)
+
+    def clean(self):
+        if self.set_type_id is None or self.product_type_id is None:
+            return
+        if self.set_type_id == self.product_type_id:
+            raise ValidationError({"product_type": _("A set cannot contain itself.")})
+        if self.product_type.is_set:
+            raise ValidationError({"product_type": _("A set cannot contain another set.")})
+        if self.product_type.sizes.exists():
+            raise ValidationError(
+                {"product_type": _("A type in a set is kept as pieces, not by size.")}
+            )
+        if self.set_type.in_sets.exists():
+            raise ValidationError(
+                {"set_type": _("A type that belongs to a set cannot be a set itself.")}
+            )
+        # Retired pieces are out of the stock: they do not keep a type from becoming a set.
+        pieces = self.set_type.parts.exclude(status=Part.RETIRED)
+        if pieces.exists() or self.set_type.sizes.exists():
+            raise ValidationError(
+                {"set_type": _("A type with pieces or sizes of its own cannot be a set.")}
+            )
+
+    class Meta:
+        verbose_name = _("set entry")
+        verbose_name_plural = _("set entries")
+        ordering = ["position", "pk"]
+        unique_together = [("set_type", "product_type")]
 
 
 class CustodyEventQuerySet(models.QuerySet):

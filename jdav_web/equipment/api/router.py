@@ -8,7 +8,7 @@ Who may do what:
 - ``equipment.manage_lending`` (the desk) acts for any borrower and sees every
   reservation and loan;
 - ``equipment.manage_inventory`` (inventory and PSA) edits types, pieces,
-  locations and sizes, records inspections and sees the custody of each piece.
+  locations, sizes and sets, records inspections and sees the custody of each piece.
 
 The rules of lending live in ``equipment.services``; the routes check who is
 asking and hand over.
@@ -26,6 +26,7 @@ from django.db import transaction
 from django.db.models import Prefetch
 from django.db.models import ProtectedError
 from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -40,6 +41,7 @@ from equipment.models import Location
 from equipment.models import Part
 from equipment.models import ProductType
 from equipment.models import Reservation
+from equipment.models import SetEntry
 from equipment.models import Size
 from equipment.models import Tag
 from members.models import Group
@@ -77,6 +79,9 @@ from .schemas import ReservationIn
 from .schemas import ReservationOut
 from .schemas import ReturnIn
 from .schemas import ReturnOut
+from .schemas import SetEntryIn
+from .schemas import SetEntryOut
+from .schemas import SetEntryUpdate
 from .schemas import SizeIn
 from .schemas import SizeOut
 from .schemas import SizeUpdate
@@ -138,6 +143,16 @@ def _parts(ids):
     if len(parts) != len(set(ids)):
         raise ValidationError(_("Unknown material."))
     return parts
+
+
+def _locked_types(*ids):
+    """The product types ``ids`` by id, locked until the transaction ends."""
+    types = {
+        t.pk: t for t in ProductType.objects.select_for_update().filter(pk__in=ids).order_by("pk")
+    }
+    if len(types) != len(set(ids)):
+        raise Http404
+    return types
 
 
 def _optional(model, pk):
@@ -260,7 +275,12 @@ def list_types(
     """The catalogue: every type with pieces, and how many are free in the period."""
     member = get_member(request)
     start, end = _period(start, end)
-    types = ProductType.objects.prefetch_related("tags", "sizes__group", "sizes__location")
+    types = ProductType.objects.prefetch_related(
+        "tags",
+        "sizes__group",
+        "sizes__location",
+        "set_entries__product_type__sizes__group",
+    )
     if q:
         types = types.filter(
             Q(name__icontains=q)
@@ -271,7 +291,12 @@ def list_types(
     if tag is not None:
         types = types.filter(tags=tag)
     if group is not None:
-        types = types.filter(Q(parts__group=group) | Q(sizes__group=group)).distinct()
+        types = types.filter(
+            Q(parts__group=group)
+            | Q(sizes__group=group)
+            | Q(set_entries__product_type__parts__group=group)
+            | Q(set_entries__product_type__sizes__group=group)
+        ).distinct()
     types = list(types)
     counts = services.availability(types, start, end, member)
     own = services.member_group_ids(member)
@@ -297,7 +322,9 @@ def list_groups(request):
 @router.get("/types/{type_id}", response=ProductTypeOut)
 def retrieve_type(request, type_id: int, start: date | None = None, end: date | None = None):
     member = get_member(request)
-    product_type = get_object_or_404(ProductType, pk=type_id)
+    product_type = get_object_or_404(
+        ProductType.objects.prefetch_related("set_entries__product_type"), pk=type_id
+    )
     start, end = _period(start, end)
     return serialize.type_detail(product_type, start, end, member, _manager(request))
 
@@ -339,6 +366,12 @@ def delete_type(request, type_id: int):
     product_type = get_object_or_404(ProductType, pk=type_id)
     if product_type.parts.exclude(status=Part.RETIRED).exists():
         raise Forbidden(_("A type that still has pieces cannot be deleted."))
+    sets = ", ".join(str(e.set_type) for e in product_type.in_sets.select_related("set_type"))
+    if sets:
+        raise ValidationError(
+            _("This type belongs to a set. Remove it from the set first: %(sets)s.")
+            % {"sets": sets}
+        )
     # Retiring does not wait for a loan to end, so a retired piece may still be
     # out. Name each one and who has it, rather than fail on the first.
     retired = {part.pk: part for part in product_type.parts.all()}
@@ -517,7 +550,7 @@ def create_parts(request, payload: PartIn):
     data = payload.dict()
     count = data.pop("count")
     parent = _optional(Part, data.pop("parent"))
-    product_type = get_object_or_404(ProductType, pk=data.pop("product_type"))
+    type_id = data.pop("product_type")
     if count < 1 or count > 200:
         raise ValidationError(_("Create between 1 and 200 pieces at once."))
     if count > 1 and (data["psa_id"] or data["serial_number"]):
@@ -526,6 +559,8 @@ def create_parts(request, payload: PartIn):
     fields = _part_fields(data)
     created = []
     with transaction.atomic():
+        # Locked, so the type cannot become a set while its pieces are added.
+        product_type = _locked_types(type_id)[type_id]
         for _index in range(count):
             part = Part(product_type=product_type, **fields)
             part.full_clean(exclude=["photo"])
@@ -640,10 +675,11 @@ def _size_fields(data):
 @router.post("/types/{type_id}/sizes", response=SizeOut)
 def create_size(request, type_id: int, payload: SizeIn):
     authorize(request, INVENTORY)
-    product_type = get_object_or_404(ProductType, pk=type_id)
-    size = Size(product_type=product_type, **_size_fields(payload.dict()))
-    size.full_clean()
-    size.save()
+    fields = _size_fields(payload.dict())
+    with transaction.atomic():
+        size = Size(product_type=_locked_types(type_id)[type_id], **fields)
+        size.full_clean()
+        size.save()
     return serialize.size(size)
 
 
@@ -668,6 +704,48 @@ def delete_size(request, size_id: int):
         raise ValidationError(
             _("This size has been reserved or lent. Set its stock to 0 instead.")
         ) from None
+    return {"success": True}
+
+
+# --- sets ----------------------------------------------------------------
+
+
+def _set_entry(entry):
+    """``entry`` with what is free of its member type today."""
+    counts = services.availability([entry.product_type])
+    return serialize.set_entry(entry, counts[entry.product_type_id]["available"])
+
+
+@router.post("/types/{type_id}/set-entries", response=SetEntryOut)
+def create_set_entry(request, type_id: int, payload: SetEntryIn):
+    """Make a type a set, or add another member type to it."""
+    authorize(request, INVENTORY)
+    data = payload.dict()
+    with transaction.atomic():
+        # Both locked, so neither gets pieces, sizes or entries meanwhile.
+        types = _locked_types(type_id, data["product_type"])
+        data["product_type"] = types[data["product_type"]]
+        entry = SetEntry(set_type=types[type_id], **data)
+        entry.full_clean()
+        entry.save()
+    return _set_entry(entry)
+
+
+@router.patch("/set-entries/{entry_id}", response=SetEntryOut)
+def update_set_entry(request, entry_id: int, payload: SetEntryUpdate):
+    authorize(request, INVENTORY)
+    entry = get_object_or_404(SetEntry, pk=entry_id)
+    set_scalar_fields(entry, payload.dict(exclude_unset=True), ["per_set", "position"])
+    entry.full_clean()
+    entry.save()
+    return _set_entry(entry)
+
+
+@router.delete("/set-entries/{entry_id}")
+def delete_set_entry(request, entry_id: int):
+    """Take a member type out of its set. The last one taken out makes it a plain type again."""
+    authorize(request, INVENTORY)
+    get_object_or_404(SetEntry, pk=entry_id).delete()
     return {"success": True}
 
 

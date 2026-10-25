@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-24 15:05+0200\n"
+"POT-Creation-Date: 2026-10-25 13:37+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -30,6 +30,12 @@ msgstr "Unbekanntes Material."
 msgid "A type that still has pieces cannot be deleted."
 msgstr ""
 "Ein Materialtyp, zu dem es noch Teile gibt, kann nicht gelöscht werden."
+
+#, python-format
+msgid "This type belongs to a set. Remove it from the set first: %(sets)s."
+msgstr ""
+"Dieser Materialtyp gehört zu einem Satz. Nimm ihn zuerst aus dem Satz "
+"heraus: %(sets)s."
 
 #, python-format
 msgid ""
@@ -213,6 +219,9 @@ msgstr "PSA braucht ein Herstellungsdatum."
 msgid "A piece cannot be assembled into itself."
 msgstr "Ein Teil kann nicht Bestandteil von sich selbst sein."
 
+msgid "A set has no pieces of its own."
+msgstr "Ein Satz hat keine eigenen Teile."
+
 msgid "material part"
 msgstr "Materialteil"
 
@@ -234,11 +243,40 @@ msgstr "pro Satz"
 msgid "position"
 msgstr "Reihenfolge"
 
+msgid "A set has no sizes of its own."
+msgstr "Ein Satz hat keine eigenen Größen."
+
+msgid "A type in a set is kept as pieces, not by size."
+msgstr ""
+"Ein Materialtyp in einem Satz besteht aus einzelnen Teilen, nicht aus Größen."
+
 msgid "size"
 msgstr "Größe"
 
 msgid "sizes"
 msgstr "Größen"
+
+msgid "set"
+msgstr "Satz"
+
+msgid "A set cannot contain itself."
+msgstr "Ein Satz kann sich nicht selbst enthalten."
+
+msgid "A set cannot contain another set."
+msgstr "Ein Satz kann keinen anderen Satz enthalten."
+
+msgid "A type that belongs to a set cannot be a set itself."
+msgstr ""
+"Ein Materialtyp, der zu einem Satz gehört, kann nicht selbst ein Satz sein."
+
+msgid "A type with pieces or sizes of its own cannot be a set."
+msgstr "Ein Materialtyp mit eigenen Teilen oder Größen kann kein Satz sein."
+
+msgid "set entry"
+msgstr "Satzbestandteil"
+
+msgid "set entries"
+msgstr "Satzbestandteile"
 
 msgid "The custody history cannot be changed."
 msgstr "Der Verlauf der Zugehörigkeit kann nicht geändert werden."
@@ -410,6 +448,10 @@ msgstr "%(part)s kann gerade nicht verliehen werden."
 #, python-format
 msgid "%(part)s is already booked in this period."
 msgstr "%(part)s ist in diesem Zeitraum schon vergeben."
+
+#, python-format
+msgid "%(type)s is a set. Reserve the pieces it is made of."
+msgstr "%(type)s ist ein Satz. Reserviere die Teile, aus denen er besteht."
 
 msgid "The period lies in the past."
 msgstr "Der Zeitraum liegt in der Vergangenheit."

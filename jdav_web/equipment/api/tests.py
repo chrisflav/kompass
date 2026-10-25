@@ -25,6 +25,7 @@ from equipment.models import Inspection
 from equipment.models import Loan
 from equipment.models import Part
 from equipment.models import ProductType
+from equipment.models import SetEntry
 from equipment.models import Size
 from equipment.models import Tag
 from equipment.services import Line
@@ -790,6 +791,91 @@ class SizeApiTestCase(ApiMixin, TestCase):
         self.assertEqual((r.status_code, r.json()), (200, None))
         self.slings[0].refresh_from_db()
         self.assertEqual(self.slings[0].holder, self.alice)
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class SetApiTestCase(ApiMixin, TestCase):
+    """Set types: shown as sets, reserved as their pieces, edited by the inventory."""
+
+    def setUp(self):
+        super().setUp()
+        self.setUpSet()
+
+    def test_catalogue_and_detail(self):
+        services.reserve(self.bob, day(1), day(1), [Line(part=self.small_cams[0])])
+        cards = {c["name"]: c for c in self.get("alice", "/types", start=days(1)).json()}
+        card = cards["Totem Satz"]
+        self.assertEqual((card["total"], card["available"], card["sets"]), (2, 1, 1))
+        self.assertEqual(
+            [
+                (e["product_type"]["name"], e["per_set"], e["available"])
+                for e in card["set_entries"]
+            ],
+            [("CAM 0.5", 1, 1), ("CAM 1", 1, 2)],
+        )
+        self.assertEqual(cards["CAM 0.5"]["set_entries"], [])
+        r = self.get("alice", "/types", group=self.hochtour.pk)
+        self.assertIn("Totem Satz", [c["name"] for c in r.json()])
+        data = self.get("alice", "/types/{}".format(self.cam_set.pk)).json()
+        self.assertEqual((data["sets"], len(data["set_entries"]), data["in_sets"]), (2, 2, []))
+        data = self.get("alice", "/types/{}".format(self.small_type.pk)).json()
+        self.assertEqual(data["in_sets"], [{"id": self.cam_set.pk, "name": "Totem Satz"}])
+
+    def test_a_set_is_not_reserved_as_a_line(self):
+        body = {"start": days(1), "end": days(1), "lines": [{"product_type": self.cam_set.pk}]}
+        r = self.post("alice", "/reservations/check", body)
+        self.assertEqual(
+            r.json()["problems"],
+            [site_text("%(type)s is a set. Reserve the pieces it is made of.", type="Totem Satz")],
+        )
+        body["lines"] = [{"product_type": self.small_type.pk}, {"product_type": self.large_type.pk}]
+        self.assertEqual(self.post("alice", "/reservations", body).status_code, 200)
+
+    def test_editing(self):
+        other = ProductType.objects.create(name="Klemmkeile")
+        path = "/types/{}/set-entries".format(other.pk)
+        body = {"product_type": self.small_type.pk, "per_set": 2}
+        self.assertEqual(self.post("alice", path, body).status_code, 403)
+        r = self.post("ida", path, body)
+        self.assertEqual(r.status_code, 200)
+        entry = r.json()
+        self.assertEqual(
+            (entry["product_type"]["name"], entry["per_set"], entry["available"]),
+            ("CAM 0.5", 2, 2),
+        )
+        self.assertEqual(self.post("ida", path, body).status_code, 422)
+        self.assertEqual(self.post("ida", path, {"product_type": other.pk}).status_code, 422)
+        r = self.post("ida", path, {"product_type": self.cam_set.pk})
+        self.assertEqual(r.status_code, 422)
+        r = self.post("ida", "/types/{}/set-entries".format(self.sling_type.pk), body)
+        self.assertEqual(r.status_code, 422)
+        r = self.post("ida", "/parts", {"product_type": other.pk})
+        self.assertEqual(r.status_code, 422)
+        r = self.post("ida", "/types/{}/sizes".format(other.pk), {"name": "1"})
+        self.assertEqual(r.status_code, 422)
+        r = self.post("ida", path, {"product_type": 99999})
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(self.post("ida", "/parts", {"product_type": 99999}).status_code, 404)
+        entry_path = "/set-entries/{}".format(entry["id"])
+        self.assertEqual(self.patch("alice", entry_path, {"per_set": 3}).status_code, 403)
+        r = self.patch("ida", entry_path, {"per_set": 3, "position": 4})
+        self.assertEqual((r.json()["per_set"], r.json()["position"]), (3, 4))
+        self.assertEqual(self.patch("ida", entry_path, {"per_set": 0}).status_code, 422)
+        self.assertEqual(self.delete("alice", entry_path).status_code, 403)
+        self.assertEqual(self.delete("ida", entry_path).status_code, 200)
+        self.assertFalse(SetEntry.objects.filter(pk=entry["id"]).exists())
+
+    def test_deleting_types_of_a_set(self):
+        for part in self.small_cams:
+            services.delete_part(part)
+        r = self.delete("ida", "/types/{}".format(self.small_type.pk))
+        self.assertEqual(r.status_code, 422)
+        self.assertIn("Totem Satz", r.json()["detail"][0])
+        self.assertEqual(self.delete("ida", "/types/{}".format(self.cam_set.pk)).status_code, 200)
+        self.assertFalse(SetEntry.objects.exists())
+        self.assertEqual(
+            self.delete("ida", "/types/{}".format(self.small_type.pk)).status_code, 200
+        )
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

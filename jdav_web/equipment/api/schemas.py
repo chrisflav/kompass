@@ -99,6 +99,30 @@ class SizeCount(Schema):
     group: GroupBrief | None
 
 
+# --- sets --------------------------------------------------------------------
+
+
+class SetEntryOut(Schema):
+    """A member type of a set. ``available`` is how many of it are free in the asked period."""
+
+    id: int
+    product_type: Ref
+    per_set: int
+    position: int
+    available: int
+
+
+class SetEntryIn(Schema):
+    product_type: int
+    per_set: int = 1
+    position: int = 0
+
+
+class SetEntryUpdate(Schema):
+    per_set: int | None = None
+    position: int | None = None
+
+
 # --- product types -----------------------------------------------------------
 
 
@@ -126,8 +150,11 @@ class ProductTypeCard(Schema):
     available_direct: int
     groups: list[GroupCount]
     sizes: list[SizeOut]
-    #: How many whole sets are free; null for a type without sizes.
+    #: How many whole sets are free; null for a type without sizes or set entries.
     sets: int | None
+    #: The member types of a set type; empty for any other type. A set is
+    #: reserved as ``per_set`` pieces of each.
+    set_entries: list[SetEntryOut]
 
 
 class CalendarEntry(Schema):
@@ -164,6 +191,8 @@ class ProductTypeOut(ProductTypeCard):
     #: The type's retired pieces, likewise only for the material team. They are
     #: out of the stock but still on record, and deleting the type deletes them.
     retired_parts: list[PartBrief] | None
+    #: The sets this type is a member of.
+    in_sets: list[Ref]
 
 
 class ProductTypeIn(Schema):
