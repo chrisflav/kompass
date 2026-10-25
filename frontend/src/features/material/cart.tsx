@@ -426,7 +426,11 @@ export function CartPanel() {
     {
       invalidate: [MATERIAL],
       onSuccess: () => toast.success("Nichts reserviert."),
-      onError: (e) => toast.error(errorText(e)),
+      onError: (e) => {
+        // It still stands: show it where it can be picked up or cancelled.
+        toast.error(`Die Reservierung ließ sich nicht verwerfen und besteht weiter: ${errorText(e)}`);
+        done();
+      },
     },
   );
   const notPickedUp = async (r: ReservationOut) => {
@@ -540,14 +544,18 @@ export function CartPanel() {
             <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="z. B. Ausfahrt" />
           </Field>
           <div className="cart-actions">
-            <Button busy={reserve.isPending} onClick={() => reserve.mutate(undefined)}>
+            <Button
+              busy={reserve.isPending}
+              disabled={discard.isPending}
+              onClick={() => reserve.mutate(undefined)}
+            >
               Reservieren
             </Button>
             {cart.start === isoToday() && (
               <Button
                 variant="ghost"
                 busy={reserveToTake.isPending}
-                disabled={needsApproval}
+                disabled={needsApproval || discard.isPending}
                 onClick={() => (inHand ? setBorrowing(true) : reserveToTake.mutate(undefined))}
               >
                 Jetzt mitnehmen

@@ -646,6 +646,27 @@ describe("material — Materialbrowser", () => {
     await waitFor(() => expect(currentUrl()).toBe("/kompass/material/mine"));
   });
 
+  it("says the reservation stands when it cannot be dropped, and shows it in my material", async () => {
+    server.use(
+      http.post(api("/api/material/reservations"), () => HttpResponse.json(reservation())),
+      http.post(api("/api/material/reservations/20/cancel"), () =>
+        HttpResponse.json({ detail: "Schon abgeholt." }, { status: 400 }),
+      ),
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({ held: [], held_sizes: [], reservations: [], to_decide: 0 }),
+      ),
+    );
+    const { user } = renderRoute("/kompass/material");
+    await user.click(await screen.findByRole("button", { name: "Bandschlinge 120 cm in den Korb" }));
+    await user.click(screen.getByRole("button", { name: "Jetzt mitnehmen" }));
+    await user.click((await dialog()).getByRole("button", { name: "Abbrechen" }));
+    await user.click((await dialog()).getByRole("button", { name: "Reservierung verwerfen" }));
+    expect(
+      await screen.findByText(/Die Reservierung ließ sich nicht verwerfen und besteht weiter/),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(currentUrl()).toBe("/kompass/material/mine"));
+  });
+
   it("drops what was reserved to take along when asked to, and keeps the cart (Feedback #30)", async () => {
     let cancelled = false;
     server.use(
