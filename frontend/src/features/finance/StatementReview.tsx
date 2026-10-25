@@ -640,9 +640,19 @@ function BuchungenStage({
   invalidate: unknown[][];
 }) {
   const toast = useToast();
-  const ledgers = useApiQuery(["ledgers"], () =>
-    unwrap(client.GET("/api/finance/ledgers/")),
-  );
+  const { can } = usePermissions();
+  // Changing which account a booking is charged to means picking out of the
+  // section's chart of accounts, which is `finance.view_ledger` — a right a
+  // signer the rules name is not given and does not need. Asking for the
+  // catalogue anyway answered 403, left `ledgerOptions` empty, and an empty
+  // picker renders its placeholder: every booking read "Konto wählen…" to the
+  // one person who could not choose one, over an account the server had set.
+  // So the picker is offered to whoever may read the catalogue, and everybody
+  // else reads the account off the booking, where it has always been.
+  const catalogue = can("finance.view_ledger");
+  const ledgers = useApiQuery(["ledgers"], () => unwrap(client.GET("/api/finance/ledgers/")), {
+    enabled: catalogue,
+  });
   const members = useMembers();
   const ledgerOptions = ledgers.data ?? [];
 
@@ -774,10 +784,17 @@ function BuchungenStage({
     },
     {
       // Assigning accounts is the bulk of this stage, so it stays a one-click
-      // control in the normal row rather than something behind an edit mode.
+      // control in the normal row rather than something behind an edit mode —
+      // for whoever may read the chart of accounts. For everybody else the
+      // account is a reading, not a choice: the name the booking carries, or
+      // the fact that it carries none, which is the treasurer's to fix.
       header: "Konto",
       cell: (t: TransactionOut) =>
-        editId === t.id ? (
+        !catalogue ? (
+          <span className={t.ledger ? undefined : "muted"}>
+            {t.ledger?.name ?? "— kein Konto —"}
+          </span>
+        ) : editId === t.id ? (
           <Select
             value={draft.ledger_id}
             onChange={(v) => setDraft({ ...draft, ledger_id: v })}

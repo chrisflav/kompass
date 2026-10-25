@@ -2305,13 +2305,22 @@ describe("review pipeline", () => {
     };
   }
 
-  /** Render one stage of the pipeline for a treasurer. */
+  /**
+   * Render one stage of the pipeline for a treasurer.
+   *
+   * `finance.view_ledger` is in the list because the treasurer holds it — it
+   * is in the finance group the default permissions create — and because
+   * picking a booking's account out of the section's chart of accounts is
+   * what that permission *is*. Somebody who does not hold it reads the
+   * account instead of choosing one: `signer.integration.test.tsx`.
+   */
   function openStage(
     stage: string,
     overrides: Record<string, unknown> = {},
     transactions: unknown[] = [],
+    permissions: string[] = ["finance.process_statementsubmitted", "finance.view_ledger"],
   ) {
-    useMe({ permissions: ["finance.process_statementsubmitted"] });
+    useMe({ permissions });
     detailReturns({ ...SUBMITTED, ...overrides });
     server.use(
       http.get(api("/api/finance/statements/1/transactions"), () =>
