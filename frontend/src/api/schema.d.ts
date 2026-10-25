@@ -4359,9 +4359,9 @@ export interface paths {
          * Reset Two Factor
          * @description Remove every second factor of a user who lost theirs; they sign in with the password.
          *
-         *     The same permission as setting their password, which is what this is the
-         *     counterpart of. A superuser's factors are reset only by a superuser, so the
-         *     permission cannot be used to weaken the login of a more powerful account.
+         *     The same permission and the same guard as setting their password, which is
+         *     what this is the counterpart of: no one weakens the login of an account
+         *     with rights they lack themselves, a superuser's included.
          */
         post: operations["logindata_api_admin_router_reset_two_factor"];
         delete?: never;

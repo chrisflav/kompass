@@ -13,6 +13,12 @@ Creating a user and changing a password go through Django's own
 ``UserCreationForm`` / ``SetPasswordForm``, so password validators, the
 confirmation check and hashing behave exactly as in the admin; their errors
 surface as 422 through the root API's ``ValidationError`` handler.
+
+``auth.change_user`` and ``auth.change_group`` must not be a way to gain more
+rights than the caller already holds (see ``logindata.rights``): only a
+superuser may make anyone one, an account holding rights the caller lacks is
+left alone, and a permission (directly on a group, or through a group a user
+is added to) can only be handed out by someone who holds it.
 """
 
 import logging
@@ -30,6 +36,9 @@ from logindata import two_factor
 from logindata.models import AuthGroup
 from logindata.models import LoginDatum
 from logindata.models import RegistrationPassword
+from logindata.rights import account_refusal
+from logindata.rights import MISSING_PERMISSIONS
+from logindata.rights import missing_permissions
 from ninja import Router
 
 from .admin_schemas import AuthGroupBrief
@@ -93,6 +102,20 @@ def _permission_brief(perm):
     }
 
 
+def _guard_account(request, user):
+    """Refuse a change to an account holding rights the caller lacks."""
+    refusal = account_refusal(request.user, user)
+    if refusal:
+        raise Forbidden(refusal)
+
+
+def _guard_granted_permissions(request, permissions):
+    """Refuse to hand out any of ``permissions`` the caller does not hold."""
+    missing = missing_permissions(request.user, permissions)
+    if missing:
+        raise Forbidden(MISSING_PERMISSIONS % {"permissions": ", ".join(missing)})
+
+
 # --- users ----------------------------------------------------------------
 
 
@@ -147,7 +170,17 @@ def update_user(request, user_id: int, payload: LoginUserUpdate):
     """Update the admin's editable user fields (never the password)."""
     authorize(request, "auth.change_user")
     user = get_object_or_404(LoginDatum, pk=user_id)
+    _guard_account(request, user)
     data = payload.dict(exclude_unset=True)
+    # The SPA sends every field back, so only an actual change is checked.
+    if data.get("is_superuser") not in (None, user.is_superuser):
+        if not request.user.is_superuser:
+            raise Forbidden(_("Only a superuser may grant or revoke superuser status."))
+    if data.get("is_staff") and not user.is_staff and not request.user.is_staff:
+        raise Forbidden(_("You cannot grant Kompass access without having it yourself."))
+    if data.get("group_ids") is not None:
+        groups = AuthGroup.objects.filter(pk__in=data["group_ids"])
+        _guard_granted_permissions(request, Permission.objects.filter(group__in=groups))
     for field in ("username", "is_active", "is_staff", "is_superuser"):
         if field in data and data[field] is not None:
             setattr(user, field, data[field])
@@ -163,6 +196,7 @@ def set_user_password(request, user_id: int, payload: SetPasswordIn):
     """Set a user's password via ``SetPasswordForm`` (same validators as the admin)."""
     authorize(request, "auth.change_user")
     user = get_object_or_404(LoginDatum, pk=user_id)
+    _guard_account(request, user)
     form = SetPasswordForm(
         user, {"new_password1": payload.new_password1, "new_password2": payload.new_password2}
     )
@@ -176,16 +210,13 @@ def set_user_password(request, user_id: int, payload: SetPasswordIn):
 def reset_two_factor(request, user_id: int):
     """Remove every second factor of a user who lost theirs; they sign in with the password.
 
-    The same permission as setting their password, which is what this is the
-    counterpart of. A superuser's factors are reset only by a superuser, so the
-    permission cannot be used to weaken the login of a more powerful account.
+    The same permission and the same guard as setting their password, which is
+    what this is the counterpart of: no one weakens the login of an account
+    with rights they lack themselves, a superuser's included.
     """
     authorize(request, "auth.change_user")
     user = get_object_or_404(LoginDatum, pk=user_id)
-    if user.is_superuser and not request.user.is_superuser:
-        raise Forbidden(
-            _("Only superusers can reset the two-factor authentication of a superuser.")
-        )
+    _guard_account(request, user)
     two_factor.remove_all(user)
     two_factor.notify(
         user,
@@ -207,6 +238,7 @@ def delete_user(request, user_id: int):
     """Delete a login account, refusing to delete the caller's own."""
     authorize(request, "auth.delete_user")
     user = get_object_or_404(LoginDatum, pk=user_id)
+    _guard_account(request, user)
     if user.pk == request.user.pk:
         raise ValidationError(_("You cannot delete your own account."))
     user.delete()
@@ -225,6 +257,10 @@ def list_permission_groups(request):
 @router.post("/permission-groups", response={201: AuthGroupOut})
 def create_permission_group(request, payload: AuthGroupIn):
     authorize(request, "auth.add_group")
+    if payload.permission_ids is not None:
+        _guard_granted_permissions(
+            request, Permission.objects.filter(pk__in=payload.permission_ids)
+        )
     group = AuthGroup(name=payload.name)
     group.full_clean()
     group.save()
@@ -257,6 +293,11 @@ def retrieve_permission_group(request, group_id: int):
 def update_permission_group(request, group_id: int, payload: AuthGroupIn):
     authorize(request, "auth.change_group")
     group = get_object_or_404(AuthGroup, pk=group_id)
+    if payload.permission_ids is not None:
+        _guard_granted_permissions(
+            request,
+            Permission.objects.filter(pk__in=payload.permission_ids).exclude(group=group),
+        )
     group.name = payload.name
     group.full_clean()
     group.save()

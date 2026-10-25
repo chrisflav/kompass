@@ -377,7 +377,7 @@ describe("user detail", () => {
     const username = screen.getByDisplayValue("hannah.becker");
     await user.clear(username);
     await user.type(username, "hannah.b");
-    // Aktiv / Kompass-Zugang / Administrator*in, in that order.
+    // Aktiv / Kompass-Zugang; Administrator*in is a superuser's to change.
     const [active] = screen.getAllByRole("checkbox");
     await user.click(active);
     await user.click(screen.getByRole("button", { name: "+ Rechtegruppe hinzufügen" }));
@@ -439,6 +439,33 @@ describe("user detail", () => {
     expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Passwort setzen" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
+  });
+
+  it("leaves a superuser's account to superusers", async () => {
+    server.use(
+      http.get(api("/api/logindata/users/2"), () =>
+        HttpResponse.json({ ...DETAIL, is_superuser: true }),
+      ),
+      http.get(api("/api/logindata/permission-groups"), () => HttpResponse.json(GROUPS)),
+    );
+    renderRoute("/kompass/users/2");
+    await screen.findAllByText("hannah.becker");
+    expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Passwort setzen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
+  });
+
+  it("lets a superuser change a superuser's account and the flag itself", async () => {
+    useMe({ is_superuser: true });
+    server.use(
+      http.get(api("/api/logindata/users/2"), () =>
+        HttpResponse.json({ ...DETAIL, is_superuser: true }),
+      ),
+      http.get(api("/api/logindata/permission-groups"), () => HttpResponse.json(GROUPS)),
+    );
+    const { user } = renderRoute("/kompass/users/2");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    expect(screen.getAllByRole("checkbox")).toHaveLength(3);
   });
 
   it("goes back through the browser history", async () => {

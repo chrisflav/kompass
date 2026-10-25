@@ -1,10 +1,12 @@
 import re
+from functools import wraps
 from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.views import redirect_to_login
+from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
@@ -47,6 +49,24 @@ class BuiltinLoginView(LoginView):
             begin_second_step(self.request, user, self.get_success_url())
             return HttpResponseRedirect(reverse("login-two-factor"))
         return super().form_valid(form)
+
+
+def superuser_only(view):
+    """Answer 403 to a signed-in user who is not a superuser.
+
+    Wraps django-oauth-toolkit's application management views, which on their
+    own let any signed-in user register an OAuth2 client — with the password
+    grant or any redirect URI. An anonymous visitor is passed through to the
+    view, whose ``LoginRequiredMixin`` sends them to sign in first.
+    """
+
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        if request.user.is_authenticated and not request.user.is_superuser:
+            raise PermissionDenied
+        return view(request, *args, **kwargs)
+
+    return wrapped
 
 
 def media_unprotected(request, path):

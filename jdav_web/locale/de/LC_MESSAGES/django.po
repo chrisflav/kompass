@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-25 19:28+0100\n"
+"POT-Creation-Date: 2026-10-25 19:34+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -124,10 +124,13 @@ msgstr "Berechtigungen"
 msgid "Important dates"
 msgstr "Wichtigen Daten"
 
-msgid "Only superusers can reset the two-factor authentication of a superuser."
+msgid "Only a superuser may grant or revoke superuser status."
 msgstr ""
-"Nur Superuser können die Zwei-Faktor-Authentifizierung eines Superusers "
-"zurücksetzen."
+"Nur Administrator*innen können Administrator*innen-Rechte vergeben oder "
+"entziehen."
+
+msgid "You cannot grant Kompass access without having it yourself."
+msgstr "Du kannst keinen Kompass-Zugang vergeben, ohne ihn selbst zu haben."
 
 msgid "The two-factor authentication of your Kompass login was reset"
 msgstr ""
@@ -273,6 +276,18 @@ msgstr "Sicherheitsschlüssel"
 
 msgid "Security keys"
 msgstr "Sicherheitsschlüssel"
+
+msgid "Only a superuser may change a superuser account."
+msgstr ""
+"Nur Administrator*innen können das Konto einer Administrator*in ändern."
+
+msgid "You cannot change an account that has rights you do not hold yourself."
+msgstr "Du kannst kein Konto ändern, das Rechte hat, die du selbst nicht hast."
+
+#, python-format
+msgid "You cannot grant permissions you do not hold yourself: %(permissions)s"
+msgstr ""
+"Du kannst keine Rechte vergeben, die du selbst nicht hast: %(permissions)s"
 
 msgid "Registration"
 msgstr "Registrierung"
