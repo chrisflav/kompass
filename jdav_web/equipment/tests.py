@@ -3,6 +3,8 @@ from datetime import date
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.contrib.auth.models import Permission
+from django.contrib.auth.models import User
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -17,6 +19,7 @@ from .models import Deficit
 from .models import Inspection
 from .models import LentSize
 from .models import Loan
+from .models import Location
 from .models import Part
 from .models import ProductType
 from .models import Reservation
@@ -681,6 +684,148 @@ class NoticeTestCase(MaterialFixture, TestCase):
         with patch("equipment.tasks.services.send_notices", return_value={"declined": 0}) as run:
             self.assertEqual(send_material_notices(), {"declined": 0})
         run.assert_called_once()
+
+
+class InspectionReminderTestCase(MaterialFixture, TestCase):
+    """Feedback #32: whoever holds PSA due for inspection is asked to hand it in."""
+
+    def setUp(self):
+        self.setUpMaterial()
+        self.cupboard.address = "Hauptstraße 1"
+        self.cupboard.opening_hours = "Do 18-20 Uhr"
+        self.cupboard.save()
+        Location.objects.create(name="Kletterhalle")
+        user = User.objects.create_user("carol")
+        user.user_permissions.add(
+            Permission.objects.get(content_type__app_label="equipment", codename="manage_inventory")
+        )
+        self.carol.user = user
+        self.carol.save()
+        # A superuser can do everything, but is not the material team.
+        self.alice.user = User.objects.create_superuser("alice")
+        self.alice.save()
+        # The harness was made in 2024 and never inspected: it is overdue.
+        services.transfer([self.harness], self.carol, member=self.bob)
+        mail.outbox = []
+
+    def remind(self, today=TODAY):
+        return services.send_inspection_reminders(today)
+
+    def test_holder_is_asked_to_hand_in(self):
+        self.assertEqual(self.remind(), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ["bob@example.com"])
+        self.assertEqual(message.subject, "PSA inspection overdue")
+        self.assertIn(
+            "- {}: inspection due on {}".format(self.harness, date(2024, 12, 31)), message.body
+        )
+        self.assertIn("- Carol Test (carol@example.com)", message.body)
+        self.assertNotIn("Alice", message.body)
+        self.assertIn("- Griffwerk: Hauptstraße 1, Do 18-20 Uhr", message.body)
+        self.assertIn("- Kletterhalle\n", message.body)
+        # Material that is no PSA is no business of this mail.
+        self.assertNotIn(str(self.slings[2]), message.body)
+        self.harness.refresh_from_db()
+        self.assertEqual(self.harness.inspection_reminder_sent, TODAY)
+
+    def test_without_contacts_or_locations(self):
+        self.carol.user.user_permissions.clear()
+        Location.objects.all().delete()
+        self.remind()
+        self.assertIn("Ansprechpersonen:\n\n-\n", mail.outbox[0].body)
+        self.assertIn("auch hier:\n\n-\n", mail.outbox[0].body)
+
+    def test_repeated_weekly(self):
+        self.assertEqual(self.remind(), 1)
+        self.assertEqual(self.remind(), 0)
+        self.assertEqual(self.remind(days(6)), 0)
+        self.assertEqual(self.remind(days(7)), 1)
+
+    @override_settings(MATERIAL_INSPECTION_REMINDER_REPEAT_DAYS=0)
+    def test_asked_once_without_repeat(self):
+        self.assertEqual(self.remind(), 1)
+        self.assertEqual(self.remind(days(100)), 0)
+
+    def test_one_mail_for_all_pieces(self):
+        rope_type = ProductType.objects.create(
+            name="Seil", is_psa=True, inspection_interval_days=100
+        )
+        rope = self.make_part(rope_type, psa_id="S1", manufactured_on=TODAY - timedelta(days=80))
+        services.transfer([rope], self.carol, member=self.bob)
+        self.remind()
+        self.assertEqual(len(mail.outbox), 1)
+        body = mail.outbox[0].body
+        self.assertLess(body.index(str(self.harness)), body.index(str(rope)))
+        # A piece newly in the window brings the other ones along before the week is over.
+        self.assertEqual(self.remind(days(1)), 0)
+        services.inspect(rope, Inspection.OK, self.carol, date=days(1) - timedelta(days=70))
+        self.assertEqual(self.remind(days(1)), 1)
+
+    def test_window(self):
+        services.inspect(self.harness, Inspection.OK, self.carol, date=days(-334))
+        self.assertEqual(self.remind(), 0)
+        self.assertEqual(self.remind(days(1)), 1)
+        self.assertEqual(mail.outbox[0].subject, "PSA inspection due soon")
+
+    @override_settings(MATERIAL_INSPECTION_REMINDER_DAYS=60)
+    def test_window_is_a_setting(self):
+        services.inspect(self.harness, Inspection.OK, self.carol, date=days(-334))
+        self.assertEqual(self.remind(), 1)
+
+    def test_inspection_starts_afresh(self):
+        self.remind()
+        services.inspect(self.harness, Inspection.OK, self.carol)
+        self.harness.refresh_from_db()
+        self.assertIsNone(self.harness.inspection_reminder_sent)
+        self.assertEqual(self.remind(days(1)), 0)
+
+    def test_new_holder_is_asked(self):
+        self.remind()
+        services.transfer([self.harness], self.bob, member=self.carol)
+        self.harness.refresh_from_db()
+        self.assertIsNone(self.harness.inspection_reminder_sent)
+        self.assertEqual(self.remind(days(1)), 1)
+        self.assertEqual(mail.outbox[-1].to, ["carol@example.com"])
+
+    def test_same_holder_keeps_the_date(self):
+        self.remind()
+        # Lending to the member who has the piece already is no change of hands.
+        services.lend(self.bob, [self.harness], self.carol, due=days(5), desk=True)
+        self.harness.refresh_from_db()
+        self.assertEqual(self.harness.inspection_reminder_sent, TODAY)
+
+    def test_pieces_at_a_location_or_retired(self):
+        services.transfer([self.harness], self.carol, location=self.cupboard)
+        self.assertEqual(self.remind(), 0)
+        services.transfer([self.harness], self.carol, member=self.bob)
+        services.inspect(self.harness, Inspection.RETIRED, self.carol)
+        self.assertEqual(self.remind(), 0)
+
+    def test_psa_without_dates(self):
+        services.transfer([self.harness], self.carol, location=self.cupboard)
+        self.make_part(self.harness_type, psa_id="G2", holder=self.bob)
+        self.assertEqual(self.remind(), 0)
+
+    def test_loans(self):
+        services.inspect(self.harness, Inspection.OK, self.carol, date=days(-345))
+        # Back from the loan before it is due: the return reminder covers it.
+        services.lend(self.alice, [self.harness], self.carol, due=days(20), desk=True)
+        self.assertEqual(self.remind(), 0)
+        # Lent past the due date: the borrower is asked to bring it in.
+        services.return_parts([self.harness], self.carol, location=self.cupboard)
+        services.lend(self.alice, [self.harness], self.carol, due=days(21), desk=True)
+        self.assertEqual(self.remind(), 1)
+        self.assertEqual(mail.outbox[-1].to, ["alice@example.com"])
+
+    def test_part_of_a_lent_assembly(self):
+        services.inspect(self.harness, Inspection.OK, self.carol, date=days(-345))
+        services.transfer([self.harness], self.carol, location=self.cupboard)
+        services.assemble(self.harness, self.slings[0], self.carol)
+        services.lend(self.alice, [self.slings[0]], self.carol, due=days(5), desk=True)
+        self.assertEqual(self.remind(), 0)
+
+    def test_daily_run(self):
+        self.assertEqual(services.send_notices(TODAY)["inspections"], 1)
 
 
 class ReservedPartTestCase(MaterialFixture, TestCase):

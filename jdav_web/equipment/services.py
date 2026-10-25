@@ -31,6 +31,7 @@ from datetime import date
 from datetime import timedelta
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Exists
@@ -39,6 +40,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from mailer.mailutils import prepend_base_url
+from members.models import Member
 
 from .models import Approval
 from .models import CustodyEvent
@@ -46,6 +48,7 @@ from .models import Inspection
 from .models import LentSize
 from .models import Loan
 from .models import LoanLine
+from .models import Location
 from .models import Part
 from .models import Reservation
 from .models import ReservedPart
@@ -380,6 +383,7 @@ def _lock(parts, sizes=()):
         part.holder_id = current.holder_id
         part.location_id = current.location_id
         part.status = current.status
+        part.inspection_reminder_sent = current.inspection_reminder_sent
     list(Size.objects.select_for_update().filter(pk__in=[s.pk for s in sizes]))
 
 
@@ -589,9 +593,12 @@ def _move(part, kind, by, member=None, location=None, loan=None):
             by=by,
             loan=loan,
         )
+        # A new holder has not been asked to hand the piece in yet.
+        if piece.holder_id != (member.pk if member else None):
+            piece.inspection_reminder_sent = None
         piece.holder = member
         piece.location = location
-        piece.save(update_fields=["holder", "location"])
+        piece.save(update_fields=["holder", "location", "inspection_reminder_sent"])
 
 
 @transaction.atomic
@@ -935,6 +942,9 @@ def inspect(part, result, by, date=None, comment="", photo=None):
         inspection.photo = photo
     inspection.full_clean()
     inspection.save()
+    # The next reminder is about the next inspection.
+    part.inspection_reminder_sent = None
+    part.save(update_fields=["inspection_reminder_sent"])
     if result == Inspection.RETIRED:
         part.status = Part.RETIRED
         part.retired_on = inspection.date
@@ -1128,13 +1138,107 @@ def holder_notice_due(days_until, notice_days):
     return days_until in notice_days or days_until <= min(notice_days)
 
 
+def inspection_contacts():
+    """The members who manage the inventory, and so take PSA in for inspection."""
+    # The permission is granted to users and groups, never by a rule.
+    users = User.objects.with_perm(
+        "equipment.manage_inventory",
+        include_superusers=False,
+        backend="django.contrib.auth.backends.ModelBackend",
+    )
+    return Member.objects.filter(user__in=users).order_by("prename", "lastname")
+
+
+def _contacts_text():
+    lines = ["- {} ({})".format(m.name, m.email) for m in inspection_contacts()]
+    return "\n".join(lines) or "-"
+
+
+def _locations_text():
+    lines = []
+    for location in Location.objects.all():
+        details = [d for d in (location.address, location.opening_hours) if d]
+        line = "- {}".format(location.name)
+        if details:
+            line += ": {}".format(", ".join(" ".join(d.split()) for d in details))
+        lines.append(line)
+    return "\n".join(lines) or "-"
+
+
+def inspections_coming_up(today=None):
+    """Per member: the PSA pieces they hold whose inspection is due within the reminder window.
+
+    Each piece comes with its due date. A piece out on a loan that ends by the
+    due date is left out: it comes back before, and the return reminder covers it.
+    """
+    today = today or timezone.localdate()
+    horizon = today + timedelta(days=settings.MATERIAL_INSPECTION_REMINDER_DAYS)
+    loan_dues = open_loan_dues()
+    held = {}
+    for part in (
+        Part.objects.filter(product_type__is_psa=True, holder__isnull=False)
+        .exclude(status=Part.RETIRED)
+        .select_related("product_type", "holder")
+        .prefetch_related("inspections")
+    ):
+        due = part.next_inspection_due(list(part.inspections.all()))
+        if due is None or due > horizon:
+            continue
+        loan_due = loan_dues.get(part.top_level.pk)
+        if loan_due is not None and loan_due <= due:
+            continue
+        held.setdefault(part.holder, []).append((part, due))
+    return held
+
+
+def send_inspection_reminders(today=None):
+    """Ask members holding PSA due for inspection to hand it in. Returns the number of mails.
+
+    A holder is asked once, and again every ``MATERIAL_INSPECTION_REMINDER_REPEAT_DAYS``
+    while any of the pieces is still with them, each mail listing all of them.
+    Inspecting a piece or handing it on starts its reminders afresh.
+    """
+    today = today or timezone.localdate()
+    repeat = settings.MATERIAL_INSPECTION_REMINDER_REPEAT_DAYS
+    sent = 0
+    for holder, pieces in inspections_coming_up(today).items():
+        if not any(
+            part.inspection_reminder_sent is None
+            or (repeat and part.inspection_reminder_sent <= today - timedelta(days=repeat))
+            for part, _due in pieces
+        ):
+            continue
+        pieces.sort(key=lambda entry: (entry[1], str(entry[0])))
+        overdue = pieces[0][1] < today
+        _mail(
+            holder,
+            _("PSA inspection overdue") if overdue else _("PSA inspection due soon"),
+            settings.MATERIAL_INSPECTION_REMINDER_TEXT.format(
+                name=holder.prename,
+                parts="\n".join(
+                    "- " + _("%(part)s: inspection due on %(due)s") % {"part": part, "due": due}
+                    for part, due in pieces
+                ),
+                contacts=_contacts_text(),
+                locations=_locations_text(),
+                link=material_link("/mine"),
+            ),
+        )
+        Part.objects.filter(pk__in=[part.pk for part, _due in pieces]).update(
+            inspection_reminder_sent=today
+        )
+        sent += 1
+    return sent
+
+
 def send_notices(today=None):
     """Decline unanswered requests, ask holders to bring pieces back, and remind borrowers.
 
+    Also asks the holders of PSA due for inspection to hand it in.
     Returns how many mails of each kind went out. Safe to run more than once a day.
     """
     today = today or timezone.localdate()
-    counts = {"declined": 0, "holders": 0, "pickups": 0, "returns": 0}
+    counts = {"declined": 0, "holders": 0, "pickups": 0, "returns": 0, "inspections": 0}
 
     # Leaders may decide until the first day of the period is over.
     for reservation in Reservation.objects.filter(status=Reservation.REQUESTED, start__lt=today):
@@ -1211,4 +1315,6 @@ def send_notices(today=None):
         loan.last_reminder = today
         loan.save(update_fields=["last_reminder"])
         counts["returns"] += 1
+
+    counts["inspections"] = send_inspection_reminders(today)
     return counts
