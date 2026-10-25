@@ -80,6 +80,13 @@ describe("two-factor authentication", () => {
     expect(await screen.findByText("Du hast noch keinen zweiten Faktor eingerichtet.")).toBeInTheDocument();
   });
 
+  it("shows the error when the status cannot be loaded", async () => {
+    server.use(http.get(api(BASE), () => new HttpResponse("<html>500</html>", { status: 500 })));
+    renderRoute("/kompass/security");
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Serverfehler/);
+    expect(screen.queryByText("Lädt…")).toBeNull();
+  });
+
   it("says who manages the factors where an identity provider signs in", async () => {
     statusReturns([], false, { available: false });
     renderRoute("/kompass/security");
@@ -208,6 +215,23 @@ describe("confirming who is there", () => {
     statusReturns([APP], true, { elevated_until: new Date(Date.now() - 1000).toISOString() });
     renderRoute("/kompass/security");
     expect(await screen.findByLabelText(/Code aus deiner Authenticator-App/)).toBeInTheDocument();
+    expect(screen.queryByText("Handy")).toBeNull();
+  });
+
+  it("asks again when the confirmation runs out while the page is open", async () => {
+    let until: string | null = new Date(Date.now() + 1000).toISOString();
+    server.use(
+      http.get(api(BASE), () => {
+        const body = status([APP], until !== null, { elevated_until: until });
+        until = null;
+        return HttpResponse.json(body);
+      }),
+    );
+    renderRoute("/kompass/security");
+    expect(await screen.findByText("Handy")).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText(/Code aus deiner Authenticator-App/, {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Handy")).toBeNull();
   });
 

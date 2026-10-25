@@ -72,7 +72,11 @@ function isElevated(status: TwoFactorStatus): boolean {
  * then allows changes for ten minutes before asking again.
  */
 export function TwoFactorPage() {
-  const query = useApiQuery(STATUS_KEY, () => unwrap(client.GET("/api/logindata/two-factor")));
+  // No retries: the library holds them back while the tab is in the background,
+  // which left a failing status on the spinner instead of its error.
+  const query = useApiQuery(STATUS_KEY, () => unwrap(client.GET("/api/logindata/two-factor")), {
+    retry: false,
+  });
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const close = () => setDialog(null);

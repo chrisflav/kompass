@@ -162,7 +162,9 @@ def _require_available():
 def _elevation(request):
     """Until when the requesting sign-in may manage factors, or ``None``."""
     elevation = TwoFactorElevation.objects.filter(
-        access_token=request.access_token, expires__gt=timezone.now()
+        access_token=request.access_token,
+        access_token__user=request.user,
+        expires__gt=timezone.now(),
     ).first()
     return elevation.expires if elevation else None
 
@@ -196,7 +198,7 @@ def _verify_proof(request, payload):
     if payload.recovery_code:
         return two_factor.use_recovery_code(user, payload.recovery_code), True
     if payload.code:
-        if not two_factor.usable_totp_devices(user):
+        if user.totp_devices.exists() and not two_factor.usable_totp_devices(user):
             raise ValidationError(UNREADABLE)
         return two_factor.verify_totp(user, payload.code), True
     raise ValidationError(_("Please confirm with one of your second factors."))

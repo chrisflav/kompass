@@ -371,15 +371,18 @@ class ConfirmTestCase(ApiTestCase):
         self.assertEqual(status["factors"], [])
         self.assertEqual(status["recovery_codes_remaining"], 0)
         device = self.user.totp_devices.get()
-        for method, path in [
-            ("post", "/totp/setup"),
-            ("post", "/webauthn/setup"),
-            ("post", "/recovery-codes"),
-            ("post", "/totp/{}/remove".format(device.pk)),
-            ("patch", "/totp/{}".format(device.pk)),
+        name = {"name": "x"}
+        for method, path, data in [
+            ("post", "/totp/setup", None),
+            ("post", "/totp", {**name, "code": "123456", "state": "s"}),
+            ("post", "/webauthn/setup", None),
+            ("post", "/webauthn", {**name, "credential": {}, "state": "s"}),
+            ("post", "/recovery-codes", None),
+            ("post", "/totp/{}/remove".format(device.pk), None),
+            ("patch", "/totp/{}".format(device.pk), name),
         ]:
             with self.subTest(path):
-                r = self.call(method, path, {"name": "x"})
+                r = self.call(method, path, data)
                 self.assertEqual(r.status_code, 403)
                 self.assertTrue(r.json()["displayable"])
 
@@ -439,6 +442,11 @@ class ConfirmTestCase(ApiTestCase):
             credential=SoftAuthenticator().get(options["options"]), state=options["state"]
         )
         self.assertEqual(r.status_code, 422)
+        self.assertEqual(self.attempts(), 1)
+
+    def test_a_code_without_an_app_is_counted(self):
+        add_key(self.user, SoftAuthenticator())
+        self.assertEqual(self.confirm(code="123456").status_code, 422)
         self.assertEqual(self.attempts(), 1)
 
     def test_no_key_options_without_a_key(self):
