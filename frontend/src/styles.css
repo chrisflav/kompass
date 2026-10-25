@@ -3772,6 +3772,11 @@ button.etappe-body:hover {
   gap: 0.75rem;
 }
 
+/* A piece whose PSA ID was searched for, offered above the types. */
+.material-hit {
+  margin: 0 0 0.75rem;
+}
+
 .material-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

@@ -207,6 +207,7 @@ beforeEach(() => {
     http.get(api("/api/material/types"), () => HttpResponse.json([CARD])),
     http.get(api("/api/material/types/10"), () => HttpResponse.json(TYPE)),
     http.get(api("/api/material/parts/1"), () => HttpResponse.json(partOut())),
+    http.get(api("/api/material/parts/match"), () => HttpResponse.json([])),
     http.get(api("/api/material/reservations"), () => HttpResponse.json([])),
   );
 });
@@ -454,6 +455,44 @@ describe("material — Materialbrowser", () => {
     await user.clear(search);
     await user.type(search, "E1351{Enter}");
     await waitFor(() => expect(currentUrl()).toBe("/kompass/material/parts/1"));
+  });
+
+  it("offers the piece whose PSA ID is searched for (Feedback #33)", async () => {
+    const codes: (string | null)[] = [];
+    server.use(
+      http.get(api("/api/material/parts/match"), ({ request }) => {
+        const code = new URL(request.url).searchParams.get("code");
+        codes.push(code);
+        return HttpResponse.json(
+          code?.toLowerCase() === "e1351" ? [part(1, { psa_id: "E1351", label: "E1351" })] : [],
+        );
+      }),
+    );
+    const { user } = renderRoute("/kompass/material");
+    const search = await screen.findByLabelText("Material suchen");
+    // Nothing is asked before there is a search.
+    await screen.findByText("Bandschlinge 120 cm");
+    expect(codes).toEqual([]);
+    await user.type(search, "e135");
+    await waitFor(() => expect(codes[codes.length - 1]).toBe("e135"));
+    expect(screen.queryByRole("link", { name: /^Teil/ })).toBeNull();
+    await user.type(search, "1");
+    const hit = await screen.findByRole("link", { name: "Teil E1351 – Bandschlinge 120 cm" });
+    await user.click(hit);
+    await waitFor(() => expect(currentUrl()).toBe("/kompass/material/parts/1"));
+  });
+
+  it("says when the piece searched for is retired", async () => {
+    server.use(
+      http.get(api("/api/material/parts/match"), () =>
+        HttpResponse.json([part(1, { psa_id: "H01", label: "H01", status: "retired" })]),
+      ),
+    );
+    const { user } = renderRoute("/kompass/material");
+    await user.type(await screen.findByLabelText("Material suchen"), "H01");
+    expect(
+      await screen.findByRole("link", { name: "Teil H01 – Bandschlinge 120 cm (ausgesondert)" }),
+    ).toHaveAttribute("href", "/kompass/material/parts/1");
   });
 
   it("puts a whole set of a type kept by size in the cart", async () => {

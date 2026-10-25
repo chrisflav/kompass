@@ -2631,6 +2631,9 @@ export interface paths {
         /**
          * List Types
          * @description The catalogue: every type with pieces, and how many are free in the period.
+         *
+         *     ``q`` also finds a type by the PSA ID or serial number of one of its pieces
+         *     still in use.
          */
         get: operations["equipment_api_router_list_types"];
         put?: never;
@@ -2742,6 +2745,26 @@ export interface paths {
          * @description Add pieces to the stock: one, or ``count`` identical ones without IDs.
          */
         post: operations["equipment_api_router_create_parts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/parts/match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Match Parts
+         * @description The piece whose PSA ID is ``code``, ignoring case, so a search can lead straight to it.
+         */
+        get: operations["equipment_api_router_match_parts"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -14176,6 +14199,28 @@ export interface operations {
                 "application/json": components["schemas"]["PartIn"];
             };
         };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartBrief"][];
+                };
+            };
+        };
+    };
+    equipment_api_router_match_parts: {
+        parameters: {
+            query: {
+                code: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
