@@ -62,8 +62,14 @@ AccessToken = get_access_token_model()
 #: releases her own area's statement, and over a thousand euro the treasurer
 #: signs as well. Both groups come from dated roles rather than from the
 #: capability, which is exactly why neither of them is finance staff.
+#:
+#: It asks two questions, which the signature is *about*: the arithmetic of a
+#: payout is not the statement, and a section whose rules ask for most of the
+#: statement in answers has a signer who has to read them. One is grouped
+#: under a step, because that is the grouping ``GET …/form`` serves and the
+#: grouping a signer reads them in.
 RESSORT_RULES = '''
-from kompass.rules import Constraint, Ruleset, SECTION, PARTICIPANTS, Transfer
+from kompass.rules import Choice, Constraint, Input, Ruleset, SECTION, PARTICIPANTS, Transfer
 
 
 class RessortRules(Ruleset):
@@ -74,7 +80,24 @@ class RessortRules(Ruleset):
     balance = (PARTICIPANTS, SECTION, "participant_contribution")
 
     def inputs(self, ctx):
-        return []
+        return [
+            Input(
+                "naechte",
+                "Uebernachtungen",
+                "int",
+                required=False,
+                step="Angaben",
+                help="Wie viele Naechte die Gruppe unterwegs war.",
+            ),
+            Input(
+                "regelwerk",
+                "Regelwerk",
+                "choice",
+                required=False,
+                step="Angaben",
+                choices=(Choice("jdav", "JDAV-Richtlinie"), Choice("dav", "DAV-Satzung")),
+            ),
+        ]
 
     def transfers(self, ctx):
         transfers = []
@@ -161,6 +184,12 @@ class SignerVisibilityTestCase(TestCase):
         RoleAssignment.objects.create(role="ressortleitung", member=self.leitung)
         RoleAssignment.objects.create(role="schatzmeister", member=self.schatz)
         self.ledger = Ledger.objects.create(name="Konto")
+        # A section's chart of accounts, so "the accounts her statement's
+        # bookings sit on" is measurably narrower than "the accounts". Two of
+        # these carry her statement's bookings; the rest carry nothing of
+        # hers, and she may read none of them.
+        self.ledgers = [Ledger.objects.create(name=f"Konto {n:02d}") for n in range(1, 24)]
+        self.topf, self.huetten = self.ledgers[2], self.ledgers[16]
         self.directory = TemporaryDirectory()
         package = Path(self.directory.name)
         (package / "__init__.py").write_text(RESSORT_RULES, encoding="utf-8")
@@ -191,6 +220,33 @@ class SignerVisibilityTestCase(TestCase):
         statement.submit(submitter=self.payer)
         statement.generate_transactions()
         statement.transaction_set.update(ledger=self.ledger)
+        return Statement.objects.get(pk=statement.pk)
+
+    def a_statement_on_two_ledgers(self):
+        """A handed-in statement whose two bookings sit on two accounts.
+
+        Two receipts rather than one, so the statement has more than one
+        booking and the two can be put on *different* accounts — which is
+        what makes "she reads the accounts her statement's bookings sit on"
+        a claim with an answer that is neither empty nor everything.
+        """
+        statement = Statement.objects.create(short_description="Hüttenfahrt", created_by=self.payer)
+        for description, amount in (("Seil", Decimal("56.00")), ("Hütte", Decimal("44.00"))):
+            Bill.objects.create(
+                statement=statement,
+                short_description=description,
+                amount=amount,
+                costs_covered=True,
+                paid_by=self.payer,
+            )
+        statement = Statement.objects.get(pk=statement.pk)
+        statement.submit(submitter=self.payer)
+        statement.generate_transactions()
+        bookings = list(statement.transaction_set.order_by("id"))
+        self.assertEqual(len(bookings), 2, "two receipts, two bookings to put on two accounts")
+        for booking, ledger in zip(bookings, (self.topf, self.huetten)):
+            booking.ledger = ledger
+            booking.save()
         return Statement.objects.get(pk=statement.pk)
 
     def listed(self, user):
@@ -263,6 +319,144 @@ class SignerVisibilityTestCase(TestCase):
         # cannot pass against a build that refuses everyone.
         self.assertTrue(self.may_view(self.payer_user, statement))
         self.assertIn(statement.pk, self.listed(self.payer_user))
+
+    # --- what she gets to read once she is in -----------------------------
+
+    def test_the_signer_reads_the_accounts_her_own_bookings_sit_on(self):
+        """The seam for the account: the booking's own field, nothing wider.
+
+        ``finance.view_ledger`` is the right to read the section's chart of
+        accounts, and the signer does not hold it — she is a department head,
+        not finance staff. What she needs is narrower by two orders: the
+        accounts **her statement's own bookings sit on**, which is where the
+        payout she is signing is charged.
+
+        That seam already exists and is the narrowest one available: the
+        account rides on the booking (``TransactionOut.ledger``) and the route
+        that serves the bookings is authorized by the statement's own
+        ``view_obj_statement`` — the very right :func:`is_named_signer` gives
+        her. So being named a signer grants **no new permission at all**; it
+        grants the statement, and the account comes with the booking.
+
+        Asserted as *which* accounts and not as "it works", because "she can
+        read an account" passes against a build that hands her the catalogue.
+        Twenty-four accounts exist, two of them carry her bookings, and the
+        three facts together are the seam: she reads those two, she reads them
+        off the bookings, and the catalogue still refuses her.
+        """
+        statement = self.a_statement_on_two_ledgers()
+        self.assertEqual(Ledger.objects.count(), 24, "a section's chart of accounts")
+        r = self.client.get(
+            "/api/finance/statements/{}/transactions".format(statement.pk),
+            **bearer(self.leitung_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(
+            {row["ledger"]["name"] for row in r.json()},
+            {self.topf.name, self.huetten.name},
+            "the two her bookings sit on, named",
+        )
+        # And nothing wider: the catalogue is still the capability's, which is
+        # what makes the two above a seam rather than a grant.
+        self.assertFalse(self.leitung_user.has_perm("finance.view_ledger"))
+        self.assertEqual(
+            self.client.get("/api/finance/ledgers/", **bearer(self.leitung_user)).status_code,
+            403,
+        )
+        # The control, both halves: the member the rules did not name reads
+        # neither the bookings nor the accounts on them.
+        self.assertEqual(
+            self.client.get(
+                "/api/finance/statements/{}/transactions".format(statement.pk),
+                **bearer(self.kollegin_user),
+            ).status_code,
+            403,
+        )
+
+    def test_the_signer_reads_the_answers_the_payout_was_computed_from(self):
+        """What she is being asked to approve, and not only its arithmetic.
+
+        Under a ruleset that asks for most of the statement in answers, the
+        bills and the bookings are the *consequence* of the statement and not
+        the statement — so a signer shown only those is being asked to sign
+        for facts she has not been shown.
+
+        ``GET …/form`` is where those facts live: the declarations the rules
+        ask for, their labels, their grouping into steps and the stored
+        answers, in one payload. It is authorized by ``view_obj_statement``,
+        so the signer already reaches it and no second vocabulary is needed —
+        which is the whole reason the approval surface renders *this* rather
+        than a reading of its own.
+
+        Asserted as the questions **and** their answers, because a payload
+        carrying the questions with the answers dropped renders a form of
+        dashes and reads as a statement nobody filled in.
+        """
+        statement = self.a_statement_on_two_ledgers()
+        statement.inputs = {"naechte": 3, "regelwerk": "jdav"}
+        statement.save()
+        r = self.client.get(
+            "/api/finance/statements/{}/form".format(statement.pk),
+            **bearer(self.leitung_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertEqual(
+            {declaration["key"]: declaration["label"] for declaration in body["inputs"]},
+            {"naechte": "Uebernachtungen", "regelwerk": "Regelwerk"},
+        )
+        self.assertEqual(body["answers"], {"naechte": 3, "regelwerk": "jdav"})
+        self.assertEqual(
+            [(step["label"], step["keys"]) for step in body["steps"]],
+            [("Angaben", ["naechte", "regelwerk"])],
+            "the grouping she reads them in is the one the rules declared",
+        )
+        # And the member the rules did not name is shown none of it.
+        self.assertEqual(
+            self.client.get(
+                "/api/finance/statements/{}/form".format(statement.pk),
+                **bearer(self.kollegin_user),
+            ).status_code,
+            403,
+        )
+
+    def test_a_signature_is_still_asked_for_when_a_booking_has_no_account(self):
+        """Signing is not paying, and a missing account only stops the paying.
+
+        An account is bookkeeping the treasurer does; a signature is the
+        department head's own act. So a booking with no account must not take
+        her signature with it — and it did, because the one screen that offers
+        the signature was reachable only on ``is_valid``, which a missing
+        account makes false.
+
+        The backend already draws the line in the right place, which is why
+        the fix is the client's: the signature is **recorded** and the payout
+        **refused**, so nothing moves and nothing is lost. Once the account is
+        set, the signature already in is the one that releases it.
+        """
+        statement = self.a_statement()
+        statement.transaction_set.update(ledger=None)
+        statement = Statement.objects.get(pk=statement.pk)
+        self.assertEqual(statement.validity, Statement.MISSING_LEDGER)
+        self.assertFalse(statement.is_valid())
+        # She may still sign, and the screen reads exactly this field.
+        self.assertTrue(statement.may_be_approved_by(self.leitung))
+        r = self.client.post(
+            "/api/finance/statements/{}/approve".format(statement.pk),
+            content_type="application/json",
+            data={"note": ""},
+            **bearer(self.leitung_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertTrue(r.json()["approved"], "every signature the rules asked for is in")
+        statement = Statement.objects.get(pk=statement.pk)
+        self.assertFalse(statement.confirmed, "and the money has still not moved")
+        # The account is the only thing that was missing, so setting it
+        # releases the statement on the signature that was already given.
+        statement.transaction_set.update(ledger=self.ledger)
+        statement = Statement.objects.get(pk=statement.pk)
+        self.assertTrue(statement.confirm(self.leitung))
+        self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)
 
     # --- what "named" means ----------------------------------------------
 
