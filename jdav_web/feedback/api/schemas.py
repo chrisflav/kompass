@@ -5,6 +5,7 @@ import datetime
 from feedback.models import Feedback
 from feedback.models import FeedbackResponse
 from members.api.schemas import MemberBrief
+from members.api.schemas import MemberRef
 from ninja import ModelSchema
 from ninja import Schema
 
@@ -33,7 +34,7 @@ class FeedbackResponseOut(ModelSchema):
 
     id: int
     created: datetime.datetime
-    author: MemberBrief | None = None
+    author: MemberRef | None = None
 
     class Meta:
         model = FeedbackResponse

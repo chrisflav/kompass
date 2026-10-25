@@ -77,7 +77,7 @@ def list_feedback(request):
 def _get_feedback(feedback_id):
     return get_object_or_404(
         Feedback.objects.select_related("submitted_by", "resolved_by").prefetch_related(
-            "responses__author__group"
+            "responses__author"
         ),
         pk=feedback_id,
     )
@@ -139,14 +139,18 @@ def respond_to_feedback(request, feedback_id: int, payload: RespondIn):
             }
         )
     member = getattr(request.user, "member", None)
-    resolve = payload.resolve and not feedback.is_resolved
-    # Mailed before anything is stored: if the mail does not go out, nothing
-    # pretends otherwise and sending can simply be tried again.
-    if _mail_response(feedback, message, member or request.user, resolve) != SENT:
-        raise ValidationError(
-            {"message": [_("The email could not be sent. Please try again later.")]}
-        )
+    responder = member or request.user
+    # Locked while mailing, so two answers sent at once neither both announce
+    # the resolution nor overwrite who resolved it. The mail goes out before
+    # anything is stored: if it fails, the transaction rolls back and sending
+    # can simply be tried again.
     with transaction.atomic():
+        feedback = Feedback.objects.select_for_update().get(pk=feedback.pk)
+        resolve = payload.resolve and not feedback.is_resolved
+        if _mail_response(feedback, message, responder, resolve) != SENT:
+            raise ValidationError(
+                {"message": [_("The email could not be sent. Please try again later.")]}
+            )
         FeedbackResponse.objects.create(feedback=feedback, author=member, message=message)
         if resolve:
             feedback.resolved_at = timezone.now()
@@ -164,6 +168,9 @@ def _mail_response(feedback, message, responder, resolved):
     # ``responder`` is a member, or the bare user for an account without one.
     name = getattr(responder, "name", None) or responder.get_full_name() or responder.username
     status = "\n{}\n".format(_("Your feedback is now marked as resolved.")) if resolved else ""
+    # Answers from the sender should reach the responder, not the shared
+    # sending mailbox.
+    reply_to = [responder.email] if responder.email else None
     return sender.send_mail(
         _("Response to your feedback"),
         settings.FEEDBACK_RESPONSE_TEXT.format(
@@ -173,6 +180,7 @@ def _mail_response(feedback, message, responder, resolved):
             status=status,
             message="\n".join("> {}".format(line) for line in original.splitlines()),
         ),
+        reply_to=reply_to,
     )
 
 

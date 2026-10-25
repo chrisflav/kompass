@@ -9108,7 +9108,7 @@ export interface components {
              * Format: date-time
              */
             created: string;
-            author?: components["schemas"]["MemberBrief"] | null;
+            author?: components["schemas"]["MemberRef"] | null;
             /** Message */
             message: string;
         };

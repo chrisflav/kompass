@@ -24033,7 +24033,7 @@
           "author": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/MemberBrief"
+                "$ref": "#/components/schemas/MemberRef"
               },
               {
                 "type": "null"

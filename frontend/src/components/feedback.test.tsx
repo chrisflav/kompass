@@ -308,6 +308,8 @@ describe("feedback inbox", () => {
     expect(send).toBeDisabled();
     const resolve = dialog.getByLabelText("Zugleich als erledigt markieren");
     expect(resolve).not.toBeChecked();
+    // The same limit the server enforces.
+    expect(dialog.getByLabelText("Antwort")).toHaveAttribute("maxlength", "5000");
     await user.type(dialog.getByLabelText("Antwort"), "Ist behoben, danke!");
     await user.click(resolve);
     await user.click(send);

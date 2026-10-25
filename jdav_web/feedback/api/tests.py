@@ -317,6 +317,8 @@ class FeedbackApiTestCase(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         sent = mail.outbox[0]
         self.assertEqual(sent.to, ["hannah@example.org"])
+        # Replies go to whoever answered, not to the shared sending mailbox.
+        self.assertEqual(sent.reply_to, [settings.TEST_MAIL])
         self.assertEqual(sent.subject, str(_("Response to your feedback")))
         self.assertIn("Hallo Hannah,", sent.body)
         self.assertIn("Sender Test hat dir geantwortet:\n\nIst behoben, danke!", sent.body)
@@ -379,6 +381,8 @@ class FeedbackApiTestCase(TestCase):
         self.assertEqual(r.status_code, 200, r.content)
         self.assertIsNone(r.json()["responses"][0]["author"])
         self.assertIn("Rita Reader hat dir geantwortet", mail.outbox[0].body)
+        # Without an address of their own, replies fall back to the default.
+        self.assertEqual(mail.outbox[0].reply_to, [])
 
         reader.first_name = reader.last_name = ""
         reader.save()

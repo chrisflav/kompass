@@ -366,6 +366,7 @@ function RespondModal({ feedback, onClose }: { feedback: FeedbackOut; onClose: (
           <textarea
             rows={6}
             required
+            maxLength={5000}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
           />
