@@ -320,3 +320,60 @@ describe("the named signer — the account on the booking", () => {
     );
   });
 });
+describe("the named signer — the statement, not only its arithmetic", () => {
+  it("shows the questions and the answers the payout was computed from", async () => {
+    openAsSigner("payout");
+
+    // The grouping is the ruleset's own, so she reads them as the person
+    // filling them in saw them.
+    expect(await screen.findByText("Grundlage")).toBeInTheDocument();
+    expect(screen.getByText("Angaben")).toBeInTheDocument();
+    // A choice reads as its label and not as the value that is stored.
+    expect(screen.getByText("Regelwerk")).toBeInTheDocument();
+    expect(screen.getByText("Übungsleiterpauschale")).toBeInTheDocument();
+    // The nights, the hours and the Tagegeld — none of which this surface
+    // showed at all.
+    expect(screen.getByText("Übernachtungen")).toBeInTheDocument();
+    expect(screen.getByText("Betreuungsstunden")).toBeInTheDocument();
+    const tagegeld = screen.getByText("Tagegeld an").closest("div") as HTMLElement;
+    expect(within(tagegeld).getByText("Mila Nowak")).toBeInTheDocument();
+    // A derived reading is a fact about the statement and reads like any other.
+    expect(screen.getByText("Gefahrene Kilometer")).toBeInTheDocument();
+    expect(screen.getByText("412")).toBeInTheDocument();
+  });
+
+  it("reads a travel table as rows rather than as the JSON it is stored as", async () => {
+    openAsSigner("payout");
+
+    const table = (await screen.findByText("Fahrten")).closest("div")
+      ?.querySelector("table.rows-table") as HTMLElement;
+    expect(within(table).getByText("Kilometer")).toBeInTheDocument();
+    // Per traveller, because whether somebody gets the rate per kilometre at
+    // all depends on *their* mode of travel.
+    expect(within(table).getByText("212")).toBeInTheDocument();
+    expect(within(table).getByText("PKW")).toBeInTheDocument();
+    expect(within(table).getByText("Melissa Gruber")).toBeInTheDocument();
+    expect(within(table).getByText("Bahn")).toBeInTheDocument();
+  });
+
+  it("asks nothing of a ruleset that asks nothing, and says so", async () => {
+    openAsSigner("payout", {
+      form: () => HttpResponse.json({ statement_id: 39, inputs: [], steps: [], answers: {} }),
+    });
+    expect(
+      await screen.findByText("Für diese Abrechnung fragen die Regeln nichts ab."),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the signatures and the transfers when the answers cannot be loaded", async () => {
+    openAsSigner("payout", {
+      form: () =>
+        HttpResponse.json({ detail: "Die Angaben sind nicht lesbar." }, { status: 500 }),
+    });
+    // The leg is what it always was; only the new section says it is missing.
+    expect(await screen.findByText("Die zuständige Ressortleitung")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Übergabe an die Geschäftsstelle" }),
+    ).toBeInTheDocument();
+  });
+});

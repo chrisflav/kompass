@@ -7,6 +7,7 @@ type InputDeclarationOut = components["schemas"]["InputDeclarationOut"];
 type InputFieldOut = components["schemas"]["InputFieldOut"];
 type InputOptionOut = components["schemas"]["InputOptionOut"];
 type InputChoiceOut = components["schemas"]["InputChoiceOut"];
+type StatementFormOut = components["schemas"]["StatementFormOut"];
 
 // The widget vocabulary, as a renderer.
 //
@@ -189,6 +190,123 @@ export function DerivedFacts({
           </div>
         ))}
       </dl>
+    </div>
+  );
+}
+
+/**
+ * The whole form as a reading: the questions, the answers, nothing to change.
+ *
+ * A signer is asked to approve a payout, and under a ruleset like
+ * Ludwigsburg's the payout is almost entirely a *consequence* of the answers —
+ * the Regelwerk the trip was run under, the journeys, the nights, the hours.
+ * The approval surface showed the bills and the bookings and none of that, so
+ * the question it asked was "do you accept this arithmetic" when the question
+ * it meant was "do you accept the statement".
+ *
+ * It renders `GET …/form` and not a payload of its own, which is the point:
+ * the signer reads the questions, the labels and the grouping into steps
+ * exactly as the person filling them in saw them, because it is the same
+ * declarations through the same `answerText`. A section that starts asking
+ * something else is read here without a line changing, for the same reason the
+ * form is.
+ *
+ * A `derived` answer gets no special frame here. On the form it does
+ * ({@link DerivedFacts}), because there the distinction is "you may type this"
+ * against "you may not"; to a reader there is no such distinction — the
+ * kilometres are the kilometres — and inventing one would say that half the
+ * statement is of a different kind.
+ */
+export function AnsweredForm({ form }: { form: StatementFormOut }) {
+  if (form.inputs.length === 0) {
+    return <p className="muted">Für diese Abrechnung fragen die Regeln nichts ab.</p>;
+  }
+  return (
+    <>
+      {form.steps.map((step) => {
+        // `steps` partitions the whole form, so this is the only layout there
+        // is — including the unnamed single step a ruleset without steps comes
+        // back as, which reads as the flat list it is.
+        const declared = step.keys
+          .map((key) => form.inputs.find((declaration) => declaration.key === key))
+          .filter((declaration): declaration is InputDeclarationOut => declaration !== undefined);
+        if (declared.length === 0) return null;
+        // A table is a block and not a cell: the readout's columns are a few
+        // characters wide, which is right for a figure and unreadable for five
+        // journeys. The same split the editable form makes, for the same
+        // reason — `RowsField` is its own block there too.
+        const tables = declared.filter((declaration) => declaration.type === "rows");
+        const figures = declared.filter((declaration) => declaration.type !== "rows");
+        return (
+          <section className="answer-group" key={step.label}>
+            {step.label && <h4 className="answer-group-title">{step.label}</h4>}
+            {figures.length > 0 && (
+              <div className="readout">
+                <dl>
+                  {figures.map((declaration) => (
+                    <div key={declaration.key}>
+                      <dt>{declaration.label}</dt>
+                      <dd>{answerText(declaration, form.answers[declaration.key])}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
+            {tables.map((declaration) => (
+              <div className="field rows-field" key={declaration.key}>
+                <span className="field-label">{declaration.label}</span>
+                <AnsweredRows declaration={declaration} value={form.answers[declaration.key]} />
+              </div>
+            ))}
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
+/**
+ * A table's answer as a reading: one line per row, the cells in their columns.
+ *
+ * Every cell goes through the same `answerText` the question of that type does,
+ * via the same `cellOf` the editable table uses — so a travel row reads the way
+ * it was entered rather than as the JSON it is stored as.
+ */
+function AnsweredRows({
+  declaration,
+  value,
+}: {
+  declaration: InputDeclarationOut;
+  value: unknown;
+}) {
+  const rows = rowsOf(value);
+  if (rows.length === 0) {
+    return <span className="muted">keine Zeile</span>;
+  }
+  return (
+    <div className="table-wrap rows-wrap">
+      <table className="rows-table">
+        <thead>
+          <tr>
+            {declaration.fields.map((field) => (
+              <th scope="col" key={field.key}>
+                {field.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={index}>
+              {declaration.fields.map((field) => (
+                <td key={field.key} data-label={field.label} className="rows-cell">
+                  {answerText(cellOf(declaration, field), row[field.key])}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

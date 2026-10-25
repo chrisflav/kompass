@@ -130,6 +130,31 @@ function openFreigabe(
       HttpResponse.json(transactions),
     ),
     http.get(api("/api/finance/statements/1/approval"), () => HttpResponse.json(current)),
+    // The leg states the statement's own answers above the money now, so it
+    // asks for the form as well. Heidelberg's shape: four questions, none of
+    // which these tests are about — `signer.integration.test.tsx` is.
+    http.get(api("/api/finance/statements/1/form"), () =>
+      HttpResponse.json({
+        statement_id: 1,
+        inputs: [
+          {
+            key: "night_cost",
+            label: "Preis pro Übernachtung",
+            type: "money",
+            required: false,
+            help: "",
+            max: null,
+            options: [],
+            choices: [],
+            fields: [],
+            step: "",
+            derived: false,
+          },
+        ],
+        steps: [{ label: "", keys: ["night_cost"] }],
+        answers: { night_cost: "11.00" },
+      }),
+    ),
     http.post(api("/api/finance/statements/1/approve"), () => {
       posted.push("approve");
       return HttpResponse.json(current);

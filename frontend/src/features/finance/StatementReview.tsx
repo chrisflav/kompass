@@ -22,6 +22,7 @@ import {
   useToast,
   euro,
 } from "../../components/ui";
+import { AnsweredForm } from "./answers";
 import {
   ApprovalRecord,
   outstandingText,
@@ -969,6 +970,8 @@ function FreigabeStage({
         <p className="muted">{approvalError ?? "Freigaben werden geladen …"}</p>
       )}
 
+      <Angaben statement={statement} />
+
       <h3 className="fieldset-title">{words.heading}</h3>
       <p className="flow-lead">
         {statement.confirmed
@@ -1050,6 +1053,56 @@ function FreigabeStage({
         </label>
       )}
     </section>
+  );
+}
+
+/**
+ * The statement itself, where it is signed off.
+ *
+ * This surface showed the bills and the bookings and **none of the answers** —
+ * no Regelwerk, no travel rows, no nights, hours or Tagegeld. Under a ruleset
+ * that asks for most of the statement in answers, that is a signer asked to
+ * release a payout while being shown only its arithmetic, never the facts it
+ * was computed from. Which is not a signature anybody can give honestly.
+ *
+ * It is `GET …/form` and {@link AnsweredForm}, which is how the flow renders
+ * the same questions, so the signer reads them as the person filling them in
+ * saw them: same declarations, same labels, same grouping into steps, no
+ * controls. A second rendering here would be a second thing to keep in step
+ * with the rules.
+ *
+ * It sits between the signatures and the money, in the open, because that is
+ * the order the act has: who has to sign, what is being signed, what it pays
+ * out. Behind a tab it would be a thing a signer may consult, and the defect
+ * was precisely that consulting it was optional.
+ *
+ * A refusal says so in a line rather than taking the payout with it: the
+ * signatures above and the transfers below are what this leg has always been,
+ * and neither depends on this.
+ */
+function Angaben({ statement }: { statement: StatementOut }) {
+  const query = useApiQuery(["finance", "statements", statement.id, "form"], () =>
+    unwrap(
+      client.GET("/api/finance/statements/{statement_id}/form", {
+        params: { path: { statement_id: statement.id } },
+      }),
+    ),
+  );
+  return (
+    <>
+      <h3 className="fieldset-title">Angaben zur Abrechnung</h3>
+      <p className="flow-lead">
+        Was die Regeln zu dieser Abrechnung gefragt haben und was geantwortet wurde — die
+        Grundlage der Beträge weiter unten.
+      </p>
+      {query.data ? (
+        <AnsweredForm form={query.data} />
+      ) : (
+        <p className="muted">
+          {query.error ? query.error.message : "Angaben werden geladen …"}
+        </p>
+      )}
+    </>
   );
 }
 
