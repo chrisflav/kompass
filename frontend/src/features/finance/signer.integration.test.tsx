@@ -410,11 +410,20 @@ describe("the named signer — the statement, not only its arithmetic", () => {
       form: () =>
         HttpResponse.json({ detail: "Die Angaben sind nicht lesbar." }, { status: 500 }),
     });
-    // The leg is what it always was; only the new section says it is missing.
-    expect(await screen.findByText("Die zuständige Ressortleitung")).toBeInTheDocument();
+    // The section says it is missing, in the voice the API's refusals are
+    // reported in, rather than rendering an empty frame.
+    expect(
+      await screen.findByText(
+        "Serverfehler — die Aktion konnte nicht ausgeführt werden. Bitte versuche es erneut.",
+      ),
+    ).toBeInTheDocument();
+    // And the leg is everything it always was: the record above and the
+    // transfers below do not depend on this.
+    expect(screen.getByText("Die zuständige Ressortleitung")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Übergabe an die Geschäftsstelle" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Zur Auszahlung übergeben" })).toBeEnabled();
   });
 });
 
