@@ -168,6 +168,14 @@ export function Catalogue() {
     { placeholderData: keepPreviousData },
   );
 
+  // A search for a piece's PSA ID offers that piece, above the types it finds.
+  const hits = useApiQuery(
+    ["material", "parts", "match", search.trim()],
+    () =>
+      unwrap(client.GET("/api/material/parts/match", { params: { query: { code: search.trim() } } })),
+    { enabled: search.trim().length > 0 },
+  );
+
   // Enter on an ID printed on a piece opens that piece; anything else just filters.
   const lookup = useApiMutation(
     (code: string) =>
@@ -207,6 +215,13 @@ export function Catalogue() {
               />
             )}
           </div>
+          {hits.data?.map((part) => (
+            <p key={part.id} className="material-hit">
+              <Link to={`${BASE}/parts/${part.id}`}>
+                Teil <span className="mono">{part.psa_id}</span> – {part.product_type.name}
+              </Link>
+            </p>
+          ))}
           <QueryBoundary query={query} empty="Kein Material gefunden.">
             {(cards) => (
               <div className={`material-grid${query.isPlaceholderData ? " is-stale" : ""}`}>

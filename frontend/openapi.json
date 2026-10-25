@@ -6862,7 +6862,7 @@
             }
           }
         },
-        "description": "The catalogue: every type with pieces, and how many are free in the period.",
+        "description": "The catalogue: every type with pieces, and how many are free in the period.\n\n``q`` also finds a type by the PSA ID or serial number of one of its pieces.",
         "tags": [
           "material"
         ],
@@ -7366,6 +7366,48 @@
           },
           "required": true
         },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/parts/match": {
+      "get": {
+        "operationId": "equipment_api_router_match_parts",
+        "summary": "Match Parts",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PartBrief"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "The piece whose PSA ID is ``code``, ignoring case, so a search can lead straight to it.",
+        "tags": [
+          "material"
+        ],
         "security": [
           {
             "OAuth2Bearer": []

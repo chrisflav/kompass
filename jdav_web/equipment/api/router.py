@@ -272,7 +272,10 @@ def list_types(
     start: date | None = None,
     end: date | None = None,
 ):
-    """The catalogue: every type with pieces, and how many are free in the period."""
+    """The catalogue: every type with pieces, and how many are free in the period.
+
+    ``q`` also finds a type by the PSA ID or serial number of one of its pieces.
+    """
     member = get_member(request)
     start, end = _period(start, end)
     types = ProductType.objects.prefetch_related(
@@ -287,6 +290,8 @@ def list_types(
             | Q(manufacturer__icontains=q)
             | Q(product_group__icontains=q)
             | Q(tags__name__icontains=q)
+            | Q(parts__psa_id__icontains=q)
+            | Q(parts__serial_number__icontains=q)
         ).distinct()
     if tag is not None:
         types = types.filter(tags=tag)
@@ -459,6 +464,14 @@ def list_parts(
         parts = parts.exclude(status=Part.RETIRED)
     lent = services.open_loan_dues()
     return [serialize.part_brief(p, lent_until=lent.get(p.pk)) for p in parts]
+
+
+@router.get("/parts/match", response=list[PartBrief])
+def match_parts(request, code: str):
+    """The piece whose PSA ID is ``code``, ignoring case, so a search can lead straight to it."""
+    get_member(request)
+    parts = Part.objects.select_related("product_type", "group", "holder", "location")
+    return [serialize.part_brief(p) for p in parts.filter(psa_id__iexact=code.strip())]
 
 
 @router.get("/parts/lookup", response=PartOut)

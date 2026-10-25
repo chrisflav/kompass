@@ -327,6 +327,31 @@ class MaterialApiTestCase(ApiMixin, TestCase):
             r = self.upload("ida", "/types/{}/manual".format(self.sling_type.pk), {"manual": pdf})
             self.assertEqual(r.status_code, 422)
 
+    def test_catalogue_search_finds_types_by_their_pieces(self):
+        # Feedback #33: an ID printed on a piece finds its type, in any case.
+        self.assertEqual([c["name"] for c in self.get("alice", "/types", q="g1").json()], ["Gurt"])
+        self.slings[0].serial_number = "SN-4711"
+        self.slings[0].save()
+        self.slings[1].serial_number = "SN-4712"
+        self.slings[1].save()
+        r = self.get("alice", "/types", q="sn-47")
+        self.assertEqual([c["name"] for c in r.json()], ["Bandschlinge 120 cm"])
+        self.assertEqual(self.get("alice", "/types", q="X99").json(), [])
+
+    def test_match_parts(self):
+        r = self.get("alice", "/parts/match", code=" g1 ")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(
+            [(p["id"], p["psa_id"], p["product_type"]["name"]) for p in r.json()],
+            [(self.harness.pk, "G1", "Petzl Gurt")],
+        )
+        # Only a whole PSA ID matches: a part of one, or a serial number, does not.
+        self.harness.serial_number = "B77"
+        self.harness.save()
+        self.assertEqual(self.get("alice", "/parts/match", code="G").json(), [])
+        self.assertEqual(self.get("alice", "/parts/match", code="b77").json(), [])
+        self.assertEqual(self.get("nomember", "/parts/match", code="G1").status_code, 403)
+
     # --- pieces ----------------------------------------------------------
 
     def test_part_list_is_for_the_material_team(self):
