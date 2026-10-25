@@ -320,6 +320,7 @@ describe("the named signer — the account on the booking", () => {
     );
   });
 });
+
 describe("the named signer — the statement, not only its arithmetic", () => {
   it("shows the questions and the answers the payout was computed from", async () => {
     openAsSigner("payout");
@@ -375,5 +376,89 @@ describe("the named signer — the statement, not only its arithmetic", () => {
     expect(
       screen.getByRole("heading", { name: "Übergabe an die Geschäftsstelle" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("the named signer — signing is not paying", () => {
+  it("offers the signature, not only the override, when a booking has no account", async () => {
+    // The defect, end to end. The payout is genuinely locked; her signature is
+    // not, and it was the only act she could not reach.
+    const { user, posted } = openAsSigner("payout", LOCKED);
+
+    const sign = await screen.findByRole("button", { name: "Jetzt freigeben" });
+    expect(sign).toBeEnabled();
+    // The payout is not offered, because `/confirm` would refuse it...
+    expect(
+      screen.queryByRole("button", { name: "Zur Auszahlung übergeben" }),
+    ).not.toBeInTheDocument();
+    // ...and the leg says why the money is not moving with the signature.
+    expect(
+      screen.getByText("Die Übergabe ist gesperrt: Eine Buchung hat kein Konto."),
+    ).toBeInTheDocument();
+    // Nor is there an acknowledgement: nothing is being paid out to claim.
+    expect(
+      screen.queryByText("Ich habe die aufgeführten Überweisungen ausgeführt."),
+    ).not.toBeInTheDocument();
+
+    await user.click(sign);
+    await waitFor(() => expect(posted).toEqual(["approve"]));
+  });
+
+  it("releases the statement when the bookkeeping is in, as it always did", async () => {
+    // The other side of the same branch: a statement that *is* payable offers
+    // the release and not a bare signature, for the section that asks for one
+    // signature and has always read as a single act.
+    const { user, posted } = openAsSigner("payout");
+
+    const release = await screen.findByRole("button", { name: "Zur Auszahlung übergeben" });
+    expect(screen.queryByRole("button", { name: "Jetzt freigeben" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/ist gesperrt/)).not.toBeInTheDocument();
+    await user.click(release);
+    await user.click(await screen.findByRole("button", { name: "Übergeben" }));
+    await waitFor(() => expect(posted).toEqual(["confirm"]));
+  });
+
+  it("lets her reach the leg at all while the payout is locked", async () => {
+    // The lock used to make the whole leg unreachable, which is how the
+    // signature disappeared: the rail refused the step, the URL fell back to
+    // the first one, and nothing on screen was the act she was asked for.
+    openAsSigner("payout", LOCKED);
+    expect(await screen.findByRole("heading", { name: "Freigabe" })).toBeInTheDocument();
+  });
+
+  it("keeps the leg shut when a locked statement leaves her nothing to sign", async () => {
+    // The bound: reachability is her own signature, not the lock being
+    // ignored. Somebody with nothing left to sign gets the pipeline's first
+    // leg, exactly as before.
+    openAsSigner("payout", {
+      ...LOCKED,
+      record: approval({ may_approve: false, completes_approval: false }),
+    });
+    expect(await screen.findByRole("heading", { name: "Ausgaben prüfen" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Freigabe" })).not.toBeInTheDocument();
+  });
+});
+
+describe("the named signer — and somebody the rules did not name", () => {
+  it("shows a member the rules named on nothing none of it", async () => {
+    // The control that keeps all of the above from being "everybody sees
+    // everything": the same capability, no role, and the statement is not
+    // hers to open — so there is no account, no answer and no button.
+    useMe({ permissions: ["finance.process_statementsubmitted"] });
+    server.use(
+      http.get(api("/api/finance/statements/39"), () =>
+        HttpResponse.json({ detail: "finance.view_obj_statement" }, { status: 403 }),
+      ),
+    );
+    renderRoute("/kompass/finance/statements/39/review?stage=payout");
+
+    expect(await screen.findByText("Dazu fehlt dir die Berechtigung.")).toBeInTheDocument();
+    expect(screen.queryByText("Seil und Haken")).not.toBeInTheDocument();
+    expect(screen.queryByText("Topf")).not.toBeInTheDocument();
+    expect(screen.queryByText("Übungsleiterpauschale")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Jetzt freigeben" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Zur Auszahlung übergeben" }),
+    ).not.toBeInTheDocument();
   });
 });

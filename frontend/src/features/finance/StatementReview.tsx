@@ -122,21 +122,10 @@ function StatementReview({ statement }: { statement: StatementOut }) {
   const coveredTotal = covered.reduce((s, b) => s + b.amount, 0);
   const txTotal = transactions.reduce((s, t) => s + t.amount, 0);
 
-  // The pipeline is ordered by dependency: bookings need decided expenses, and
-  // paying needs bookings that reconcile. Skipping ahead is what produced
-  // half-processed statements in the old all-at-once modal.
-  const stages: StageId[] = ["expenses", "bookings", "payout"];
-  const reachable: Record<StageId, boolean> = {
-    expenses: true,
-    bookings: true,
-    payout: statement.is_valid,
-  };
-  const requested = (params.get("stage") ?? "expenses") as StageId;
-  const stage: StageId = stages.includes(requested) && reachable[requested] ? requested : "expenses";
-  const goto = (next: StageId) => setParams({ stage: next });
-
-  // Only the last leg needs the record, and it needs it before the button is
-  // offered: which act the button performs is the record's answer.
+  // The last leg needs the record before anything about it can be decided —
+  // which act its button performs, and since #380 whether the leg is reachable
+  // at all. It used to be fetched only once the leg was open, which cannot
+  // answer the second question: a leg that is unreachable never asks.
   const approvalQuery = useApiQuery(
     ["finance", "statements", statement.id, "approval"],
     () =>
@@ -145,13 +134,47 @@ function StatementReview({ statement }: { statement: StatementOut }) {
           params: { path: { statement_id: statement.id } },
         }),
       ),
-    { enabled: stage === "payout" },
   );
   const approval = approvalQuery.data;
   // A record that cannot be loaded must not take the payout with it: `confirm`
   // is the act this leg always offered, and it now names which of its two
   // refusals applies, so falling back to it is safe rather than silent.
   const completes = approval ? approval.completes_approval : approvalQuery.isError;
+
+  // Two different acts, and only one of them needs the bookkeeping.
+  //
+  // Paying out needs bookings that reconcile and sit on accounts — `/confirm`
+  // refuses on `is_valid` and `Statement._pay_out` refuses again, so a client
+  // that offered it would be offering a refusal. **Signing does not.** A
+  // signature is the signer's own act about the statement's facts; whether
+  // every booking has an account yet is the treasurer's bookkeeping, and
+  // holding a department head's signature hostage to it is how a missing
+  // account came to hide the ordinary act and leave only the override.
+  //
+  // So the payout is locked and the signature is still asked for: the record
+  // is written, the money waits, and setting the account afterwards releases
+  // the statement on the signature already given (`finance/tests/visibility.
+  // py::test_a_signature_is_still_asked_for_when_a_booking_has_no_account`).
+  const payable = statement.is_valid;
+  const signable = Boolean(approval?.may_approve);
+  // Whether the next click on the last leg *is* the payout — which is also
+  // what the acknowledgement in front of it is asked about. A signature on a
+  // locked statement releases nothing, so there is nothing to acknowledge and
+  // asking would be the false claim `words.acknowledgement` exists to avoid.
+  const releasing = payable && completes;
+
+  // The pipeline is ordered by dependency: bookings need decided expenses, and
+  // paying needs bookings that reconcile. Skipping ahead is what produced
+  // half-processed statements in the old all-at-once modal.
+  const stages: StageId[] = ["expenses", "bookings", "payout"];
+  const reachable: Record<StageId, boolean> = {
+    expenses: true,
+    bookings: true,
+    payout: payable || signable,
+  };
+  const requested = (params.get("stage") ?? "expenses") as StageId;
+  const stage: StageId = stages.includes(requested) && reachable[requested] ? requested : "expenses";
+  const goto = (next: StageId) => setParams({ stage: next });
 
   const etappen: Etappe[] = stages.map((s) => ({
     id: s,
@@ -302,7 +325,7 @@ function StatementReview({ statement }: { statement: StatementOut }) {
             transactions={transactions}
             approval={approval}
             approvalError={approvalQuery.error?.message ?? null}
-            completes={completes}
+            releasing={releasing}
             executed={executed}
             onExecutedChange={setExecuted}
             words={words}
@@ -332,8 +355,15 @@ function StatementReview({ statement }: { statement: StatementOut }) {
                its pair of buttons, the `send` flag and the acknowledgement; a
                handoff has one button and no flag, because its mail is not an
                extra — `/confirm` sends it, and refuses to move the status if it
-               did not go. */
-            completes ? (
+               did not go.
+
+               Unless the payout is locked, in which case neither of those is
+               the act that is left: `/confirm` would be refused, and what the
+               signer can still do is sign. So a locked statement offers the
+               signature to whoever may give one, whether or not it would have
+               completed the quorum, and `words.locked` under the leg says why
+               the money is not moving with it. */
+            releasing ? (
               <>
                 {words.releaseOnly !== null && (
                   <Button
@@ -389,12 +419,8 @@ function StatementReview({ statement }: { statement: StatementOut }) {
                 </Button>
               </>
             ) : (
-              approval?.may_approve && (
-                <Button
-                  busy={signM.isPending}
-                  disabled={!statement.is_valid}
-                  onClick={() => signM.mutate(undefined)}
-                >
+              signable && (
+                <Button busy={signM.isPending} onClick={() => signM.mutate(undefined)}>
                   Jetzt freigeben
                 </Button>
               )
@@ -410,7 +436,12 @@ function StatementReview({ statement }: { statement: StatementOut }) {
         </div>
       </div>
 
-      {stage !== "payout" && !statement.is_valid && (
+      {/* Why the money is not moving — on every leg now, the last one
+          included. It used to be hidden there precisely because a locked
+          statement could not reach that leg at all; now that a signature can,
+          the sentence has to come along, or the leg offers a signature beside
+          an absent payout button and explains neither. */}
+      {!payable && (
         <p className="flow-block">{words.locked(statement.validity_display)}</p>
       )}
     </div>
@@ -933,7 +964,7 @@ function FreigabeStage({
   transactions,
   approval,
   approvalError,
-  completes,
+  releasing,
   executed,
   onExecutedChange,
   words,
@@ -943,7 +974,8 @@ function FreigabeStage({
   transactions: TransactionOut[];
   approval: StatementApprovalOut | undefined;
   approvalError: string | null;
-  completes: boolean;
+  /** Whether the next click on this leg *is* the payout. See `releasing`. */
+  releasing: boolean;
   executed: boolean;
   onExecutedChange: (v: boolean) => void;
   words: PayoutWords;
@@ -1042,7 +1074,7 @@ function FreigabeStage({
           and asking it at all in a section whose office makes the transfers
           would be the same false claim with nobody who could truthfully tick
           it, which is why `words.acknowledgement` is null there. */}
-      {!statement.confirmed && completes && words.acknowledgement !== null && (
+      {!statement.confirmed && releasing && words.acknowledgement !== null && (
         <label className="payout-gate">
           <input
             type="checkbox"
