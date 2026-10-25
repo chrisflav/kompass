@@ -242,12 +242,16 @@ function openAsSigner(leg: string, scene: Scene = {}) {
   } = scene;
   useMe({ member_id: MELISSA.id, name: MELISSA.name, permissions });
   const posted: string[] = [];
+  const fetched: string[] = [];
   server.use(
     http.get(api("/api/finance/statements/39"), () => HttpResponse.json(statement(overrides))),
     http.get(api("/api/finance/statements/39/transactions"), () => HttpResponse.json(bookings)),
     http.get(api("/api/finance/statements/39/approval"), () => HttpResponse.json(record)),
     http.get(api("/api/finance/statements/39/form"), form),
-    http.get(api("/api/finance/ledgers/"), ledgers),
+    http.get(api("/api/finance/ledgers/"), () => {
+      fetched.push("ledgers");
+      return ledgers();
+    }),
     http.get(api("/api/members/"), () => HttpResponse.json([MILA, MELISSA])),
     http.post(api("/api/finance/statements/39/approve"), () => {
       posted.push("approve");
@@ -262,7 +266,12 @@ function openAsSigner(leg: string, scene: Scene = {}) {
       return HttpResponse.json(record);
     }),
   );
-  return { ...renderRoute(`/kompass/finance/statements/39/review?stage=${leg}`), posted };
+  return {
+    ...renderRoute(`/kompass/finance/statements/39/review?stage=${leg}`),
+    posted,
+    /** Which of the endpoints the page only *sometimes* asks for it asked for. */
+    fetched,
+  };
 }
 
 /** The Konto cell of the one booking on the Buchungen leg. */
@@ -278,6 +287,16 @@ const LOCKED = {
 };
 
 describe("the named signer — the account on the booking", () => {
+  it("does not ask for a catalogue it may not read", async () => {
+    // The request itself, and not only what was done with the answer. A page
+    // that asks and discards the 403 works by accident: the next reader of
+    // the code sees a ledger query beside a cell that does not use it, and
+    // the browser console fills with refusals that are not defects.
+    const { fetched } = openAsSigner("bookings");
+    await kontoCell();
+    expect(fetched).toEqual([]);
+  });
+
   it("reads the account off the booking without the chart of accounts", async () => {
     openAsSigner("bookings");
 
@@ -305,7 +324,7 @@ describe("the named signer — the account on the booking", () => {
     // The control on the permission: the same leg, the same booking, somebody
     // who may read the catalogue. Without this, "the cell is text" passes
     // against a build that made it text for everybody.
-    openAsSigner("bookings", {
+    const { fetched } = openAsSigner("bookings", {
       permissions: ["finance.process_statementsubmitted", "finance.view_ledger"],
       ledgers: () =>
         HttpResponse.json([
@@ -318,6 +337,8 @@ describe("the named signer — the account on the booking", () => {
     await waitFor(() =>
       expect(within(konto).getByText("Topf").closest(".ss-trigger")).not.toBeNull(),
     );
+    // And she asks for the catalogue, because she is choosing out of it.
+    expect(fetched).toEqual(["ledgers"]);
   });
 });
 
@@ -416,6 +437,38 @@ describe("the named signer — signing is not paying", () => {
     await user.click(release);
     await user.click(await screen.findByRole("button", { name: "Übergeben" }));
     await waitFor(() => expect(posted).toEqual(["confirm"]));
+  });
+
+  it("asks nobody signing a locked statement to claim a payout", async () => {
+    // Where the reviewer makes the transfers there *is* an acknowledgement,
+    // and it belongs to the payout: "ich habe die Überweisungen ausgeführt" in
+    // front of a signature that releases nothing is the false claim the
+    // acknowledgement exists to prevent. The section above pays through its
+    // Geschäftsstelle and asks for none, so this is the mode that can tell.
+    openAsSigner("payout", {
+      ...LOCKED,
+      statement: { ...LOCKED.statement, payout_mode: "self" },
+    });
+
+    expect(await screen.findByRole("button", { name: "Jetzt freigeben" })).toBeEnabled();
+    expect(
+      screen.queryByText("Ich habe die aufgeführten Überweisungen ausgeführt."),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Auszahlen ist gesperrt: Eine Buchung hat kein Konto."),
+    ).toBeInTheDocument();
+  });
+
+  it("still asks it of the payout that is actually about to happen", async () => {
+    // The other arm, so "the acknowledgement is absent" cannot pass against a
+    // build that dropped it: the same section, nothing locked, and the payout
+    // waits for the sentence it has always waited for.
+    openAsSigner("payout", { statement: { payout_mode: "self" } });
+
+    expect(
+      await screen.findByText("Ich habe die aufgeführten Überweisungen ausgeführt."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bestätigen & Beleg senden" })).toBeDisabled();
   });
 
   it("lets her reach the leg at all while the payout is locked", async () => {
