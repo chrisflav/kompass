@@ -449,6 +449,72 @@ class LogindataAdminApiTestCase(TestCase):
         r = self.client.delete(self.user_url(self.target_superuser), **headers)
         self.assertEqual(r.status_code, 204, r.content)
 
+    def assertAccountRefused(self, user, headers):
+        message = _("You cannot change an account that has rights you do not hold yourself.")
+        self.assertRefused(self.patch(self.user_url(user), {"username": "x"}, **headers), message)
+        self.assertRefused(
+            self.post(
+                self.user_url(user, "/set-password"),
+                {"new_password1": "noch-ein-langes-pw-7", "new_password2": "noch-ein-langes-pw-7"},
+                **headers,
+            ),
+            message,
+        )
+        self.assertRefused(self.client.delete(self.user_url(user), **headers), message)
+        user.refresh_from_db()
+        self.assertNotEqual(user.username, "x")
+        self.assertTrue(user.check_password("secret"))
+
+    def test_an_account_with_a_permission_the_caller_lacks_is_refused(self):
+        self.subject.user_permissions.add(self._some_permission())
+        self.assertAccountRefused(
+            self.subject, self.as_admin("auth.change_user", "auth.delete_user")
+        )
+
+    def test_an_account_with_a_group_permission_the_caller_lacks_is_refused(self):
+        self.group.permissions.add(self._some_permission())
+        self.subject.groups.add(self.group)
+        self.assertAccountRefused(
+            self.subject, self.as_admin("auth.change_user", "auth.delete_user")
+        )
+
+    def test_an_inactive_account_still_counts_its_permissions(self):
+        # Setting its password and reactivating it would otherwise be a way in.
+        self.subject.user_permissions.add(self._some_permission())
+        self.subject.is_active = False
+        self.subject.save()
+        self.assertAccountRefused(
+            self.subject, self.as_admin("auth.change_user", "auth.delete_user")
+        )
+
+    def test_a_staff_account_is_refused_to_a_caller_without_kompass_access(self):
+        self.admin_user.is_staff = False
+        self.admin_user.save()
+        self.subject.is_staff = True
+        self.subject.save()
+        self.assertAccountRefused(
+            self.subject, self.as_admin("auth.change_user", "auth.delete_user")
+        )
+
+    def test_an_account_whose_permissions_the_caller_holds_may_be_changed(self):
+        perm = self._some_permission()
+        self.subject.user_permissions.add(perm)
+        self.subject.is_staff = True
+        self.subject.save()
+        self.admin_user.user_permissions.add(perm)
+        headers = self.as_admin("auth.change_user", "auth.delete_user")
+        r = self.patch(self.user_url(self.subject), {"username": "umbenannt"}, **headers)
+        self.assertEqual(r.status_code, 200, r.content)
+        r = self.client.delete(self.user_url(self.subject), **headers)
+        self.assertEqual(r.status_code, 204, r.content)
+
+    def test_a_superuser_may_change_a_stronger_account(self):
+        self.subject.user_permissions.add(self._some_permission())
+        r = self.patch(
+            self.user_url(self.subject), {"username": "umbenannt"}, **self.auth(self.superuser)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+
     def test_kompass_access_is_granted_only_by_who_has_it(self):
         self.admin_user.is_staff = False
         self.admin_user.save()
@@ -481,16 +547,6 @@ class LogindataAdminApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(list(self.subject.groups.all()), [self.group])
-
-    def test_a_group_the_user_already_has_is_not_rechecked(self):
-        self.group.permissions.add(self._some_permission())
-        self.subject.groups.add(self.group)
-        r = self.patch(
-            self.user_url(self.subject),
-            {"username": "umbenannt", "group_ids": [self.group.pk]},
-            **self.as_admin("auth.change_user"),
-        )
-        self.assertEqual(r.status_code, 200, r.content)
 
     def test_a_superuser_may_add_any_group(self):
         self.group.permissions.add(self._some_permission())
