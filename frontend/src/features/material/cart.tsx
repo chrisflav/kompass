@@ -4,7 +4,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation } from "../../api/hooks";
 import { useMe } from "../../api/me";
-import { Badge, Button, Field, Modal, useToast } from "../../components/ui";
+import { Badge, Button, Field, Modal, useConfirmDialog, useToast } from "../../components/ui";
 import {
   addDays,
   BASE,
@@ -325,6 +325,7 @@ function groupLines(lines: CartLine[]): { title?: string; isSet?: boolean; lines
 export function CartPanel() {
   const cart = useCart();
   const toast = useToast();
+  const confirm = useConfirmDialog();
   const navigate = useNavigate();
   const [note, setNote] = useState("");
   const [borrowing, setBorrowing] = useState(false);
@@ -413,6 +414,41 @@ export function CartPanel() {
       onError: (e) => toast.error(errorText(e)),
     },
   );
+  // Not picked up after all: the reservation was only made to take it along,
+  // so ask whether it should stand, to be picked up later, or go again.
+  const discard = useApiMutation(
+    (id: number) =>
+      unwrap(
+        client.POST("/api/material/reservations/{reservation_id}/cancel", {
+          params: { path: { reservation_id: id } },
+        }),
+      ),
+    {
+      invalidate: [MATERIAL],
+      onSuccess: () => toast.success("Nichts reserviert."),
+      onError: (e) => {
+        // It still stands: show it where it can be picked up or cancelled.
+        toast.error(`Die Reservierung ließ sich nicht verwerfen und besteht weiter: ${errorText(e)}`);
+        done();
+      },
+    },
+  );
+  const notPickedUp = async (r: ReservationOut) => {
+    setPickup(null);
+    const drop = await confirm({
+      title: "Nicht mitgenommen",
+      message: "Soll die Reservierung bestehen bleiben, damit du es später abholst?",
+      confirmLabel: "Reservierung verwerfen",
+      cancelLabel: "Reservierung behalten",
+      danger: true,
+    });
+    if (drop) {
+      discard.mutate(r.id);
+    } else {
+      toast.success("Reserviert – abholen kannst du es unter Mein Material.");
+      done();
+    }
+  };
 
   const line = (l: CartLine, name: ReactNode) => (
     <li key={l.key}>
@@ -508,14 +544,18 @@ export function CartPanel() {
             <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="z. B. Ausfahrt" />
           </Field>
           <div className="cart-actions">
-            <Button busy={reserve.isPending} onClick={() => reserve.mutate(undefined)}>
+            <Button
+              busy={reserve.isPending}
+              disabled={discard.isPending}
+              onClick={() => reserve.mutate(undefined)}
+            >
               Reservieren
             </Button>
             {cart.start === isoToday() && (
               <Button
                 variant="ghost"
                 busy={reserveToTake.isPending}
-                disabled={needsApproval}
+                disabled={needsApproval || discard.isPending}
                 onClick={() => (inHand ? setBorrowing(true) : reserveToTake.mutate(undefined))}
               >
                 Jetzt mitnehmen
@@ -544,12 +584,7 @@ export function CartPanel() {
       {pickup && (
         <PickupModal
           reservation={pickup}
-          onClose={() => {
-            // Not picked up now: the reservation stands, to be picked up later.
-            setPickup(null);
-            toast.success("Reserviert – abholen kannst du es unter Mein Material.");
-            done();
-          }}
+          onClose={() => notPickedUp(pickup)}
           onDone={() => {
             setPickup(null);
             done();
