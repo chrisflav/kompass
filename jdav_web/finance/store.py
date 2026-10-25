@@ -638,6 +638,30 @@ class ApprovalConstraintManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(superseded_at__isnull=True)
 
+    def naming(self, member):
+        """The ids of the statements whose live rows name ``member`` a signer.
+
+        The queryset half of
+        :meth:`finance.models.Statement.names_as_signer`, and the reason it
+        is a manager method and not a lookup: ``eligible_member_ids`` is a
+        JSON array, and Django's ``contains`` lookup over one is unsupported
+        on SQLite (``supports_json_field_contains``), while the text lookups
+        that would work by accident match ``1`` inside ``21``. So the rows
+        are read in bulk — two small columns, the applicable ones only — and
+        the membership test runs in Python.
+
+        What that costs is one query whose result grows with the section's
+        archive rather than with the page being rendered, and *no* ruleset
+        resolution: the alternative, asking the gate per statement, resolves
+        a section's rules once per row of the list.
+        """
+        if member is None:
+            return []
+        rows = self.filter(applicable=True).values_list("statement_id", "eligible_member_ids")
+        return sorted(
+            {statement_id for statement_id, eligible in rows if member.pk in (eligible or [])}
+        )
+
 
 class ApprovalConstraint(models.Model):
     """A signature the rules asked for, frozen beside the obligations.

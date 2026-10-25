@@ -530,7 +530,21 @@ class Member(Person):
 
     def filter_statements_by_permissions(self, queryset, annotate=False):
         # ignores annotate
-        return queryset.filter(Q(created_by=self) | Q(excursion__jugendleiter=self))
+        #
+        # The third clause is the statements the section's rules asked this
+        # member to sign, which is the list's half of
+        # ``finance.rules.is_named_signer``: a signer who may approve a
+        # statement has to be able to find it, not only to open it by its id.
+        # The clause is asked of the model rather than built here, because
+        # ``members`` cannot import ``finance`` — ``finance`` imports this
+        # module — and because the statement is the thing that knows which of
+        # its rows the engine counts. It is exactly the predicate's question,
+        # so a row that appears here is a row this member may also open.
+        return queryset.filter(
+            Q(created_by=self)
+            | Q(excursion__jugendleiter=self)
+            | queryset.model.naming_signer_q(self)
+        )
 
     def filter_excursions_by_permissions(self, queryset, annotate=False):
         # ignores annotate

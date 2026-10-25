@@ -39,8 +39,9 @@ from .engine import rows_exist
 from .engine import statement_params
 from .engine.approval import PERMISSION_EXCLUSION
 from .rules import is_creator
+from .rules import is_named_signer
 from .rules import leads_excursion
-from .rules import may_approve
+from .rules import may_sign_now
 from .rules import not_submitted
 from .rules_api import Member as RuleMember
 from .rules_api import OFFICE_PAYMENT
@@ -49,6 +50,7 @@ from .rules_api import SECTION
 from .rules_api import SELF_PAYMENT
 from .rules_api import SETTLEMENT_GROUP_LENGTH
 from .store import Approval
+from .store import ApprovalConstraint
 from .store import RuleSet
 
 # Create your models here.
@@ -200,10 +202,18 @@ class Statement(CommonModel):
         rules_permissions = {
             # All users may add draft statements.
             "add_obj": rules.is_staff,
-            # All users may view their own statements and statements of excursions they are responsible for.
+            # All users may view their own statements and statements of excursions they are
+            # responsible for — and so may whoever the section's rules asked to sign it.
+            # Being named a signer confers the sight of exactly the statements the rules
+            # ask you to sign, for as long as they ask: see `Statement.names_as_signer`.
+            # `may_sign_now` is the same object as `approve_obj` below, so the right to
+            # sign can never again mean the right to look is missing — which is the hole
+            # these two lines close.
             "view_obj": is_creator
             | leads_excursion
-            | has_global_perm("finance.view_global_statement"),
+            | has_global_perm("finance.view_global_statement")
+            | is_named_signer
+            | may_sign_now,
             # All users may change relevant (see above) draft statements.
             "change_obj": (not_submitted & (is_creator | leads_excursion))
             | has_global_perm("finance.change_global_statement"),
@@ -213,7 +223,7 @@ class Statement(CommonModel):
             # Signing a statement off is the capability plus the section's own
             # routing: whoever may act as an approver at all, and whom the
             # rules still leave something to sign.
-            "approve_obj": has_global_perm("finance.process_statementsubmitted") & may_approve,
+            "approve_obj": may_sign_now,
         }
 
     @property
@@ -826,6 +836,65 @@ class Statement(CommonModel):
         if not self.submitted:
             return False
         return fully_approved(self.live_approval_states)
+
+    def names_as_signer(self, member):
+        """Whether this statement's approval record names ``member`` a signer.
+
+        What :func:`finance.rules.is_named_signer` asks, and therefore what
+        lets somebody the rules asked for a signature **see** the statement
+        they have to sign. Three things it is not, each of them load-bearing:
+
+        *Not the gate.* :meth:`may_be_approved_by` answers "is there anything
+        left for you to sign", which goes false the moment you sign — and a
+        page that vanishes when you use it is no use. This asks the longer
+        question: are you among the people the rules named.
+
+        *Not the rules, asked again.* It reads the eligible sets off the
+        **record** — the live :class:`~finance.store.ApprovalConstraint` rows,
+        through :attr:`approval_states` — and never re-resolves the ruleset,
+        because the same question is asked of every row of a statement list
+        (:meth:`naming_signer_q`) and a resolution per row is not affordable
+        there. That is also why the two cannot drift: the list's SQL and this
+        read the same column of the same rows.
+
+        *Not every step on the record.* Only a step that **applies** counts. A
+        section's threshold step names its treasurer whatever the payout comes
+        to (``applicable=False`` under it), and reading those would have handed
+        the treasurer every small statement in the section — a global
+        permission in all but name.
+
+        A statement that is not submitted names nobody: a draft is its
+        author's, the rules have asked for no signature yet, and a statement
+        handed back for rework keeps its rows but stops being anybody's to
+        sign. A **settled** one still names whoever signed it, which is the
+        point — the record of what you put your name to is yours to read.
+        """
+        if member is None or not self.submitted:
+            return False
+        return any(
+            state.applicable and member.pk in state.eligible for state in self.approval_states
+        )
+
+    @staticmethod
+    def naming_signer_q(member):
+        """A ``Q`` matching the statements :meth:`names_as_signer` says yes to.
+
+        The statement *list* is a queryset filter rather than a per-row
+        permission check (``Member.filter_statements_by_permissions``), so the
+        signer's right to see has to be expressible as SQL — and the eligible
+        set is a JSON array, whose ``contains`` lookup Django does not support
+        on SQLite. So the membership test runs in Python over one bulk read of
+        the applicable rows (``ApprovalConstraint.objects.naming``) and the
+        ids come back as a literal: **one extra query per list request**,
+        constant in the number of statements, with no ruleset resolved.
+
+        The status clause is what makes a draft name nobody, exactly as
+        :meth:`names_as_signer` does — including a submitted statement that
+        was rejected back to its author, which keeps its rows.
+        """
+        return ~Q(status=Statement.UNSUBMITTED) & Q(
+            pk__in=ApprovalConstraint.objects.naming(member)
+        )
 
     def may_be_approved_by(self, member):
         """Whether ``member`` can still advance any open constraint.
