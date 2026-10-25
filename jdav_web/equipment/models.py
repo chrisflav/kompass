@@ -178,7 +178,8 @@ class Part(models.Model):
             )
         if self.parent_id is not None and self.parent_id == self.pk:
             errors["parent"] = _("A piece cannot be assembled into itself.")
-        if self.product_type_id is not None and self.product_type.is_set:
+        # A set may keep retired pieces from before it became one, but gets no new ones.
+        if self.pk is None and self.product_type_id is not None and self.product_type.is_set:
             errors["product_type"] = _("A set has no pieces of its own.")
         if errors:
             raise ValidationError(errors)
@@ -277,8 +278,15 @@ class Size(models.Model):
         return "{} {}".format(self.product_type, self.name)
 
     def clean(self):
-        if self.product_type_id is not None and self.product_type.is_set:
+        if self.product_type_id is None:
+            return
+        if self.product_type.is_set:
             raise ValidationError({"product_type": _("A set has no sizes of its own.")})
+        # A set is reserved as pieces of its types; counted sizes cannot serve that.
+        if self.product_type.in_sets.exists():
+            raise ValidationError(
+                {"product_type": _("A type in a set is kept as pieces, not by size.")}
+            )
 
     class Meta:
         verbose_name = _("size")
@@ -323,11 +331,17 @@ class SetEntry(models.Model):
             raise ValidationError({"product_type": _("A set cannot contain itself.")})
         if self.product_type.is_set:
             raise ValidationError({"product_type": _("A set cannot contain another set.")})
+        if self.product_type.sizes.exists():
+            raise ValidationError(
+                {"product_type": _("A type in a set is kept as pieces, not by size.")}
+            )
         if self.set_type.in_sets.exists():
             raise ValidationError(
                 {"set_type": _("A type that belongs to a set cannot be a set itself.")}
             )
-        if self.set_type.parts.exists() or self.set_type.sizes.exists():
+        # Retired pieces are out of the stock: they do not keep a type from becoming a set.
+        pieces = self.set_type.parts.exclude(status=Part.RETIRED)
+        if pieces.exists() or self.set_type.sizes.exists():
             raise ValidationError(
                 {"set_type": _("A type with pieces or sizes of its own cannot be a set.")}
             )

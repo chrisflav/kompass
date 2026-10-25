@@ -509,14 +509,63 @@ describe("material — Materialbrowser", () => {
       JSON.stringify({
         start: TODAY,
         end: TOMORROW,
-        lines: [{ key: "t13", quantity: 1, productType: ref(13, "CAM 0.5"), set: "Totem Satz" }],
+        lines: [
+          { key: "t13", quantity: 1, productType: ref(13, "CAM 0.5"), set: { name: "Totem Satz", perSet: 1 } },
+          { key: "t10", quantity: 1, productType: ref(10, "Bandschlinge 120 cm") },
+          { key: "t14", quantity: 2, productType: ref(14, "CAM 1"), set: { name: "Totem Satz", perSet: 2 } },
+        ],
       }),
     );
     server.use(http.post(api("/api/material/reservations/check"), () => checked()));
-    renderRoute("/kompass/material");
+    const { user } = renderRoute("/kompass/material");
     const cart = within(await screen.findByRole("complementary", { name: "Korb" }));
-    expect(await cart.findByText("Totem Satz")).toBeInTheDocument();
-    expect(cart.getByLabelText("Anzahl CAM 0.5")).toHaveValue(1);
+    // The lines of one set stay together under its name, wherever they are in the cart.
+    expect(await cart.findAllByText("Totem Satz")).toHaveLength(1);
+    const group = within(cart.getByText("Totem Satz").closest("li") as HTMLElement);
+    expect(group.getByLabelText("Anzahl CAM 0.5")).toHaveValue(1);
+    expect(group.getByLabelText("Anzahl CAM 1")).toHaveValue(2);
+    expect(group.queryByLabelText("Anzahl Bandschlinge 120 cm")).not.toBeInTheDocument();
+    await user.click(cart.getByRole("button", { name: "Satz Totem Satz entfernen" }));
+    expect(cart.queryByLabelText("Anzahl CAM 1")).not.toBeInTheDocument();
+    expect(cart.getByLabelText("Anzahl Bandschlinge 120 cm")).toHaveValue(1);
+  });
+
+  it("adds a set onto pieces already in the cart, and takes only the set out again", async () => {
+    localStorage.setItem(
+      CART_KEY,
+      JSON.stringify({
+        start: TODAY,
+        end: TOMORROW,
+        lines: [{ key: "t13", quantity: 1, productType: ref(13, "CAM 0.5") }],
+      }),
+    );
+    server.use(
+      http.get(api("/api/material/types"), () => HttpResponse.json([CAM_SET])),
+      http.post(api("/api/material/reservations/check"), () => checked()),
+    );
+    const { user } = renderRoute("/kompass/material");
+    await user.click(await screen.findByRole("button", { name: "Satz Totem Satz in den Korb" }));
+    await user.click(screen.getByRole("button", { name: "Satz Totem Satz in den Korb" }));
+    const cart = within(screen.getByRole("complementary", { name: "Korb" }));
+    // The cam already there is not the set's alone: it shows on its own.
+    const group = within(cart.getByText("Totem Satz").closest("li") as HTMLElement);
+    expect(group.queryByLabelText("Anzahl CAM 0.5")).not.toBeInTheDocument();
+    expect(cart.getByLabelText("Anzahl CAM 0.5")).toHaveValue(3);
+    expect(group.getByLabelText("Anzahl CAM 1")).toHaveValue(4);
+    await user.click(cart.getByRole("button", { name: "Satz Totem Satz entfernen" }));
+    expect(cart.getByLabelText("Anzahl CAM 1")).toHaveValue(2);
+    expect(cart.getByLabelText("Anzahl CAM 0.5")).toHaveValue(3);
+  });
+
+  it("says how many sets need another group's approval", async () => {
+    server.use(
+      http.get(api("/api/material/types"), () =>
+        HttpResponse.json([{ ...CAM_SET, sets: 2, available: 2, available_direct: 0 }]),
+      ),
+    );
+    renderRoute("/kompass/material");
+    expect(await screen.findByText("2 Sätze frei")).toHaveClass("badge", "warning");
+    expect(screen.getByText("2 mit Freigabe")).toBeInTheDocument();
   });
 
   it("takes sizes from the cart right away", async () => {
@@ -841,6 +890,7 @@ describe("material — Materialtyp", () => {
     expect(screen.getByRole("link", { name: "CAM 1" })).toHaveAttribute("href", "/kompass/material/types/14");
     expect(screen.queryByRole("tab", { name: /Größen/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: /Teile/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Belegung" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Typ hinzufügen" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Satz in den Korb" }));
     expect(screen.getByLabelText("Anzahl CAM 1")).toHaveValue(2);
@@ -869,7 +919,7 @@ describe("material — Materialtyp", () => {
     server.use(
       http.get(api("/api/material/types/12"), () => HttpResponse.json(SET_TYPE)),
       http.get(api("/api/material/types"), () =>
-        HttpResponse.json([CARD, CAM_SET, { ...CARD, id: 13, name: "CAM 0.5" }]),
+        HttpResponse.json([CARD, CAM_SET, { ...CARD, id: 13, name: "CAM 0.5" }, FRIENDS]),
       ),
       http.post(api("/api/material/types/12/set-entries"), async ({ request }) => {
         calls.post = await request.json();
@@ -895,6 +945,8 @@ describe("material — Materialtyp", () => {
     await waitFor(() => expect(dropdown().getByRole("button", { name: "Bandschlinge 120 cm" })).toBeInTheDocument());
     expect(dropdown().queryByRole("button", { name: "Totem Satz" })).not.toBeInTheDocument();
     expect(dropdown().queryByRole("button", { name: "CAM 0.5" })).not.toBeInTheDocument();
+    // Nor a type kept by size: a set is reserved as pieces.
+    expect(dropdown().queryByRole("button", { name: "Friends" })).not.toBeInTheDocument();
     await user.click(dropdown().getByRole("button", { name: "Bandschlinge 120 cm" }));
     await user.click(d.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(calls.post).toEqual({ product_type: 10, per_set: 1, position: 3 }));

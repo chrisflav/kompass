@@ -4013,7 +4013,15 @@ a.tab {
 }
 
 .cart-group-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
   font-weight: 600;
+}
+
+.cart-group-title .link-button {
+  font-weight: normal;
 }
 
 .cart-group ul {

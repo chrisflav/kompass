@@ -395,7 +395,8 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
     ...(setShown ? [{ id: "set", label: `Satz (${type.set_entries.length})`, content: entries }] : []),
     ...(sized ? [{ id: "sizes", label: `Größen (${type.sizes.length})`, content: sizes }] : []),
     { id: "availability", label: "Verfügbarkeit", content: availability },
-    { id: "calendar", label: "Belegung", content: calendar },
+    // A set has no pieces of its own to be booked; its types show theirs.
+    ...(isSet ? [] : [{ id: "calendar", label: "Belegung", content: calendar }]),
   ];
   // Retired pieces are out of the stock but still on record; they are listed
   // apart, and deleting the type deletes them too.
@@ -580,10 +581,11 @@ function SetEntryModal({
   const types = useApiQuery(["material", "types", "set-candidates"], () =>
     unwrap(client.GET("/api/material/types")),
   );
-  // Sets are not nested, and a type is in a set once.
+  // Sets are not nested, a type is in a set once, and its pieces have IDs: a set
+  // is reserved as pieces, which a type kept by size has not.
   const taken = new Set([type.id, ...type.set_entries.map((e) => e.product_type.id)]);
   const options = (types.data ?? [])
-    .filter((t) => !taken.has(t.id) && t.set_entries.length === 0)
+    .filter((t) => !taken.has(t.id) && t.set_entries.length === 0 && t.sizes.length === 0)
     .map((t) => ({ value: t.id, label: t.name }));
   const save = useApiMutation(
     () =>

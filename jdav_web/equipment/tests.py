@@ -812,8 +812,26 @@ class SetTestCase(MaterialFixture, TestCase):
     def test_a_set_has_no_pieces_or_sizes(self):
         with self.assertRaisesMessage(ValidationError, "A set has no pieces of its own."):
             Part(product_type=self.cam_set).full_clean()
+        Size(name="1").clean()
         with self.assertRaisesMessage(ValidationError, "A set has no sizes of its own."):
             Size(product_type=self.cam_set, name="1").full_clean()
+
+    def test_the_types_of_a_set_are_kept_as_pieces(self):
+        self.setUpSizes()
+        other = ProductType.objects.create(name="Großer Satz")
+        with self.assertRaisesMessage(ValidationError, "kept as pieces, not by size"):
+            SetEntry(set_type=other, product_type=self.friends_type).full_clean()
+        with self.assertRaisesMessage(ValidationError, "kept as pieces, not by size"):
+            Size(product_type=self.small_type, name="1").full_clean()
+
+    def test_retired_pieces_do_not_keep_a_type_from_becoming_a_set(self):
+        old = ProductType.objects.create(name="Alter Satz")
+        piece = self.make_part(old, status=Part.RETIRED)
+        entry = SetEntry(set_type=old, product_type=self.sling_type)
+        entry.full_clean()
+        entry.save()
+        piece.note = "ausgesondert"
+        piece.full_clean()
 
     def test_availability(self):
         counts = services.availability([self.cam_set], member=self.alice)

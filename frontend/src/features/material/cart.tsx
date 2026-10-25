@@ -34,8 +34,12 @@ export interface CartLine {
   quantity: number;
   part?: { id: number; label: string; typeName: string };
   size?: { id: number; name: string; typeName: string };
-  /** The set a type line came with, to show it under the set's name. */
-  set?: string;
+  /**
+   * The set a type line came with, and how many of the type one set holds: the
+   * line is shown under the set's name and taken out with it. A line merged
+   * with one added otherwise has none.
+   */
+  set?: { name: string; perSet: number };
 }
 
 interface CartState {
@@ -52,6 +56,8 @@ interface Cart extends CartState {
   addSizes: (typeName: string, sizes: { id: number; name: string; quantity: number }[]) => void;
   /** Add one set of a set type: ``quantity`` of each member type. */
   addSet: (setName: string, types: { id: number; name: string; quantity: number }[]) => void;
+  /** Take one set out again: ``perSet`` of each of its lines. */
+  removeSet: (setName: string) => void;
   setQuantity: (key: string, quantity: number) => void;
   remove: (key: string) => void;
   clear: () => void;
@@ -90,7 +96,10 @@ function readLine(raw: unknown): CartLine | null {
   }
   if (isRef(l.productType)) {
     const { id, name } = l.productType;
-    const set = typeof l.set === "string" ? { set: l.set } : {};
+    const set =
+      l.set && typeof l.set.name === "string" && typeof l.set.perSet === "number" && l.set.perSet >= 1
+        ? { set: { name: l.set.name, perSet: Math.floor(l.set.perSet) } }
+        : {};
     return { key: `t${id}`, quantity, productType: { id, name }, ...set };
   }
   return null;
@@ -152,7 +161,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const key = `t${productType.id}`;
         const existing = s.lines.find((l) => l.key === key);
         const lines = existing
-          ? s.lines.map((l) => (l.key === key ? { ...l, quantity: l.quantity + quantity } : l))
+          ? s.lines.map((l) => (l.key === key ? { ...l, quantity: l.quantity + quantity, set: undefined } : l))
           : [...s.lines, { key, productType: { id: productType.id, name: productType.name }, quantity }];
         return { ...s, lines };
       }),
@@ -185,15 +194,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
         for (const type of types) {
           if (type.quantity < 1) continue;
           const key = `t${type.id}`;
+          const set = { name: setName, perSet: type.quantity };
           lines = lines.some((l) => l.key === key)
-            ? lines.map((l) => (l.key === key ? { ...l, quantity: l.quantity + type.quantity } : l))
-            : [
-                ...lines,
-                { key, quantity: type.quantity, productType: { id: type.id, name: type.name }, set: setName },
-              ];
+            ? lines.map((l) =>
+                l.key === key
+                  ? {
+                      ...l,
+                      quantity: l.quantity + type.quantity,
+                      // Another set's line, or one added on its own, is no longer this set's alone.
+                      set: l.set?.name === setName ? l.set : undefined,
+                    }
+                  : l,
+              )
+            : [...lines, { key, quantity: type.quantity, productType: { id: type.id, name: type.name }, set }];
         }
         return { ...s, lines };
       }),
+    removeSet: (setName) =>
+      setState((s) => ({
+        ...s,
+        lines: s.lines
+          .map((l) => (l.set?.name === setName ? { ...l, quantity: l.quantity - l.set.perSet } : l))
+          .filter((l) => l.quantity >= 1),
+      })),
     setQuantity: (key, quantity) =>
       setState((s) => ({
         ...s,
@@ -281,13 +304,19 @@ export function WithCart({ always = false, children }: { always?: boolean; child
 }
 
 /** Cart lines with the sizes of one type, or the types of one set, gathered under its name. */
-function groupLines(lines: CartLine[]): { title?: string; lines: CartLine[] }[] {
-  const groups: { title?: string; lines: CartLine[] }[] = [];
+function groupLines(lines: CartLine[]): { title?: string; isSet?: boolean; lines: CartLine[] }[] {
+  const groups: { title?: string; isSet?: boolean; lines: CartLine[] }[] = [];
+  const byTitle = new Map<string, (typeof groups)[number]>();
   for (const line of lines) {
-    const title = line.size?.typeName ?? line.set;
-    const last = groups[groups.length - 1];
-    if (title && last?.title === title) last.lines.push(line);
-    else groups.push({ title, lines: [line] });
+    const title = line.size?.typeName ?? line.set?.name;
+    const id = line.size ? `s:${title}` : `t:${title}`;
+    const group = title ? byTitle.get(id) : undefined;
+    if (group) group.lines.push(line);
+    else {
+      const created = { title, isSet: Boolean(line.set), lines: [line] };
+      groups.push(created);
+      if (title) byTitle.set(id, created);
+    }
   }
   return groups;
 }
@@ -434,8 +463,20 @@ export function CartPanel() {
           <ul className="cart-lines">
             {groupLines(cart.lines).map((g) =>
               g.title ? (
-                <li key={g.title} className="cart-group">
-                  <span className="cart-group-title">{g.title}</span>
+                <li key={`${g.isSet ? "t" : "s"}:${g.title}`} className="cart-group">
+                  <span className="cart-group-title">
+                    {g.title}
+                    {g.isSet && (
+                      <button
+                        type="button"
+                        className="link-button small"
+                        aria-label={`Satz ${g.title} entfernen`}
+                        onClick={() => cart.removeSet(g.title!)}
+                      >
+                        Satz entfernen
+                      </button>
+                    )}
+                  </span>
                   <ul>{g.lines.map((l) => line(l, l.size ? `Größe ${l.size.name}` : lineName(l)))}</ul>
                 </li>
               ) : (

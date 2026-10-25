@@ -35,14 +35,19 @@ function useSettled<T>(value: T, ms = 250): T {
 
 function Availability({ card }: { card: ProductTypeCard }) {
   if (card.set_entries.length > 0) {
+    // ``available_direct`` counts the whole sets free without another group's approval.
+    const sets = card.sets ?? 0;
+    const tone = sets === 0 ? "danger" : card.available_direct === 0 ? "warning" : "success";
     return (
       <span className="availability">
-        <Badge tone={card.sets ? "success" : "danger"}>
-          {card.sets === 1 ? "1 Satz frei" : `${card.sets ?? 0} Sätze frei`}
-        </Badge>
-        <span className="muted small">
-          {card.total === 1 ? "1 Satz" : `${card.total} Sätze`} aus {card.set_entries.length} Typen
-        </span>
+        <Badge tone={tone}>{sets === 1 ? "1 Satz frei" : `${sets} Sätze frei`}</Badge>
+        {sets > card.available_direct ? (
+          <span className="muted small">{sets - card.available_direct} mit Freigabe</span>
+        ) : (
+          <span className="muted small">
+            {card.total === 1 ? "1 Satz" : `${card.total} Sätze`} aus {card.set_entries.length} Typen
+          </span>
+        )}
       </span>
     );
   }

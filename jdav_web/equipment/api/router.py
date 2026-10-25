@@ -26,6 +26,7 @@ from django.db import transaction
 from django.db.models import Prefetch
 from django.db.models import ProtectedError
 from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -142,6 +143,16 @@ def _parts(ids):
     if len(parts) != len(set(ids)):
         raise ValidationError(_("Unknown material."))
     return parts
+
+
+def _locked_types(*ids):
+    """The product types ``ids`` by id, locked until the transaction ends."""
+    types = {
+        t.pk: t for t in ProductType.objects.select_for_update().filter(pk__in=ids).order_by("pk")
+    }
+    if len(types) != len(set(ids)):
+        raise Http404
+    return types
 
 
 def _optional(model, pk):
@@ -539,7 +550,7 @@ def create_parts(request, payload: PartIn):
     data = payload.dict()
     count = data.pop("count")
     parent = _optional(Part, data.pop("parent"))
-    product_type = get_object_or_404(ProductType, pk=data.pop("product_type"))
+    type_id = data.pop("product_type")
     if count < 1 or count > 200:
         raise ValidationError(_("Create between 1 and 200 pieces at once."))
     if count > 1 and (data["psa_id"] or data["serial_number"]):
@@ -548,6 +559,8 @@ def create_parts(request, payload: PartIn):
     fields = _part_fields(data)
     created = []
     with transaction.atomic():
+        # Locked, so the type cannot become a set while its pieces are added.
+        product_type = _locked_types(type_id)[type_id]
         for _index in range(count):
             part = Part(product_type=product_type, **fields)
             part.full_clean(exclude=["photo"])
@@ -662,10 +675,11 @@ def _size_fields(data):
 @router.post("/types/{type_id}/sizes", response=SizeOut)
 def create_size(request, type_id: int, payload: SizeIn):
     authorize(request, INVENTORY)
-    product_type = get_object_or_404(ProductType, pk=type_id)
-    size = Size(product_type=product_type, **_size_fields(payload.dict()))
-    size.full_clean()
-    size.save()
+    fields = _size_fields(payload.dict())
+    with transaction.atomic():
+        size = Size(product_type=_locked_types(type_id)[type_id], **fields)
+        size.full_clean()
+        size.save()
     return serialize.size(size)
 
 
@@ -706,12 +720,14 @@ def _set_entry(entry):
 def create_set_entry(request, type_id: int, payload: SetEntryIn):
     """Make a type a set, or add another member type to it."""
     authorize(request, INVENTORY)
-    set_type = get_object_or_404(ProductType, pk=type_id)
     data = payload.dict()
-    data["product_type"] = get_object_or_404(ProductType, pk=data["product_type"])
-    entry = SetEntry(set_type=set_type, **data)
-    entry.full_clean()
-    entry.save()
+    with transaction.atomic():
+        # Both locked, so neither gets pieces, sizes or entries meanwhile.
+        types = _locked_types(type_id, data["product_type"])
+        data["product_type"] = types[data["product_type"]]
+        entry = SetEntry(set_type=types[type_id], **data)
+        entry.full_clean()
+        entry.save()
     return _set_entry(entry)
 
 
