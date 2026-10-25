@@ -19,6 +19,7 @@ import logging
 
 from contrib.api.perms import authorize
 from contrib.api.perms import Forbidden
+from django.conf import settings
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import Permission
@@ -186,6 +187,11 @@ def reset_two_factor(request, user_id: int):
             _("Only superusers can reset the two-factor authentication of a superuser.")
         )
     two_factor.remove_all(user)
+    two_factor.notify(
+        user,
+        _("The two-factor authentication of your Kompass login was reset"),
+        settings.TWO_FACTOR_RESET_TEXT,
+    )
     logger.warning(
         "Two-factor authentication of %s (id %s) reset by %s (id %s).",
         user.username,

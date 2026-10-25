@@ -25,7 +25,10 @@ WEBAUTHN_ORIGINS = list(
 
 # How long the second step of a login waits after the password, in seconds.
 TWO_FACTOR_PENDING_SECONDS = 300
-# Wrong codes (or wrong passwords when changing factors) before an account's
-# second step is locked, and for how long, in seconds.
+# Every this many attempts without a successful second factor (codes at login,
+# wrong passwords when changing factors) lock an account's second step: first
+# for TWO_FACTOR_LOCKOUT_SECONDS, then twice as long each time, up to
+# TWO_FACTOR_MAX_LOCKOUT_SECONDS.
 TWO_FACTOR_MAX_FAILURES = 5
 TWO_FACTOR_LOCKOUT_SECONDS = 900
+TWO_FACTOR_MAX_LOCKOUT_SECONDS = 24 * 3600

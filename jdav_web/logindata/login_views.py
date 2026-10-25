@@ -41,6 +41,10 @@ MODEL_BACKEND = "django.contrib.auth.backends.ModelBackend"
 LOCKED = _("Too many failed attempts. Please wait a few minutes and try again.")
 WRONG = _("That did not work. Please try again.")
 PASSKEY_FAILED = _("Signing in with this security key did not work.")
+UNREADABLE = _(
+    "Your authenticator app cannot be checked at the moment. "
+    "Please use a security key or a recovery code."
+)
 
 
 def _require_available():
@@ -114,24 +118,30 @@ def login_two_factor(request):
         return HttpResponseRedirect(settings.LOGIN_URL)
     error = ""
     if request.method == "POST":
-        if two_factor.is_locked(user):
-            error = LOCKED
+        method = request.POST.get("method")
+        code = request.POST.get("code", "")
+        is_totp = method not in ("webauthn", "recovery")
+        if is_totp and not two_factor.usable_totp_devices(user):
+            # Not the user's mistake (see usable_totp_devices), so not counted.
+            error = UNREADABLE
         else:
-            method = request.POST.get("method")
-            code = request.POST.get("code", "")
-            if method == "webauthn":
-                ok = _verify_key(request, user.webauthn_credentials.all(), "login", False)
-            elif method == "recovery":
-                ok = two_factor.use_recovery_code(user, code)
+            number = two_factor.claim_attempt(user)
+            if number is None:
+                error = LOCKED
             else:
-                ok = two_factor.verify_totp(user, code)
-            if ok:
-                request.session.pop(PENDING_KEY)
-                two_factor.record_success(user)
-                login(request, user, backend=pending["backend"])
-                return HttpResponseRedirect(pending["next"])
-            two_factor.record_failure(user)
-            error = WRONG
+                if method == "webauthn":
+                    ok = _verify_key(request, user.webauthn_credentials.all(), "login", False)
+                elif method == "recovery":
+                    ok = two_factor.use_recovery_code(user, code)
+                else:
+                    ok = two_factor.verify_totp(user, code)
+                if ok:
+                    request.session.pop(PENDING_KEY)
+                    two_factor.record_success(user)
+                    login(request, user, backend=pending["backend"])
+                    return HttpResponseRedirect(pending["next"])
+                two_factor.attempt_failed(user, number)
+                error = WRONG
     return render(
         request,
         "registration/login_two_factor.html",

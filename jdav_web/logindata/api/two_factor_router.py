@@ -6,29 +6,35 @@ a factor. And every change that weakens or replaces one needs the account's
 password again, typed into the same dialog:
 
 * adding a factor asks for it when the setup starts. The answer carries a
-  signed, ten-minute ``state`` naming the account, the new secret or the
-  WebAuthn challenge; the step that saves the factor needs that state, so a
-  stolen sign-in token without the password cannot add one;
+  ``state``, naming a :class:`~logindata.models.TwoFactorSetup` that holds the
+  new secret or the WebAuthn challenge for ten minutes; the step that saves the
+  factor needs it and uses it up, so a stolen sign-in token without the
+  password cannot add one, and a state cannot be replayed;
 * removing a factor and replacing the recovery codes ask for it in the request.
 
-Wrong passwords count towards the same lockout as wrong codes at login.
+Password attempts count towards the same lockout as codes at login (a right
+one is taken back). Removing a factor tells the user by mail.
 
 Renaming a factor and listing them need no password. Where OIDC is configured,
 the identity provider owns the second factor, and changing anything is refused.
 """
 
+import secrets
 from datetime import datetime
+from datetime import timedelta
 from typing import Any
 from typing import Literal
 
 from contrib.api.perms import Forbidden
-from django.core import signing
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from logindata import two_factor
 from logindata.models import TOTPDevice
+from logindata.models import TwoFactorSetup
 from logindata.models import WebAuthnCredential
 from ninja import Router
 from ninja import Schema
@@ -37,7 +43,6 @@ from .tokens_router import require_session
 
 router = Router()
 
-STATE_SALT = "logindata.two_factor.setup"
 STATE_MAX_AGE = 600
 
 FactorKind = Literal["totp", "webauthn"]
@@ -116,26 +121,46 @@ def _require_available():
 def _reauthenticate(request, password):
     """Check the account's password again before a change to its factors."""
     user = request.user
-    if two_factor.is_locked(user):
+    number = two_factor.claim_attempt(user)
+    if number is None:
         raise Forbidden(_("Too many failed attempts. Please wait a few minutes and try again."))
     if not user.check_password(password):
-        two_factor.record_failure(user)
+        two_factor.attempt_failed(user, number)
         raise ValidationError({"password": [_("The password is not correct.")]})
-    two_factor.record_success(user)
+    two_factor.refund_attempt(user, number)
 
 
 def _state(request, kind, value):
-    return signing.dumps({"user": request.user.pk, "kind": kind, "value": value}, salt=STATE_SALT)
+    """Keep ``value`` for the second request of a setup; the nonce that names it."""
+    TwoFactorSetup.objects.filter(user=request.user).delete()
+    setup = TwoFactorSetup.objects.create(
+        user=request.user,
+        kind=kind,
+        nonce=secrets.token_urlsafe(32),
+        encrypted_value=two_factor.encrypt_secret(value),
+    )
+    return setup.nonce
 
 
 def _from_state(request, kind, state):
-    try:
-        data = signing.loads(state, salt=STATE_SALT, max_age=STATE_MAX_AGE)
-    except signing.BadSignature:
-        data = None
-    if not data or data["user"] != request.user.pk or data["kind"] != kind:
+    """The setup ``state`` names, if it is this user's, of this kind and recent."""
+    setup = TwoFactorSetup.objects.filter(
+        user=request.user,
+        kind=kind,
+        nonce=state,
+        created__gte=timezone.now() - timedelta(seconds=STATE_MAX_AGE),
+    ).first()
+    value = two_factor.decrypt_secret(setup.encrypted_value) if setup else None
+    if value is None:
         raise ValidationError(_("This setup has expired. Please start again."))
-    return data["value"]
+    return setup, value
+
+
+def _use_up(setup):
+    """Delete the setup, failing for the second of two requests racing with the same state."""
+    deleted, _per_model = TwoFactorSetup.objects.filter(pk=setup.pk).delete()
+    if not deleted:
+        raise ValidationError(_("This setup has expired. Please start again."))
 
 
 def _clean_name(name):
@@ -201,12 +226,13 @@ def confirm_totp(request, payload: TOTPConfirmIn):
     """Save the authenticator app once it produced a valid code."""
     require_session(request)
     _require_available()
-    secret = _from_state(request, "totp", payload.state)
+    setup, secret = _from_state(request, "totp", payload.state)
     name = _clean_name(payload.name)
     counter = two_factor.totp_counter(secret, payload.code)
     if counter is None:
         raise ValidationError({"code": [_("The code is not correct. Please try again.")]})
     with transaction.atomic():
+        _use_up(setup)
         first = not two_factor.enabled_for(request.user)
         device = TOTPDevice.objects.create(
             user=request.user,
@@ -232,9 +258,12 @@ def confirm_webauthn(request, payload: WebAuthnConfirmIn):
     """Verify the browser's answer to the creation options and save the key."""
     require_session(request)
     _require_available()
-    challenge = _from_state(request, "webauthn", payload.state)
+    setup, challenge = _from_state(request, "webauthn", payload.state)
     name = _clean_name(payload.name)
+    # A key that does not verify rolls the deletion back: the setup stays for
+    # another try.
     with transaction.atomic():
+        _use_up(setup)
         first = not two_factor.enabled_for(request.user)
         try:
             key = two_factor.register_credential(request.user, name, payload.credential, challenge)
@@ -262,6 +291,12 @@ def remove_factor(request, kind: FactorKind, factor_id: int, payload: PasswordIn
     with transaction.atomic():
         factor.delete()
         two_factor.factor_removed(request.user)
+    two_factor.notify(
+        request.user,
+        _("A second factor was removed from your Kompass login"),
+        settings.TWO_FACTOR_REMOVED_TEXT,
+        factor=factor.name,
+    )
     return 204, None
 
 

@@ -167,6 +167,24 @@ class TwoFactorAttempts(models.Model):
         default_permissions = ()
 
 
+class TwoFactorSetup(models.Model):
+    """A factor being added: the secret or challenge between its two requests.
+
+    The API's ``state`` names one of these by ``nonce``. Saving the factor
+    deletes it, so a state works once; starting another setup replaces it. The
+    value is encrypted like a TOTP secret.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    kind = models.CharField(max_length=20)
+    nonce = models.CharField(max_length=64, unique=True)
+    encrypted_value = models.TextField()
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        default_permissions = ()
+
+
 def initial_user_setup(user, member):
     try:
         standard_group = AuthGroup.objects.get(name="Standard")

@@ -5,6 +5,7 @@ import hashlib
 import json
 import time
 from datetime import timedelta
+from unittest.mock import patch
 from urllib.parse import parse_qs
 from urllib.parse import urlencode
 from urllib.parse import urlsplit
@@ -12,6 +13,7 @@ from urllib.parse import urlsplit
 import pyotp
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core import mail
 from django.core.management import call_command
 from django.test import override_settings
 from django.test import TestCase
@@ -22,11 +24,17 @@ from logindata.login_views import PENDING_KEY
 from logindata.models import TOTPDevice
 from logindata.models import TwoFactorAttempts
 from logindata.models import WebAuthnCredential
+from members.models import MALE
+from members.models import Member
+from oauth2_provider.models import get_access_token_model
+from oauth2_provider.models import get_application_model
 from webauthn.helpers.structs import UserVerificationRequirement
 
 from .authenticator import b64
 from .authenticator import SoftAuthenticator
 
+AccessToken = get_access_token_model()
+Application = get_application_model()
 PASSWORD = "ein-langes-pw-42"
 
 
@@ -77,7 +85,9 @@ class TwoFactorModuleTestCase(TestCase):
 
     def test_a_secret_no_key_decrypts_matches_nothing(self):
         TOTPDevice.objects.create(user=self.user, name="Alt", encrypted_secret="kaputt")
-        self.assertFalse(two_factor.verify_totp(self.user, "123456"))
+        with self.assertLogs("logindata.two_factor", "ERROR") as logs:
+            self.assertFalse(two_factor.verify_totp(self.user, "123456"))
+        self.assertIn("SECRET_KEY_FALLBACKS", logs.output[0])
 
     def test_the_uri_names_the_account_and_the_issuer(self):
         uri = two_factor.totp_uri("JBSWY3DPEHPK3PXP", self.user)
@@ -100,18 +110,60 @@ class TwoFactorModuleTestCase(TestCase):
         two_factor.generate_recovery_codes(self.user)
         self.assertFalse(two_factor.use_recovery_code(self.user, codes[1]))
 
-    @override_settings(TWO_FACTOR_MAX_FAILURES=3)
-    def test_failures_lock_the_account_for_a_while(self):
-        self.assertFalse(two_factor.is_locked(self.user))
-        two_factor.record_failure(self.user)
-        two_factor.record_failure(self.user)
-        self.assertFalse(two_factor.is_locked(self.user))
-        two_factor.record_failure(self.user)
-        self.assertTrue(two_factor.is_locked(self.user))
+    def lock_seconds(self):
+        locked_until = TwoFactorAttempts.objects.get(user=self.user).locked_until
+        return round((locked_until - timezone.now()).total_seconds() / 60) * 60
+
+    def unlock(self):
         TwoFactorAttempts.objects.update(locked_until=timezone.now() - timedelta(seconds=1))
-        self.assertFalse(two_factor.is_locked(self.user))
+
+    @override_settings(TWO_FACTOR_MAX_FAILURES=3)
+    def test_attempts_lock_the_account_for_longer_each_time(self):
+        self.assertEqual([two_factor.claim_attempt(self.user) for _i in range(3)], [1, 2, 3])
+        self.assertIsNone(two_factor.claim_attempt(self.user))
+        self.assertEqual(self.lock_seconds(), 900)
+        # The count goes on after the lock, and the next lock is twice as long.
+        self.unlock()
+        self.assertEqual([two_factor.claim_attempt(self.user) for _i in range(3)], [4, 5, 6])
+        self.assertEqual(self.lock_seconds(), 1800)
+        # At most a day.
+        TwoFactorAttempts.objects.update(failures=29, locked_until=None)
+        two_factor.claim_attempt(self.user)
+        self.assertEqual(self.lock_seconds(), 24 * 3600)
+        # Only a second factor starts the count again.
         two_factor.record_success(self.user)
-        self.assertFalse(TwoFactorAttempts.objects.exists())
+        self.assertEqual(two_factor.claim_attempt(self.user), 1)
+
+    @override_settings(TWO_FACTOR_MAX_FAILURES=2)
+    def test_a_right_password_is_taken_back(self):
+        two_factor.refund_attempt(self.user, two_factor.claim_attempt(self.user))
+        self.assertEqual(TwoFactorAttempts.objects.get().failures, 0)
+        two_factor.claim_attempt(self.user)
+        # The attempt that would have locked the account lifts the lock again.
+        two_factor.refund_attempt(self.user, two_factor.claim_attempt(self.user))
+        self.assertEqual(two_factor.claim_attempt(self.user), 2)
+
+    @override_settings(TWO_FACTOR_MAX_FAILURES=2)
+    def test_the_first_lock_is_mailed(self):
+        Member.objects.create(
+            prename="Zora",
+            lastname="Zwei",
+            birth_date="1990-01-01",
+            email=settings.TEST_MAIL,
+            gender=MALE,
+            user=self.user,
+        )
+        for _i in range(4):
+            number = two_factor.claim_attempt(self.user)
+            two_factor.attempt_failed(self.user, number)
+            self.unlock()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Zora", mail.outbox[0].body)
+        self.assertIn("gesperrt", mail.outbox[0].body)
+
+    def test_no_mail_without_a_member(self):
+        two_factor.notify(self.user, "Betreff", "Hallo {name}")
+        self.assertEqual(mail.outbox, [])
 
     def test_whether_a_login_needs_a_second_step(self):
         self.assertFalse(two_factor.required_for(self.user))
@@ -136,7 +188,7 @@ class TwoFactorModuleTestCase(TestCase):
         add_totp(self.user)
         add_key(self.user)
         two_factor.generate_recovery_codes(self.user)
-        two_factor.record_failure(self.user)
+        two_factor.claim_attempt(self.user)
         two_factor.remove_all(self.user)
         self.assertFalse(two_factor.enabled_for(self.user))
         self.assertFalse(self.user.recovery_codes.exists())
@@ -323,6 +375,16 @@ class SecondStepLoginTestCase(TestCase):
         )
         self.assertEqual(r.context["error"], login_views.LOCKED)
         self.assertNotLoggedIn()
+
+    def test_an_app_no_key_decrypts_is_not_counted_against_the_user(self):
+        TOTPDevice.objects.update(encrypted_secret="kaputt")
+        self.password()
+        with self.assertLogs("logindata.two_factor", "ERROR"):
+            r = self.client.post(
+                "/accounts/login/two-factor/", {"method": "totp", "code": "123456"}
+            )
+        self.assertEqual(r.context["error"], login_views.UNREADABLE)
+        self.assertFalse(TwoFactorAttempts.objects.exists())
 
     def test_the_second_step_expires(self):
         self.password()
@@ -554,3 +616,55 @@ class AuthorizeWithSecondFactorTestCase(TestCase):
         access = token.json()["access_token"]
         me = self.client.get("/api/logindata/two-factor", HTTP_AUTHORIZATION="Bearer " + access)
         self.assertTrue(me.json()["enabled"])
+
+
+class PasswordGrantTestCase(TestCase):
+    """The OAuth password grant swaps a password for a token, with no second step."""
+
+    def setUp(self):
+        Application.objects.create(
+            name="Skript",
+            client_id="skript",
+            client_secret="skript-secret",
+            client_type=Application.CLIENT_CONFIDENTIAL,
+            authorization_grant_type=Application.GRANT_PASSWORD,
+        )
+
+    def token(self, username):
+        return self.client.post(
+            "/o/token/",
+            {
+                "grant_type": "password",
+                "username": username,
+                "password": PASSWORD,
+                "client_id": "skript",
+                "client_secret": "skript-secret",
+            },
+        )
+
+    def test_an_account_without_a_second_factor_gets_a_token(self):
+        User.objects.create_user("einfach", password=PASSWORD)
+        r = self.token("einfach")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertIn("access_token", r.json())
+
+    def test_a_wrong_password_is_refused(self):
+        User.objects.create_user("einfach", password="ein-anderes-pw-43")
+        self.assertEqual(self.token("einfach").status_code, 400)
+
+    def test_an_account_with_one_is_refused(self):
+        add_totp(User.objects.create_user("zweifach", password=PASSWORD))
+        r = self.token("zweifach")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()["error"], "invalid_grant")
+        self.assertFalse(AccessToken.objects.exists())
+
+    def test_an_error_refuses_too(self):
+        User.objects.create_user("einfach", password=PASSWORD)
+        with (
+            patch.object(two_factor, "required_for", side_effect=RuntimeError),
+            self.assertLogs("logindata.oauth", "ERROR"),
+        ):
+            r = self.token("einfach")
+        self.assertEqual(r.status_code, 400)
+        self.assertFalse(AccessToken.objects.exists())

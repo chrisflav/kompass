@@ -10,9 +10,10 @@ login views and the API that manages factors share one implementation.
   this module only stores challenges and credentials.
 * Recovery codes, stored as SHA-256 hashes and deleted when used.
 
-Failed codes are counted per account in :class:`~logindata.models.TwoFactorAttempts`;
-after ``TWO_FACTOR_MAX_FAILURES`` the account's second step is locked for
-``TWO_FACTOR_LOCKOUT_SECONDS``, whichever session the attempts came from.
+Attempts are counted per account in :class:`~logindata.models.TwoFactorAttempts`
+(see :func:`claim_attempt`): every ``TWO_FACTOR_MAX_FAILURES`` of them lock the
+account's second step, for ``TWO_FACTOR_LOCKOUT_SECONDS`` and twice as long each
+further time, whichever session the attempts came from.
 
 Whether a login needs a second step is :func:`required_for`. Today that is
 "the user has set up a factor"; making it mandatory for some accounts would
@@ -23,6 +24,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import secrets
 import time
 from datetime import timedelta
@@ -35,6 +37,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
+from django.utils.translation import gettext_lazy as _
 from webauthn import generate_authentication_options
 from webauthn import generate_registration_options
 from webauthn import options_to_json
@@ -52,6 +55,8 @@ from .models import RecoveryCode
 from .models import TOTPDevice
 from .models import TwoFactorAttempts
 from .models import WebAuthnCredential
+
+logger = logging.getLogger(__name__)
 
 RECOVERY_CODE_COUNT = 10
 # 16 characters of base32 are 80 random bits.
@@ -81,26 +86,75 @@ def required_for(user):
 # --- lockout ----------------------------------------------------------------
 
 
-def is_locked(user):
-    attempts = TwoFactorAttempts.objects.filter(user=user).first()
-    return bool(attempts and attempts.locked_until and attempts.locked_until > timezone.now())
+def _lock_seconds(failures):
+    """How long ``failures`` lock the account: doubling with each threshold, at most a day."""
+    rounds = failures // settings.TWO_FACTOR_MAX_FAILURES
+    return min(
+        settings.TWO_FACTOR_LOCKOUT_SECONDS * 2 ** (rounds - 1),
+        settings.TWO_FACTOR_MAX_LOCKOUT_SECONDS,
+    )
 
 
-def record_failure(user):
-    """Count a failed attempt; enough of them lock the account's second step."""
+def claim_attempt(user):
+    """Count an attempt *before* it is checked; its number, or ``None`` while locked.
+
+    Counting first, under a row lock, means requests racing each other cannot
+    all slip through before the lock is written. Every
+    ``TWO_FACTOR_MAX_FAILURES`` attempts lock the account, each time for twice
+    as long as the last, up to a day; only a successful second factor
+    (:func:`record_success`) clears the count. Afterwards the caller reports the
+    outcome: :func:`attempt_failed` or :func:`refund_attempt`.
+    """
+    TwoFactorAttempts.objects.get_or_create(user=user)
     with transaction.atomic():
-        attempts, _created = TwoFactorAttempts.objects.select_for_update().get_or_create(user=user)
+        attempts = TwoFactorAttempts.objects.select_for_update().get(user=user)
+        if attempts.locked_until and attempts.locked_until > timezone.now():
+            return None
         attempts.failures += 1
-        if attempts.failures >= settings.TWO_FACTOR_MAX_FAILURES:
-            attempts.failures = 0
+        if attempts.failures % settings.TWO_FACTOR_MAX_FAILURES == 0:
             attempts.locked_until = timezone.now() + timedelta(
-                seconds=settings.TWO_FACTOR_LOCKOUT_SECONDS
+                seconds=_lock_seconds(attempts.failures)
             )
+        attempts.save()
+    return attempts.failures
+
+
+def attempt_failed(user, number):
+    """The claimed attempt ``number`` failed; the first lock tells the user by mail.
+
+    Someone who gets that far had the password, so the user should know.
+    """
+    if number == settings.TWO_FACTOR_MAX_FAILURES:
+        notify(user, _("Your Kompass login was locked"), settings.TWO_FACTOR_LOCKED_TEXT)
+
+
+def refund_attempt(user, number):
+    """Take back attempt ``number``, which was right but is no second factor (a password).
+
+    A lock that attempt set is lifted with it.
+    """
+    with transaction.atomic():
+        attempts = TwoFactorAttempts.objects.select_for_update().get(user=user)
+        attempts.failures = max(attempts.failures - 1, 0)
+        if number % settings.TWO_FACTOR_MAX_FAILURES == 0:
+            attempts.locked_until = None
         attempts.save()
 
 
 def record_success(user):
+    """A second factor checked out: the count starts again."""
     TwoFactorAttempts.objects.filter(user=user).delete()
+
+
+def notify(user, subject, text, **context):
+    """Mail ``user`` about their sign-in security, if they have a member profile to mail.
+
+    ``text`` is a template from the texts settings, filled with the member's
+    ``name`` and ``context``.
+    """
+    member = getattr(user, "member", None)
+    if member is not None:
+        member.send_mail(subject, text.format(name=member.prename, **context))
 
 
 # --- TOTP -------------------------------------------------------------------
@@ -126,6 +180,28 @@ def decrypt_secret(token):
         return _fernet().decrypt(token.encode()).decode()
     except InvalidToken:
         return None
+
+
+def usable_totp_devices(user):
+    """The user's apps with their secrets, leaving out (and reporting) any no key decrypts.
+
+    That happens when ``SECRET_KEY`` changed without the old key kept in
+    ``SECRET_KEY_FALLBACKS``: those apps can no longer be checked at all, which
+    is the deployment's fault and not something to count against the user.
+    """
+    usable = []
+    for device in user.totp_devices.all():
+        secret = decrypt_secret(device.encrypted_secret)
+        if secret is None:
+            logger.error(
+                "The secret of authenticator app %s of user %s cannot be decrypted; "
+                "was SECRET_KEY changed without keeping the old one in SECRET_KEY_FALLBACKS?",
+                device.pk,
+                user.pk,
+            )
+        else:
+            usable.append((device, secret))
+    return usable
 
 
 def new_totp_secret():
@@ -155,9 +231,8 @@ def totp_counter(secret, code):
 
 def verify_totp(user, code):
     """Accept ``code`` from one of the user's apps, once; record that it was used."""
-    for device in user.totp_devices.all():
-        secret = decrypt_secret(device.encrypted_secret)
-        counter = totp_counter(secret, code) if secret else None
+    for device, secret in usable_totp_devices(user):
+        counter = totp_counter(secret, code)
         # One conditional UPDATE, so of two requests racing with the same code
         # only one moves the counter on.
         if counter is not None and TOTPDevice.objects.filter(

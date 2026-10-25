@@ -7,15 +7,19 @@ import pyotp
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
-from django.core import signing
+from django.core import mail
+from django.core.exceptions import ValidationError
 from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
 from logindata import two_factor
-from logindata.api.two_factor_router import STATE_SALT
+from logindata.api.two_factor_router import _use_up
 from logindata.models import PersonalAccessToken
 from logindata.models import TOTPDevice
+from logindata.models import TwoFactorSetup
 from logindata.models import WebAuthnCredential
+from members.models import MALE
+from members.models import Member
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
 
@@ -27,6 +31,17 @@ AccessToken = get_access_token_model()
 Application = get_application_model()
 BASE = "/api/logindata/two-factor"
 PASSWORD = "ein-langes-pw-42"
+
+
+def add_member(user):
+    return Member.objects.create(
+        prename="Zora",
+        lastname="Zwei",
+        birth_date="1990-01-01",
+        email=settings.TEST_MAIL,
+        gender=MALE,
+        user=user,
+    )
 
 
 class ApiTestCase(TestCase):
@@ -130,12 +145,43 @@ class TwoFactorApiTestCase(ApiTestCase):
             "post", "/totp", {"name": "Handy", "code": code, "state": setup["state"]}, user=other
         )
         self.assertEqual(r.status_code, 422)
-        key_state = signing.dumps(
-            {"user": self.user.pk, "kind": "webauthn", "value": setup["secret"]}, salt=STATE_SALT
-        )
+        key_state = self.call("post", "/webauthn/setup", {"password": PASSWORD}).json()["state"]
         r = self.call("post", "/totp", {"name": "Handy", "code": code, "state": key_state})
         self.assertEqual(r.status_code, 422)
         self.assertFalse(TOTPDevice.objects.exists())
+
+    def test_a_setup_works_once(self):
+        setup = self.setup_totp()
+        code = pyotp.TOTP(setup["secret"]).now()
+        payload = {"name": "Handy", "code": code, "state": setup["state"]}
+        self.assertEqual(self.call("post", "/totp", payload).status_code, 201)
+        # Replaying the same request adds nothing.
+        r = self.call("post", "/totp", payload)
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(TOTPDevice.objects.count(), 1)
+
+    def test_a_setup_expires_and_a_new_one_replaces_it(self):
+        old = self.setup_totp()
+        new = self.setup_totp()
+        code = pyotp.TOTP(old["secret"]).now()
+        r = self.call("post", "/totp", {"name": "Handy", "code": code, "state": old["state"]})
+        self.assertEqual(r.status_code, 422)
+        TwoFactorSetup.objects.update(created=timezone.now() - datetime.timedelta(minutes=11))
+        code = pyotp.TOTP(new["secret"]).now()
+        r = self.call("post", "/totp", {"name": "Handy", "code": code, "state": new["state"]})
+        self.assertEqual(r.status_code, 422)
+
+    def test_of_two_racing_confirmations_only_one_uses_the_setup(self):
+        self.setup_totp()
+        setup = TwoFactorSetup.objects.get()
+        _use_up(setup)
+        # The other request had found the same setup before it was deleted.
+        with self.assertRaises(ValidationError):
+            _use_up(setup)
+
+    def test_the_secret_waits_encrypted(self):
+        setup = self.setup_totp()
+        self.assertNotIn(setup["secret"], TwoFactorSetup.objects.get().encrypted_value)
 
     def test_adding_a_security_key(self):
         setup = self.call("post", "/webauthn/setup", {"password": PASSWORD}).json()
@@ -172,6 +218,17 @@ class TwoFactorApiTestCase(ApiTestCase):
         )
         self.assertEqual(r.status_code, 422)
         self.assertFalse(WebAuthnCredential.objects.exists())
+        # The failed attempt left the setup for another try.
+        r = self.call(
+            "post",
+            "/webauthn",
+            {
+                "name": "YubiKey",
+                "credential": SoftAuthenticator().create(setup["options"]),
+                "state": setup["state"],
+            },
+        )
+        self.assertEqual(r.status_code, 201, r.content)
 
     def test_renaming_a_factor(self):
         add_totp(self.user)
@@ -186,6 +243,7 @@ class TwoFactorApiTestCase(ApiTestCase):
         self.assertEqual(r.status_code, 404)
 
     def test_removing_factors(self):
+        add_member(self.user)
         add_totp(self.user)
         key = add_key(self.user)
         two_factor.generate_recovery_codes(self.user)
@@ -195,6 +253,9 @@ class TwoFactorApiTestCase(ApiTestCase):
         r = self.call("post", "/totp/{}/remove".format(device.pk), {"password": PASSWORD})
         self.assertEqual(r.status_code, 204)
         self.assertEqual(self.user.recovery_codes.count(), 10)
+        # The user hears of it, in case it was not them.
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("„Handy“", mail.outbox[0].body)
         # With the last one go the recovery codes.
         r = self.call("post", "/webauthn/{}/remove".format(key.pk), {"password": PASSWORD})
         self.assertEqual(r.status_code, 204)
@@ -218,6 +279,13 @@ class TwoFactorApiTestCase(ApiTestCase):
         r = self.call("post", "/totp/setup", {"password": PASSWORD})
         self.assertEqual(r.status_code, 403)
         self.assertTrue(r.json()["displayable"])
+
+    @override_settings(TWO_FACTOR_MAX_FAILURES=2)
+    def test_right_passwords_are_not_counted(self):
+        for _i in range(3):
+            self.assertEqual(
+                self.call("post", "/totp/setup", {"password": PASSWORD}).status_code, 200
+            )
 
     @override_settings(OIDC_ENABLED=True)
     def test_nothing_to_change_where_the_provider_signs_in(self):
@@ -243,12 +311,15 @@ class ResetTwoFactorTestCase(ApiTestCase):
         )
 
     def test_a_user_manager_resets_the_factors(self):
+        add_member(self.user)
         with self.assertLogs("logindata.api.admin_router", "WARNING"):
             r = self.reset(self.user, self.admin)
         self.assertEqual(r.status_code, 200, r.content)
         self.assertFalse(r.json()["two_factor_enabled"])
         self.assertFalse(two_factor.enabled_for(self.user))
         self.assertFalse(self.user.recovery_codes.exists())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("zurückgesetzt", mail.outbox[0].body)
 
     def test_without_the_permission_nothing_happens(self):
         other = User.objects.create_user("andere", password=PASSWORD)
