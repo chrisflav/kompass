@@ -518,3 +518,19 @@ anderes Material hier:
 Viele Grüße
 Dein KOMPASS""",
 )
+
+FEEDBACK_RESPONSE_TEXT = get_text(
+    "feedback_response",
+    default="""Hallo {name},
+
+vielen Dank für dein Feedback! {responder} hat dir geantwortet:
+
+{response}
+{status}
+Du hattest geschrieben:
+
+{message}
+
+Viele Grüße
+Dein KOMPASS""",
+)

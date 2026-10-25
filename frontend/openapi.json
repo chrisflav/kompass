@@ -10503,6 +10503,54 @@
         ]
       }
     },
+    "/api/feedback/{feedback_id}/respond": {
+      "post": {
+        "operationId": "feedback_api_router_respond_to_feedback",
+        "summary": "Respond To Feedback",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "schema": {
+              "title": "Feedback Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Answer the sender by mail, keeping the answer on the note.\n\nWith ``resolve``, the note is marked as dealt with in the same step.",
+        "tags": [
+          "feedback"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RespondIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
     "/api/feedback/{feedback_id}/reopen": {
       "post": {
         "operationId": "feedback_api_router_reopen_feedback",
@@ -23919,6 +23967,17 @@
               }
             ]
           },
+          "responses": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackResponseOut"
+            },
+            "title": "Responses",
+            "type": "array"
+          },
+          "can_respond": {
+            "title": "Can Respond",
+            "type": "boolean"
+          },
           "message": {
             "title": "Message",
             "type": "string"
@@ -23952,9 +24011,46 @@
           "id",
           "created",
           "has_context",
+          "responses",
+          "can_respond",
           "message"
         ],
         "title": "FeedbackOut",
+        "type": "object"
+      },
+      "FeedbackResponseOut": {
+        "description": "One answer in the thread under a note.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "created": {
+            "format": "date-time",
+            "title": "Created",
+            "type": "string"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created",
+          "message"
+        ],
+        "title": "FeedbackResponseOut",
         "type": "object"
       },
       "FeedbackIn": {
@@ -24043,6 +24139,25 @@
           "message"
         ],
         "title": "FeedbackBrief",
+        "type": "object"
+      },
+      "RespondIn": {
+        "description": "An answer to the sender, and whether to resolve the note with it.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "resolve": {
+            "default": false,
+            "title": "Resolve",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "RespondIn",
         "type": "object"
       },
       "EchoVerifyOut": {

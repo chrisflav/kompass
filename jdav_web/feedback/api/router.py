@@ -6,27 +6,35 @@ Submissions are attributed when the caller presents a valid bearer token (see
 ``contrib.api.auth.optional_bearer``).
 
 Reading feedback is staff work, gated on the standard ``feedback.view_feedback``
-permission; marking it resolved needs ``feedback.change_feedback`` as well.
+permission; marking it resolved or answering the sender needs
+``feedback.change_feedback`` as well.
 """
 
 from contrib.api.auth import optional_bearer
 from contrib.api.perms import authorize
+from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from feedback.models import Feedback
+from feedback.models import FeedbackResponse
+from mailer.mailutils import SENT
 from ninja import Router
 
 from .schemas import FeedbackBrief
 from .schemas import FeedbackIn
 from .schemas import FeedbackOut
+from .schemas import RespondIn
 
 router = Router()
 
 # Generous, but bounded: a stray loop or a bored visitor should not be able to
 # fill the table with megabytes. The dialog counts the sender down to this.
 MAX_MESSAGE_LENGTH = 5000
+# How much of the original note an answer quotes back to its sender.
+QUOTE_LENGTH = 500
 
 
 @router.post("", auth=optional_bearer, response=FeedbackOut)
@@ -68,7 +76,10 @@ def list_feedback(request):
 
 def _get_feedback(feedback_id):
     return get_object_or_404(
-        Feedback.objects.select_related("submitted_by", "resolved_by"), pk=feedback_id
+        Feedback.objects.select_related("submitted_by", "resolved_by").prefetch_related(
+            "responses__author__group"
+        ),
+        pk=feedback_id,
     )
 
 
@@ -93,6 +104,76 @@ def resolve_feedback(request, feedback_id: int):
         feedback.resolved_by = getattr(request.user, "member", None)
         feedback.save(update_fields=["resolved_at", "resolved_by"])
     return feedback
+
+
+@router.post("/{feedback_id}/respond", response=FeedbackOut)
+def respond_to_feedback(request, feedback_id: int, payload: RespondIn):
+    """Answer the sender by mail, keeping the answer on the note.
+
+    With ``resolve``, the note is marked as dealt with in the same step.
+    """
+    authorize(request, "feedback.view_feedback")
+    authorize(request, "feedback.change_feedback")
+    feedback = _get_feedback(feedback_id)
+    message = payload.message.strip()
+    if not message:
+        raise ValidationError({"message": [_("Please enter a response.")]})
+    if len(message) > MAX_MESSAGE_LENGTH:
+        raise ValidationError(
+            {
+                "message": [
+                    _("A response is limited to %(limit)s characters.")
+                    % {"limit": MAX_MESSAGE_LENGTH}
+                ]
+            }
+        )
+    if not feedback.can_respond:
+        raise ValidationError(
+            {
+                "message": [
+                    _(
+                        "The sender cannot be answered: the feedback was sent without an "
+                        "account, or the account has no email address."
+                    )
+                ]
+            }
+        )
+    member = getattr(request.user, "member", None)
+    resolve = payload.resolve and not feedback.is_resolved
+    # Mailed before anything is stored: if the mail does not go out, nothing
+    # pretends otherwise and sending can simply be tried again.
+    if _mail_response(feedback, message, member or request.user, resolve) != SENT:
+        raise ValidationError(
+            {"message": [_("The email could not be sent. Please try again later.")]}
+        )
+    with transaction.atomic():
+        FeedbackResponse.objects.create(feedback=feedback, author=member, message=message)
+        if resolve:
+            feedback.resolved_at = timezone.now()
+            feedback.resolved_by = member
+            feedback.save(update_fields=["resolved_at", "resolved_by"])
+    return _get_feedback(feedback_id)
+
+
+def _mail_response(feedback, message, responder, resolved):
+    """Send ``message`` to the sender of ``feedback``, quoting their note back."""
+    sender = feedback.submitted_by
+    original = feedback.message
+    if len(original) > QUOTE_LENGTH:
+        original = original[:QUOTE_LENGTH].rstrip() + " […]"
+    # ``responder`` is a member, or the bare user for an account without one.
+    name = getattr(responder, "name", None) or responder.get_full_name() or responder.username
+    status = "\n{}\n".format(_("Your feedback is now marked as resolved.")) if resolved else ""
+    return sender.send_mail(
+        _("Response to your feedback"),
+        settings.FEEDBACK_RESPONSE_TEXT.format(
+            name=sender.prename,
+            responder=name,
+            response=message,
+            status=status,
+            message="\n".join("> {}".format(line) for line in original.splitlines()),
+        ),
+    )
 
 
 @router.post("/{feedback_id}/reopen", response=FeedbackOut)

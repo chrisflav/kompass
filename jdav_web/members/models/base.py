@@ -113,8 +113,8 @@ class Contact(CommonModel):
             if address
         ]
         if not recipients:
-            return
-        send_mail(
+            return None
+        return send_mail(
             subject,
             content,
             settings.DEFAULT_SENDING_MAIL,
