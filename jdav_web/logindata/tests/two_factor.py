@@ -37,6 +37,15 @@ AccessToken = get_access_token_model()
 Application = get_application_model()
 PASSWORD = "ein-langes-pw-42"
 
+# Kompass checking passwords itself, whatever the configuration the tests run
+# with: without OIDC, LOGIN_URL is the built-in form and no SessionRefresh
+# middleware sends a signed-in session off to the identity provider.
+local_login = override_settings(
+    OIDC_ENABLED=False,
+    LOGIN_URL="/accounts/login/",
+    MIDDLEWARE=[m for m in settings.MIDDLEWARE if not m.startswith("mozilla_django_oidc")],
+)
+
 
 def add_totp(user, secret=None, name="Handy"):
     secret = secret or pyotp.random_base32()
@@ -330,7 +339,7 @@ class TwoFactorModuleTestCase(TestCase):
         self.assertIsNone(two_factor.pop_challenge(session, "login"))
 
 
-@override_settings(OIDC_ENABLED=False)
+@local_login
 class SecondStepLoginTestCase(TestCase):
     """After the password, a user with a second factor is not logged in yet."""
 
@@ -489,7 +498,7 @@ class SecondStepLoginTestCase(TestCase):
         self.assertNotLoggedIn()
 
 
-@override_settings(OIDC_ENABLED=False)
+@local_login
 class PasskeyLoginTestCase(TestCase):
     """One tap on a passkey signs in without a password."""
 
@@ -560,6 +569,7 @@ class LoginWithIdentityProviderTestCase(TestCase):
                 self.assertEqual(self.client.post(path).status_code, 404)
 
 
+@local_login
 class AdminLoginTestCase(TestCase):
     """The admin's own password form is gone; it sends everyone to LOGIN_URL."""
 
@@ -581,7 +591,7 @@ class AdminLoginTestCase(TestCase):
         self.assertEqual(r["Location"], "/de/kompass/members/")
 
 
-@override_settings(OIDC_ENABLED=False)
+@local_login
 class AuthorizeWithSecondFactorTestCase(TestCase):
     """The whole way of the frontend's sign-in, with an authenticator app."""
 

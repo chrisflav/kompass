@@ -4519,11 +4519,51 @@ export interface paths {
         };
         /**
          * Two Factor Status
-         * @description The requesting user's second factors.
+         * @description What the requesting user can confirm with, and their factors once confirmed.
          */
         get: operations["logindata_api_two_factor_router_two_factor_status"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/two-factor/confirm/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Options
+         * @description Request options for confirming with one of the user's security keys.
+         */
+        post: operations["logindata_api_two_factor_router_confirm_options"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/two-factor/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm
+         * @description Confirm who is signed in; the sign-in may then manage factors for ten minutes.
+         */
+        post: operations["logindata_api_two_factor_router_confirm"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4541,7 +4581,7 @@ export interface paths {
         put?: never;
         /**
          * Start Totp
-         * @description Start adding an authenticator app: check the password, hand out a secret.
+         * @description Start adding an authenticator app: hand out a new secret.
          */
         post: operations["logindata_api_two_factor_router_start_totp"];
         delete?: never;
@@ -4581,7 +4621,7 @@ export interface paths {
         put?: never;
         /**
          * Start Webauthn
-         * @description Start adding a security key: check the password, hand out the creation options.
+         * @description Start adding a security key: hand out the creation options.
          */
         post: operations["logindata_api_two_factor_router_start_webauthn"];
         delete?: never;
@@ -10062,10 +10102,57 @@ export interface components {
             available: boolean;
             /** Enabled */
             enabled: boolean;
+            /** Has Totp */
+            has_totp: boolean;
+            /** Has Webauthn */
+            has_webauthn: boolean;
+            /** Elevated Until */
+            elevated_until: string | null;
             /** Factors */
             factors: components["schemas"]["FactorOut"][];
             /** Recovery Codes Remaining */
             recovery_codes_remaining: number;
+        };
+        /**
+         * ConfirmOptions
+         * @description The ``publicKey`` options for ``navigator.credentials.get``.
+         */
+        ConfirmOptions: {
+            /** Options */
+            options: {
+                [key: string]: unknown;
+            };
+            /** State */
+            state: string;
+        };
+        /** Elevated */
+        Elevated: {
+            /**
+             * Elevated Until
+             * Format: date-time
+             */
+            elevated_until: string;
+        };
+        /**
+         * ConfirmIn
+         * @description One proof of who is signed in: the password only where there is no factor.
+         *
+         *     ``credential`` answers the options of ``/two-factor/confirm/options``, whose
+         *     ``state`` comes with it.
+         */
+        ConfirmIn: {
+            /** Password */
+            password?: string | null;
+            /** Code */
+            code?: string | null;
+            /** Recovery Code */
+            recovery_code?: string | null;
+            /** Credential */
+            credential?: {
+                [key: string]: unknown;
+            } | null;
+            /** State */
+            state?: string | null;
         };
         /**
          * TOTPSetup
@@ -10078,11 +10165,6 @@ export interface components {
             uri: string;
             /** State */
             state: string;
-        };
-        /** PasswordIn */
-        PasswordIn: {
-            /** Password */
-            password: string;
         };
         /** FactorAdded */
         FactorAdded: {
@@ -17497,7 +17579,27 @@ export interface operations {
             };
         };
     };
-    logindata_api_two_factor_router_start_totp: {
+    logindata_api_two_factor_router_confirm_options: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmOptions"];
+                };
+            };
+        };
+    };
+    logindata_api_two_factor_router_confirm: {
         parameters: {
             query?: never;
             header?: never;
@@ -17506,9 +17608,29 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PasswordIn"];
+                "application/json": components["schemas"]["ConfirmIn"];
             };
         };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Elevated"];
+                };
+            };
+        };
+    };
+    logindata_api_two_factor_router_start_totp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -17552,11 +17674,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PasswordIn"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -17630,11 +17748,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PasswordIn"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description No Content */
             204: {
@@ -17652,11 +17766,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PasswordIn"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {

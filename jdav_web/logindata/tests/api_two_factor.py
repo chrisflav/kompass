@@ -16,6 +16,8 @@ from logindata import two_factor
 from logindata.api.two_factor_router import _use_up
 from logindata.models import PersonalAccessToken
 from logindata.models import TOTPDevice
+from logindata.models import TwoFactorAttempts
+from logindata.models import TwoFactorElevation
 from logindata.models import TwoFactorSetup
 from logindata.models import WebAuthnCredential
 from members.models import MALE
@@ -27,6 +29,8 @@ from oauth2_provider.models import get_refresh_token_model
 from .authenticator import SoftAuthenticator
 from .two_factor import add_key
 from .two_factor import add_totp
+from .two_factor import local_login
+from .two_factor import next_code
 
 AccessToken = get_access_token_model()
 Application = get_application_model()
@@ -46,6 +50,7 @@ def add_member(user):
     )
 
 
+@local_login
 class ApiTestCase(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("zweifach", password=PASSWORD)
@@ -56,6 +61,8 @@ class ApiTestCase(TestCase):
             authorization_grant_type=Application.GRANT_AUTHORIZATION_CODE,
             client_secret="test-secret",
         )
+        # The signed-in frontend session the requests use.
+        self.session = self.token(self.user, self.frontend)
 
     def token(self, user, application=None):
         return AccessToken.objects.create(
@@ -67,8 +74,19 @@ class ApiTestCase(TestCase):
         )
 
     def headers(self, user=None):
-        token = self.token(user or self.user, self.frontend)
+        """The session's header, or for another ``user`` a session of theirs, confirmed."""
+        if user is None or user == self.user:
+            token = self.session
+        else:
+            token = self.token(user, self.frontend)
+            self.elevate(token)
         return {"HTTP_AUTHORIZATION": "Bearer " + token.token}
+
+    def elevate(self, token=None):
+        TwoFactorElevation.objects.create(
+            access_token=token or self.session,
+            expires=timezone.now() + datetime.timedelta(minutes=10),
+        )
 
     def call(self, method, path, data=None, user=None, headers=None):
         return getattr(self.client, method)(
@@ -80,14 +98,28 @@ class ApiTestCase(TestCase):
 
 
 class TwoFactorApiTestCase(ApiTestCase):
+    """Managing factors once the sign-in is confirmed."""
+
+    def setUp(self):
+        super().setUp()
+        self.elevate()
+
     def setup_totp(self):
-        return self.call("post", "/totp/setup", {"password": PASSWORD}).json()
+        return self.call("post", "/totp/setup").json()
 
     def test_status_without_factors(self):
         data = self.call("get", "").json()
+        self.assertIsNotNone(data.pop("elevated_until"))
         self.assertEqual(
             data,
-            {"available": True, "enabled": False, "factors": [], "recovery_codes_remaining": 0},
+            {
+                "available": True,
+                "enabled": False,
+                "has_totp": False,
+                "has_webauthn": False,
+                "factors": [],
+                "recovery_codes_remaining": 0,
+            },
         )
 
     def test_only_the_frontend_sign_in_manages_factors(self):
@@ -138,13 +170,13 @@ class TwoFactorApiTestCase(ApiTestCase):
         )
         pat = self.token(self.user)
         PersonalAccessToken.objects.create(access_token=pat, name="Skript", read_only=True)
-        session = self.token(self.user, self.frontend)
+        session = self.session
         RefreshToken.objects.create(
             user=self.user, application=self.frontend, token="r2", access_token=session
         )
         headers = {"HTTP_AUTHORIZATION": "Bearer " + session.token}
 
-        setup = self.call("post", "/totp/setup", {"password": PASSWORD}, headers=headers).json()
+        setup = self.call("post", "/totp/setup", headers=headers).json()
         code = pyotp.TOTP(setup["secret"]).now()
         payload = {"name": "Handy", "code": code, "state": setup["state"]}
         self.assertEqual(self.call("post", "/totp", payload, headers=headers).status_code, 201)
@@ -157,7 +189,7 @@ class TwoFactorApiTestCase(ApiTestCase):
 
         # A further factor leaves other sign-ins alone.
         later = self.token(self.user, self.frontend)
-        setup = self.call("post", "/webauthn/setup", {"password": PASSWORD}, headers=headers).json()
+        setup = self.call("post", "/webauthn/setup", headers=headers).json()
         payload = {
             "name": "YubiKey",
             "credential": SoftAuthenticator().create(setup["options"]),
@@ -165,11 +197,6 @@ class TwoFactorApiTestCase(ApiTestCase):
         }
         self.assertEqual(self.call("post", "/webauthn", payload, headers=headers).status_code, 201)
         self.assertTrue(AccessToken.objects.filter(pk=later.pk).exists())
-
-    def test_adding_an_app_needs_the_password(self):
-        r = self.call("post", "/totp/setup", {"password": "falsch"})
-        self.assertEqual(r.status_code, 422)
-        self.assertIn("password", r.json()["errors"])
 
     def test_adding_an_app_needs_a_valid_code_name_and_state(self):
         setup = self.setup_totp()
@@ -191,7 +218,7 @@ class TwoFactorApiTestCase(ApiTestCase):
             "post", "/totp", {"name": "Handy", "code": code, "state": setup["state"]}, user=other
         )
         self.assertEqual(r.status_code, 422)
-        key_state = self.call("post", "/webauthn/setup", {"password": PASSWORD}).json()["state"]
+        key_state = self.call("post", "/webauthn/setup").json()["state"]
         r = self.call("post", "/totp", {"name": "Handy", "code": code, "state": key_state})
         self.assertEqual(r.status_code, 422)
         self.assertFalse(TOTPDevice.objects.exists())
@@ -230,7 +257,7 @@ class TwoFactorApiTestCase(ApiTestCase):
         self.assertNotIn(setup["secret"], TwoFactorSetup.objects.get().encrypted_value)
 
     def test_adding_a_security_key(self):
-        setup = self.call("post", "/webauthn/setup", {"password": PASSWORD}).json()
+        setup = self.call("post", "/webauthn/setup").json()
         options = setup["options"]
         self.assertEqual(options["rp"]["id"], settings.WEBAUTHN_RP_ID)
         authenticator = SoftAuthenticator()
@@ -251,7 +278,7 @@ class TwoFactorApiTestCase(ApiTestCase):
         self.assertEqual(WebAuthnCredential.objects.get().credential_id, authenticator.id)
 
     def test_a_key_that_does_not_verify_is_not_added(self):
-        setup = self.call("post", "/webauthn/setup", {"password": PASSWORD}).json()
+        setup = self.call("post", "/webauthn/setup").json()
         options = {**setup["options"], "challenge": "YW5kZXJz"}
         r = self.call(
             "post",
@@ -294,50 +321,159 @@ class TwoFactorApiTestCase(ApiTestCase):
         key = add_key(self.user)
         two_factor.generate_recovery_codes(self.user)
         device = self.user.totp_devices.get()
-        r = self.call("post", "/totp/{}/remove".format(device.pk), {"password": "falsch"})
-        self.assertEqual(r.status_code, 422)
-        r = self.call("post", "/totp/{}/remove".format(device.pk), {"password": PASSWORD})
+        r = self.call("post", "/totp/{}/remove".format(device.pk))
         self.assertEqual(r.status_code, 204)
         self.assertEqual(self.user.recovery_codes.count(), 10)
         # The user hears of it, in case it was not them.
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("„Handy“", mail.outbox[0].body)
         # With the last one go the recovery codes.
-        r = self.call("post", "/webauthn/{}/remove".format(key.pk), {"password": PASSWORD})
+        r = self.call("post", "/webauthn/{}/remove".format(key.pk))
         self.assertEqual(r.status_code, 204)
         self.assertEqual(self.call("get", "").json()["recovery_codes_remaining"], 0)
 
     def test_regenerating_recovery_codes(self):
-        r = self.call("post", "/recovery-codes", {"password": PASSWORD})
+        r = self.call("post", "/recovery-codes")
         self.assertEqual(r.status_code, 422)
         add_totp(self.user)
         old = two_factor.generate_recovery_codes(self.user)
-        r = self.call("post", "/recovery-codes", {"password": PASSWORD})
+        r = self.call("post", "/recovery-codes")
         codes = r.json()["codes"]
         self.assertEqual(len(codes), 10)
         self.assertFalse(two_factor.use_recovery_code(self.user, old[0]))
         self.assertTrue(two_factor.use_recovery_code(self.user, codes[0]))
 
-    @override_settings(TWO_FACTOR_MAX_FAILURES=2)
-    def test_wrong_passwords_lock_changes(self):
-        for _i in range(2):
-            self.call("post", "/totp/setup", {"password": "falsch"})
-        r = self.call("post", "/totp/setup", {"password": PASSWORD})
-        self.assertEqual(r.status_code, 403)
-        self.assertTrue(r.json()["displayable"])
-
-    @override_settings(TWO_FACTOR_MAX_FAILURES=2)
-    def test_right_passwords_are_not_counted(self):
-        for _i in range(3):
-            self.assertEqual(
-                self.call("post", "/totp/setup", {"password": PASSWORD}).status_code, 200
-            )
-
     @override_settings(OIDC_ENABLED=True)
     def test_nothing_to_change_where_the_provider_signs_in(self):
         self.assertFalse(self.call("get", "").json()["available"])
-        r = self.call("post", "/totp/setup", {"password": PASSWORD})
+        r = self.call("post", "/totp/setup")
         self.assertEqual(r.status_code, 403)
+
+
+class ConfirmTestCase(ApiTestCase):
+    """Confirming who is signed in before the factors can be seen or changed."""
+
+    def confirm(self, headers=None, **payload):
+        return self.call("post", "/confirm", payload, headers=headers)
+
+    def attempts(self):
+        attempts = TwoFactorAttempts.objects.filter(user=self.user).first()
+        return attempts.failures if attempts else 0
+
+    def test_nothing_is_shown_or_changed_before(self):
+        add_totp(self.user)
+        two_factor.generate_recovery_codes(self.user)
+        status = self.call("get", "").json()
+        self.assertIsNone(status["elevated_until"])
+        self.assertTrue(status["enabled"])
+        self.assertTrue(status["has_totp"])
+        self.assertFalse(status["has_webauthn"])
+        self.assertEqual(status["factors"], [])
+        self.assertEqual(status["recovery_codes_remaining"], 0)
+        device = self.user.totp_devices.get()
+        for method, path in [
+            ("post", "/totp/setup"),
+            ("post", "/webauthn/setup"),
+            ("post", "/recovery-codes"),
+            ("post", "/totp/{}/remove".format(device.pk)),
+            ("patch", "/totp/{}".format(device.pk)),
+        ]:
+            with self.subTest(path):
+                r = self.call(method, path, {"name": "x"})
+                self.assertEqual(r.status_code, 403)
+                self.assertTrue(r.json()["displayable"])
+
+    def test_without_a_factor_the_password_confirms(self):
+        r = self.confirm(password="falsch")
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(self.attempts(), 1)
+        r = self.confirm(password=PASSWORD)
+        self.assertEqual(r.status_code, 200, r.content)
+        # A right password is taken back.
+        self.assertEqual(self.attempts(), 1)
+        self.assertIsNotNone(self.call("get", "").json()["elevated_until"])
+        # Adding the first factor leaves the confirmation as it is.
+        setup = self.call("post", "/totp/setup").json()
+        code = pyotp.TOTP(setup["secret"]).now()
+        payload = {"name": "Handy", "code": code, "state": setup["state"]}
+        self.assertEqual(self.call("post", "/totp", payload).status_code, 201)
+        self.assertEqual(len(self.call("get", "").json()["factors"]), 1)
+
+    def test_with_a_factor_the_password_is_not_enough(self):
+        add_totp(self.user)
+        r = self.confirm(password=PASSWORD)
+        self.assertEqual(r.status_code, 422)
+        # Nothing was checked, so nothing counted.
+        self.assertEqual(self.attempts(), 0)
+        self.assertIsNone(self.call("get", "").json()["elevated_until"])
+
+    def test_an_authenticator_code_confirms(self):
+        secret = add_totp(self.user)
+        self.assertEqual(self.confirm(code="000000").status_code, 422)
+        self.assertEqual(self.attempts(), 1)
+        self.assertEqual(self.confirm(code=next_code(secret)).status_code, 200)
+        # A second factor clears the count.
+        self.assertEqual(self.attempts(), 0)
+        self.assertEqual(len(self.call("get", "").json()["factors"]), 1)
+
+    def test_a_recovery_code_confirms_once(self):
+        add_totp(self.user)
+        codes = two_factor.generate_recovery_codes(self.user)
+        self.assertEqual(self.confirm(recovery_code=codes[0]).status_code, 200)
+        self.assertEqual(self.confirm(recovery_code=codes[0]).status_code, 422)
+
+    def test_a_security_key_confirms(self):
+        authenticator = SoftAuthenticator()
+        add_key(self.user, authenticator)
+        options = self.call("post", "/confirm/options").json()
+        self.assertEqual(len(options["options"]["allowCredentials"]), 1)
+        credential = authenticator.get(options["options"])
+        r = self.confirm(credential=credential, state=options["state"])
+        self.assertEqual(r.status_code, 200, r.content)
+        # The options work once.
+        r = self.confirm(credential=authenticator.get(options["options"]), state=options["state"])
+        self.assertEqual(r.status_code, 422)
+        # Another key does not stand in for one's own.
+        options = self.call("post", "/confirm/options").json()
+        r = self.confirm(
+            credential=SoftAuthenticator().get(options["options"]), state=options["state"]
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(self.attempts(), 1)
+
+    def test_no_key_options_without_a_key(self):
+        self.assertEqual(self.call("post", "/confirm/options").status_code, 422)
+
+    def test_an_app_no_key_decrypts_is_not_counted(self):
+        add_totp(self.user)
+        TOTPDevice.objects.update(encrypted_secret="kaputt")
+        with self.assertLogs("logindata.two_factor", "ERROR"):
+            r = self.confirm(code="123456")
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(self.attempts(), 0)
+
+    @override_settings(TWO_FACTOR_MAX_FAILURES=2)
+    def test_wrong_attempts_lock(self):
+        secret = add_totp(self.user)
+        self.confirm(code="000000")
+        self.confirm(code="000001")
+        r = self.confirm(code=next_code(secret))
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(r.json()["displayable"])
+
+    def test_a_confirmation_belongs_to_one_sign_in_and_expires(self):
+        self.assertEqual(self.confirm(password=PASSWORD).status_code, 200)
+        other = self.token(self.user, self.frontend)
+        r = self.call(
+            "post", "/totp/setup", headers={"HTTP_AUTHORIZATION": "Bearer " + other.token}
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(self.call("post", "/totp/setup").status_code, 200)
+        TwoFactorElevation.objects.update(expires=timezone.now())
+        self.assertEqual(self.call("post", "/totp/setup").status_code, 403)
+        # Confirming again renews it.
+        self.assertEqual(self.confirm(password=PASSWORD).status_code, 200)
+        self.assertEqual(TwoFactorElevation.objects.count(), 1)
 
 
 class ResetTwoFactorTestCase(ApiTestCase):

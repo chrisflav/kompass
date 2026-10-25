@@ -35,19 +35,23 @@ Nach dem Passwort fragt Kompass zusätzlich nach einem Code aus einer Authentica
 einem Sicherheitsschlüssel. Die Einstellungen findest du im Menü unter deinem Namen bei
 "Zwei-Faktor-Authentifizierung". Ob du sie nutzt, entscheidest du selbst.
 
-- **Authenticator-App** (z.B. Aegis, Google Authenticator, Microsoft Authenticator, 2FAS):
-  Klicke auf "Authenticator-App hinzufügen", bestätige mit deinem Passwort, scanne den QR-Code
-  mit der App (oder tippe den angezeigten Schlüssel ab) und gib zur Bestätigung den Code ein, den
-  die App anzeigt.
-- **Sicherheitsschlüssel oder Passkey** (z.B. ein YubiKey, dein Smartphone oder der
-  Fingerabdrucksensor deines Laptops): Klicke auf "Sicherheitsschlüssel hinzufügen", gib einen
-  Namen und dein Passwort ein und folge dann den Anweisungen deines Browsers. Kann der Schlüssel
-  dich selbst prüfen (per PIN oder Fingerabdruck), wird er als **Passkey** angezeigt. Mit einem
-  Passkey kannst du dich auf der Anmeldeseite über "Mit Sicherheitsschlüssel anmelden" auch ganz
-  ohne Benutzername und Passwort anmelden.
+Bevor die Seite deine Faktoren zeigt, bestätigst du, dass du es bist: solange du noch keinen
+zweiten Faktor hast, mit deinem Passwort, danach mit einem deiner Faktoren (Code aus der App,
+Sicherheitsschlüssel oder Wiederherstellungscode). Die Bestätigung gilt zehn Minuten, dann fragt
+die Seite erneut.
 
-Du kannst mehrere Apps und Schlüssel einrichten, sie umbenennen und wieder entfernen. Zum
-Hinzufügen und Entfernen fragt Kompass jeweils noch einmal nach deinem Passwort.
+Über "Faktor hinzufügen" wählst du, was du einrichten willst:
+
+- **Authenticator-App** (z.B. Aegis, Google Authenticator, Microsoft Authenticator, 2FAS): Gib
+  der App einen Namen, scanne den QR-Code mit der App (oder tippe den angezeigten Schlüssel ab)
+  und gib zur Bestätigung den Code ein, den die App anzeigt.
+- **Sicherheitsschlüssel oder Passkey** (z.B. ein YubiKey, dein Smartphone oder der
+  Fingerabdrucksensor deines Laptops): Gib einen Namen ein und folge dann den Anweisungen deines
+  Browsers. Kann der Schlüssel dich selbst prüfen (per PIN oder Fingerabdruck), wird er als
+  **Passkey** angezeigt. Mit einem Passkey kannst du dich auf der Anmeldeseite über "Mit
+  Sicherheitsschlüssel anmelden" auch ganz ohne Benutzername und Passwort anmelden.
+
+Du kannst mehrere Apps und Schlüssel einrichten, sie umbenennen und wieder entfernen.
 
 **Wiederherstellungscodes:** Wenn du deinen ersten zweiten Faktor einrichtest, zeigt Kompass dir
 zehn Wiederherstellungscodes an — nur dieses eine Mal. Bewahre sie sicher auf, etwa ausgedruckt

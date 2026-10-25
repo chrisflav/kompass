@@ -23,26 +23,37 @@ const PASSKEY = {
   passwordless: true,
 };
 const CODES = Array.from({ length: 10 }, (_, i) => `abcd-efgh-ijkl-mn${i}${i}`);
+const SOON = () => new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-function statusReturns(factors: unknown[] = [], extra: Record<string, unknown> = {}) {
-  server.use(
-    http.get(api(BASE), () =>
-      HttpResponse.json({
-        available: true,
-        enabled: factors.length > 0,
-        factors,
-        recovery_codes_remaining: factors.length ? 8 : 0,
-        ...extra,
-      }),
-    ),
-  );
+type Factor = Omit<typeof APP, "last_used"> & { last_used: string | null };
+
+/** The status: confirmed (``elevated``) or not, with these factors. */
+function status(factors: Factor[], elevated = true, extra: Record<string, unknown> = {}) {
+  return {
+    available: true,
+    enabled: factors.length > 0,
+    has_totp: factors.some((f) => f.kind === "totp"),
+    has_webauthn: factors.some((f) => f.kind === "webauthn"),
+    elevated_until: elevated ? SOON() : null,
+    factors: elevated ? factors : [],
+    recovery_codes_remaining: elevated && factors.length ? 8 : 0,
+    ...extra,
+  };
 }
 
-const wrongPassword = () =>
-  HttpResponse.json(
-    { detail: ["Das Passwort ist nicht korrekt."], errors: { password: ["Das Passwort ist nicht korrekt."] } },
-    { status: 422 },
-  );
+function statusReturns(factors: Factor[] = [], elevated = true, extra: Record<string, unknown> = {}) {
+  server.use(http.get(api(BASE), () => HttpResponse.json(status(factors, elevated, extra))));
+}
+
+const refused = (field: string, message: string) =>
+  HttpResponse.json({ detail: [message], errors: { [field]: [message] } }, { status: 422 });
+
+const bytes = (s: string) => new TextEncoder().encode(s).buffer;
+
+function stubWebAuthn(methods: Record<string, unknown>) {
+  vi.stubGlobal("PublicKeyCredential", function PublicKeyCredential() {});
+  Object.defineProperty(navigator, "credentials", { value: methods, configurable: true });
+}
 
 /** The header's add action, then the kind of factor in its dialog. */
 async function chooseFactor(user: ReturnType<typeof renderRoute>["user"], kind: string) {
@@ -69,6 +80,158 @@ describe("two-factor authentication", () => {
     expect(await screen.findByText("Du hast noch keinen zweiten Faktor eingerichtet.")).toBeInTheDocument();
   });
 
+  it("says who manages the factors where an identity provider signs in", async () => {
+    statusReturns([], false, { available: false });
+    renderRoute("/kompass/security");
+    expect(await screen.findByText(/verwaltet euer Identitätsanbieter/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Faktor hinzufügen" })).toBeNull();
+    expect(screen.queryByLabelText(/Dein Passwort/)).toBeNull();
+  });
+});
+
+describe("confirming who is there", () => {
+  it("asks for the password while there is no factor", async () => {
+    let confirmed = false;
+    let body: unknown = null;
+    server.use(
+      http.get(api(BASE), () => HttpResponse.json(status([], confirmed))),
+      http.post(api(`${BASE}/confirm`), async ({ request }) => {
+        body = await request.json();
+        confirmed = true;
+        return HttpResponse.json({ elevated_until: SOON() });
+      }),
+    );
+    const { user } = renderRoute("/kompass/security");
+    await user.type(await screen.findByLabelText(/Dein Passwort/), "geheim");
+    // Nothing to change before.
+    expect(screen.queryByRole("button", { name: "Faktor hinzufügen" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(body).toEqual({ password: "geheim" }));
+    expect(await screen.findByRole("button", { name: "Faktor hinzufügen" })).toBeInTheDocument();
+    expect(screen.getByText("Du hast noch keinen zweiten Faktor eingerichtet.")).toBeInTheDocument();
+  });
+
+  it("asks for a second factor, not the password, once there is one", async () => {
+    let confirmed = false;
+    const bodies: unknown[] = [];
+    server.use(
+      http.get(api(BASE), () => HttpResponse.json(status([APP], confirmed))),
+      http.post(api(`${BASE}/confirm`), async ({ request }) => {
+        bodies.push(await request.json());
+        if (bodies.length === 1) return refused("__all__", "Das hat nicht geklappt.");
+        confirmed = true;
+        return HttpResponse.json({ elevated_until: SOON() });
+      }),
+    );
+    const { user } = renderRoute("/kompass/security");
+    await user.type(await screen.findByLabelText(/Code aus deiner Authenticator-App/), "000000");
+    expect(screen.queryByLabelText(/Dein Passwort/)).toBeNull();
+    // No security key to offer.
+    expect(screen.queryByRole("button", { name: "Mit Sicherheitsschlüssel bestätigen" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Bestätigen" }));
+    expect(await screen.findByText("Das hat nicht geklappt.")).toBeInTheDocument();
+
+    await user.click(screen.getByText("Wiederherstellungscode verwenden"));
+    await user.type(screen.getByLabelText(/^Wiederherstellungscode/), "abcd-efgh");
+    await user.click(screen.getByRole("button", { name: "Mit Code bestätigen" }));
+    expect(await screen.findByText("Handy")).toBeInTheDocument();
+    expect(bodies).toEqual([{ code: "000000" }, { recovery_code: "abcd-efgh" }]);
+  });
+
+  it("confirms with a security key", async () => {
+    let confirmed = false;
+    let body: Record<string, unknown> | null = null;
+    const get = vi.fn().mockResolvedValue({
+      id: "a2V5",
+      rawId: bytes("key"),
+      type: "public-key",
+      response: {
+        clientDataJSON: bytes("client"),
+        authenticatorData: bytes("auth"),
+        signature: bytes("sig"),
+        userHandle: bytes("2"),
+      },
+      getClientExtensionResults: () => ({}),
+    });
+    stubWebAuthn({ get });
+    server.use(
+      http.get(api(BASE), () => HttpResponse.json(status([PASSKEY], confirmed))),
+      http.post(api(`${BASE}/confirm/options`), () =>
+        HttpResponse.json({
+          options: { challenge: "Y2hhbGxlbmdl", allowCredentials: [{ id: "a2V5", type: "public-key" }] },
+          state: "confirm-state",
+        }),
+      ),
+      http.post(api(`${BASE}/confirm`), async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        confirmed = true;
+        return HttpResponse.json({ elevated_until: SOON() });
+      }),
+    );
+    const { user } = renderRoute("/kompass/security");
+    await user.click(await screen.findByRole("button", { name: "Mit Sicherheitsschlüssel bestätigen" }));
+    expect(await screen.findByText("YubiKey")).toBeInTheDocument();
+    const publicKey = get.mock.calls[0][0].publicKey;
+    expect(new TextDecoder().decode(publicKey.challenge)).toBe("challenge");
+    expect(new TextDecoder().decode(publicKey.allowCredentials[0].id)).toBe("key");
+    expect(body).toEqual({
+      state: "confirm-state",
+      credential: {
+        id: "a2V5",
+        rawId: "a2V5",
+        type: "public-key",
+        response: {
+          clientDataJSON: "Y2xpZW50",
+          authenticatorData: "YXV0aA",
+          signature: "c2ln",
+          userHandle: "Mg",
+        },
+        clientExtensionResults: {},
+      },
+    });
+  });
+
+  it("says so when the key does not answer", async () => {
+    stubWebAuthn({ get: vi.fn().mockResolvedValue(null) });
+    statusReturns([PASSKEY], false);
+    server.use(
+      http.post(api(`${BASE}/confirm/options`), () =>
+        HttpResponse.json({ options: { challenge: "Y2hhbGxlbmdl" }, state: "s" }),
+      ),
+    );
+    const { user } = renderRoute("/kompass/security");
+    await user.click(await screen.findByRole("button", { name: "Mit Sicherheitsschlüssel bestätigen" }));
+    expect(await screen.findByText("Der Sicherheitsschlüssel hat nicht geantwortet.")).toBeInTheDocument();
+  });
+
+  it("asks again once the confirmation ran out", async () => {
+    statusReturns([APP], true, { elevated_until: new Date(Date.now() - 1000).toISOString() });
+    renderRoute("/kompass/security");
+    expect(await screen.findByLabelText(/Code aus deiner Authenticator-App/)).toBeInTheDocument();
+    expect(screen.queryByText("Handy")).toBeNull();
+  });
+
+  it("asks again when a change is refused for want of one", async () => {
+    let confirmed = true;
+    server.use(
+      http.get(api(BASE), () => HttpResponse.json(status([APP], confirmed))),
+      http.post(api(`${BASE}/totp/1/remove`), () => {
+        confirmed = false;
+        return HttpResponse.json(
+          { detail: "Bitte bestätige zuerst, dass du es bist.", displayable: true },
+          { status: 403 },
+        );
+      }),
+    );
+    const { user } = renderRoute("/kompass/security");
+    await user.click(await screen.findByRole("button", { name: "Entfernen" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.click(dialog.getByRole("button", { name: "Entfernen" }));
+    expect(await screen.findByLabelText(/Code aus deiner Authenticator-App/)).toBeInTheDocument();
+  });
+});
+
+describe("managing factors once confirmed", () => {
   it("offers a security key only where the browser can use one", async () => {
     statusReturns();
     const { user } = renderRoute("/kompass/security");
@@ -78,20 +241,13 @@ describe("two-factor authentication", () => {
     expect(dialog.queryByRole("button", { name: "Sicherheitsschlüssel" })).toBeNull();
   });
 
-  it("says who manages the factors where an identity provider signs in", async () => {
-    statusReturns([], { available: false });
-    renderRoute("/kompass/security");
-    expect(await screen.findByText(/verwaltet euer Identitätsanbieter/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Faktor hinzufügen" })).toBeNull();
-  });
-
   it("adds an authenticator app and shows the recovery codes once", async () => {
     statusReturns();
-    let setupBody: unknown = null;
+    let started = false;
     let confirmBody: unknown = null;
     server.use(
-      http.post(api(`${BASE}/totp/setup`), async ({ request }) => {
-        setupBody = await request.json();
+      http.post(api(`${BASE}/totp/setup`), () => {
+        started = true;
         return HttpResponse.json({
           secret: "JBSWY3DPEHPK3PXP",
           uri: "otpauth://totp/Kompass:hannah?secret=JBSWY3DPEHPK3PXP&issuer=Kompass",
@@ -107,14 +263,14 @@ describe("two-factor authentication", () => {
     await chooseFactor(user, "Authenticator-App");
 
     let dialog = within(await screen.findByRole("dialog"));
-    await user.type(dialog.getByLabelText(/Dein Passwort/), "geheim");
+    expect(dialog.queryByLabelText(/Passwort/)).toBeNull();
+    await user.clear(dialog.getByLabelText(/Name/));
+    await user.type(dialog.getByLabelText(/Name/), "Handy");
     await user.click(dialog.getByRole("button", { name: "Weiter" }));
-    await waitFor(() => expect(setupBody).toEqual({ password: "geheim" }));
+    await waitFor(() => expect(started).toBe(true));
 
     expect(await dialog.findByText("JBSWY3DPEHPK3PXP")).toBeInTheDocument();
     expect(dialog.getByLabelText("QR-Code für die Authenticator-App")).toBeInTheDocument();
-    await user.clear(dialog.getByLabelText(/Name/));
-    await user.type(dialog.getByLabelText(/Name/), "Handy");
     await user.type(dialog.getByLabelText(/Code aus der App/), "123456");
     await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
     await waitFor(() =>
@@ -130,28 +286,17 @@ describe("two-factor authentication", () => {
     expect(screen.queryByText(CODES[0])).toBeNull();
   });
 
-  it("shows a wrong password and a wrong code on their fields", async () => {
+  it("shows a wrong code on its field", async () => {
     statusReturns();
-    let attempts = 0;
     server.use(
       http.post(api(`${BASE}/totp/setup`), () =>
-        attempts++ === 0
-          ? wrongPassword()
-          : HttpResponse.json({ secret: "JBSWY3DPEHPK3PXP", uri: "otpauth://totp/x", state: "s" }),
+        HttpResponse.json({ secret: "JBSWY3DPEHPK3PXP", uri: "otpauth://totp/x", state: "s" }),
       ),
-      http.post(api(`${BASE}/totp`), () =>
-        HttpResponse.json(
-          { detail: ["Der Code ist nicht korrekt."], errors: { code: ["Der Code ist nicht korrekt."] } },
-          { status: 422 },
-        ),
-      ),
+      http.post(api(`${BASE}/totp`), () => refused("code", "Der Code ist nicht korrekt.")),
     );
     const { user } = renderRoute("/kompass/security");
     await chooseFactor(user, "Authenticator-App");
     const dialog = within(await screen.findByRole("dialog"));
-    await user.type(dialog.getByLabelText(/Dein Passwort/), "falsch");
-    await user.click(dialog.getByRole("button", { name: "Weiter" }));
-    expect(await dialog.findByText("Das Passwort ist nicht korrekt.")).toBeInTheDocument();
     await user.click(dialog.getByRole("button", { name: "Weiter" }));
     await user.type(await dialog.findByLabelText(/Code aus der App/), "000000");
     await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
@@ -160,7 +305,6 @@ describe("two-factor authentication", () => {
 
   it("registers a security key through the browser", async () => {
     statusReturns([APP]);
-    const bytes = (s: string) => new TextEncoder().encode(s).buffer;
     const create = vi.fn().mockResolvedValue({
       id: "a2V5",
       rawId: bytes("key"),
@@ -172,8 +316,7 @@ describe("two-factor authentication", () => {
       },
       getClientExtensionResults: () => ({ credProps: { rk: true } }),
     });
-    vi.stubGlobal("PublicKeyCredential", function PublicKeyCredential() {});
-    Object.defineProperty(navigator, "credentials", { value: { create }, configurable: true });
+    stubWebAuthn({ create });
     let confirmBody: Record<string, unknown> | null = null;
     server.use(
       http.post(api(`${BASE}/webauthn/setup`), () =>
@@ -195,9 +338,9 @@ describe("two-factor authentication", () => {
     const { user } = renderRoute("/kompass/security");
     await chooseFactor(user, "Sicherheitsschlüssel");
     const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.queryByLabelText(/Passwort/)).toBeNull();
     await user.clear(dialog.getByLabelText(/Name/));
     await user.type(dialog.getByLabelText(/Name/), "YubiKey");
-    await user.type(dialog.getByLabelText(/Dein Passwort/), "geheim");
     await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
 
     await waitFor(() => expect(confirmBody).not.toBeNull());
@@ -220,25 +363,17 @@ describe("two-factor authentication", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("says so when the key does not answer", async () => {
+  it("says so when the key does not answer at registration", async () => {
     statusReturns();
-    vi.stubGlobal("PublicKeyCredential", function PublicKeyCredential() {});
-    Object.defineProperty(navigator, "credentials", {
-      value: { create: vi.fn().mockResolvedValue(null) },
-      configurable: true,
-    });
+    stubWebAuthn({ create: vi.fn().mockResolvedValue(null) });
     server.use(
       http.post(api(`${BASE}/webauthn/setup`), () =>
-        HttpResponse.json({
-          options: { user: { id: "Mg" }, challenge: "Y2hhbGxlbmdl" },
-          state: "key-state",
-        }),
+        HttpResponse.json({ options: { user: { id: "Mg" }, challenge: "Y2hhbGxlbmdl" }, state: "s" }),
       ),
     );
     const { user } = renderRoute("/kompass/security");
     await chooseFactor(user, "Sicherheitsschlüssel");
     const dialog = within(await screen.findByRole("dialog"));
-    await user.type(dialog.getByLabelText(/Dein Passwort/), "geheim");
     await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
     expect(await screen.findByText("Der Sicherheitsschlüssel hat nicht geantwortet.")).toBeInTheDocument();
   });
@@ -246,14 +381,14 @@ describe("two-factor authentication", () => {
   it("lists, renames and removes factors", async () => {
     statusReturns([APP, PASSKEY]);
     let renamed: unknown = null;
-    let removed: unknown = null;
+    let removed = false;
     server.use(
       http.patch(api(`${BASE}/webauthn/4`), async ({ request }) => {
         renamed = await request.json();
         return HttpResponse.json({ ...PASSKEY, name: "Schlüsselbund" });
       }),
-      http.post(api(`${BASE}/totp/1/remove`), async ({ request }) => {
-        removed = await request.json();
+      http.post(api(`${BASE}/totp/1/remove`), () => {
+        removed = true;
         return new HttpResponse(null, { status: 204 });
       }),
     );
@@ -265,7 +400,7 @@ describe("two-factor authentication", () => {
 
     const keyRow = within(screen.getByText("YubiKey").closest("tr") as HTMLElement);
     await user.click(keyRow.getByRole("button", { name: "Umbenennen" }));
-    let dialog = within(await screen.findByRole("dialog"));
+    const dialog = within(await screen.findByRole("dialog"));
     await user.clear(dialog.getByLabelText(/Name/));
     await user.type(dialog.getByLabelText(/Name/), "Schlüsselbund");
     await user.click(dialog.getByRole("button", { name: "Speichern" }));
@@ -274,54 +409,31 @@ describe("two-factor authentication", () => {
 
     const appRow = within(screen.getByText("Handy").closest("tr") as HTMLElement);
     await user.click(appRow.getByRole("button", { name: "Entfernen" }));
-    dialog = within(await screen.findByRole("dialog", { name: "„Handy“ entfernen" }));
-    await user.type(dialog.getByLabelText(/Dein Passwort/), "geheim");
-    await user.click(dialog.getByRole("button", { name: "Entfernen" }));
-    await waitFor(() => expect(removed).toEqual({ password: "geheim" }));
+    const confirm = within(await screen.findByRole("dialog"));
+    expect(confirm.getByText(/„Handy“ entfernen\?/)).toBeInTheDocument();
+    await user.click(confirm.getByRole("button", { name: "Entfernen" }));
+    await waitFor(() => expect(removed).toBe(true));
     expect(await screen.findByText("Entfernt.")).toBeInTheDocument();
   });
 
-  it("shows a rename or removal that was refused", async () => {
+  it("shows a rename that was refused", async () => {
     statusReturns([APP]);
-    server.use(
-      http.patch(api(`${BASE}/totp/1`), () =>
-        HttpResponse.json(
-          { detail: ["Gib einen Namen an."], errors: { name: ["Gib einen Namen an."] } },
-          { status: 422 },
-        ),
-      ),
-      http.post(api(`${BASE}/totp/1/remove`), wrongPassword),
-    );
+    server.use(http.patch(api(`${BASE}/totp/1`), () => refused("name", "Gib einen Namen an.")));
     const { user } = renderRoute("/kompass/security");
     await user.click(await screen.findByRole("button", { name: "Umbenennen" }));
-    let dialog = within(await screen.findByRole("dialog"));
+    const dialog = within(await screen.findByRole("dialog"));
     await user.click(dialog.getByRole("button", { name: "Speichern" }));
     expect(await dialog.findByText("Gib einen Namen an.")).toBeInTheDocument();
-    await user.click(dialog.getByRole("button", { name: "Schließen" }));
-
-    await user.click(screen.getByRole("button", { name: "Entfernen" }));
-    dialog = within(await screen.findByRole("dialog"));
-    await user.type(dialog.getByLabelText(/Dein Passwort/), "falsch");
-    await user.click(dialog.getByRole("button", { name: "Entfernen" }));
-    expect(await dialog.findByText("Das Passwort ist nicht korrekt.")).toBeInTheDocument();
   });
 
   it("replaces the recovery codes", async () => {
     statusReturns([APP]);
-    let attempts = 0;
-    server.use(
-      http.post(api(`${BASE}/recovery-codes`), () =>
-        attempts++ === 0 ? wrongPassword() : HttpResponse.json({ codes: CODES }),
-      ),
-    );
+    server.use(http.post(api(`${BASE}/recovery-codes`), () => HttpResponse.json({ codes: CODES })));
     const { user } = renderRoute("/kompass/security");
     expect(await screen.findByText("8")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Neue Codes erzeugen" }));
-    const dialog = within(await screen.findByRole("dialog"));
-    await user.type(dialog.getByLabelText(/Dein Passwort/), "geheim");
-    await user.click(dialog.getByRole("button", { name: "Erzeugen" }));
-    expect(await dialog.findByText("Das Passwort ist nicht korrekt.")).toBeInTheDocument();
-    await user.click(dialog.getByRole("button", { name: "Erzeugen" }));
+    const confirm = within(await screen.findByRole("dialog"));
+    await user.click(confirm.getByRole("button", { name: "Erzeugen" }));
     const shown = within(await screen.findByRole("dialog", { name: "Deine Wiederherstellungscodes" }));
     expect(shown.getByText(CODES[9])).toBeInTheDocument();
   });

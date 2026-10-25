@@ -1,4 +1,5 @@
-import { lazy, Suspense, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { lazy, Suspense, useEffect, useState } from "react";
 
 import { ApiError, client, unwrap } from "../../api/http";
 import { ChunkBoundary } from "../../components/ChunkBoundary";
@@ -14,10 +15,11 @@ import {
   QueryBoundary,
   Spinner,
   formatDate,
+  useConfirmDialog,
   useToast,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
-import { createCredential, webauthnSupported } from "./webauthn";
+import { createCredential, getCredential, webauthnSupported } from "./webauthn";
 
 type TwoFactorStatus = components["schemas"]["TwoFactorStatus"];
 type FactorOut = components["schemas"]["FactorOut"];
@@ -46,16 +48,48 @@ function FieldError({ errors }: { errors?: string[] }) {
 }
 
 /**
+ * Report a failed change; a refusal (403) means the confirmation ran out, so
+ * the status is fetched again and the page asks for it anew.
+ */
+function useFail(setErrors?: (e: Record<string, string[]>) => void) {
+  const toast = useToast();
+  const qc = useQueryClient();
+  return (e: Error) => {
+    setErrors?.(errorsOf(e));
+    toast.error(e.message);
+    if (e instanceof ApiError && e.status === 403) qc.invalidateQueries({ queryKey: STATUS_KEY });
+  };
+}
+
+function isElevated(status: TwoFactorStatus): boolean {
+  return !!status.elevated_until && new Date(status.elevated_until) > new Date();
+}
+
+/**
  * The signed-in user's second factors: authenticator apps, security keys and
- * the recovery codes for when neither is at hand. Adding or removing a factor
- * and replacing the recovery codes ask for the password again.
+ * the recovery codes for when neither is at hand. The page first asks who is
+ * there — with a second factor, or the password while there is none — and
+ * then allows changes for ten minutes before asking again.
  */
 export function TwoFactorPage() {
   const query = useApiQuery(STATUS_KEY, () => unwrap(client.GET("/api/logindata/two-factor")));
+  const qc = useQueryClient();
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const close = () => setDialog(null);
   const added = (result: FactorAdded) =>
     setDialog(result.recovery_codes.length ? { kind: "codes", codes: result.recovery_codes } : null);
+  const elevated = !!query.data && query.data.available && isElevated(query.data);
+
+  // When the confirmation runs out, fetch the status again: the page then asks anew.
+  const until = query.data?.elevated_until;
+  useEffect(() => {
+    if (!until) return;
+    const timer = setTimeout(
+      () => qc.invalidateQueries({ queryKey: STATUS_KEY }),
+      Math.max(new Date(until).getTime() - Date.now(), 0) + 500,
+    );
+    return () => clearTimeout(timer);
+  }, [until, qc]);
 
   return (
     <div>
@@ -63,9 +97,7 @@ export function TwoFactorPage() {
         breadcrumbs={[{ label: "Zwei-Faktor-Authentifizierung" }]}
         subtitle="Schützt dein Konto, auch wenn jemand dein Passwort kennt."
         actions={
-          query.data?.available && (
-            <Button onClick={() => setDialog({ kind: "choose" })}>Faktor hinzufügen</Button>
-          )
+          elevated && <Button onClick={() => setDialog({ kind: "choose" })}>Faktor hinzufügen</Button>
         }
       />
       <p className="fieldset-help">
@@ -76,22 +108,24 @@ export function TwoFactorPage() {
       </p>
       <QueryBoundary query={query}>
         {(status: TwoFactorStatus) =>
-          status.available ? (
-            <TwoFactorBody status={status} onDialog={setDialog} />
-          ) : (
+          !status.available ? (
             <EmptyState>
               Die Anmeldung und ihre Faktoren verwaltet euer Identitätsanbieter, nicht Kompass.
             </EmptyState>
+          ) : isElevated(status) ? (
+            <TwoFactorBody status={status} onDialog={setDialog} />
+          ) : (
+            <ConfirmStep status={status} />
           )
         }
       </QueryBoundary>
-      {dialog?.kind === "choose" && <ChooseFactorModal onClose={close} onChoose={setDialog} />}
-      {dialog?.kind === "totp" && <AddTotpModal onClose={close} onAdded={added} />}
-      {dialog?.kind === "key" && <AddKeyModal onClose={close} onAdded={added} />}
-      {dialog?.kind === "rename" && <RenameModal factor={dialog.factor} onClose={close} />}
-      {dialog?.kind === "remove" && <RemoveModal factor={dialog.factor} onClose={close} />}
-      {dialog?.kind === "regenerate" && (
-        <RegenerateModal onClose={close} onCodes={(codes) => setDialog({ kind: "codes", codes })} />
+      {elevated && (
+        <>
+          {dialog?.kind === "choose" && <ChooseFactorModal onClose={close} onChoose={setDialog} />}
+          {dialog?.kind === "totp" && <AddTotpModal onClose={close} onAdded={added} />}
+          {dialog?.kind === "key" && <AddKeyModal onClose={close} onAdded={added} />}
+          {dialog?.kind === "rename" && <RenameModal factor={dialog.factor} onClose={close} />}
+        </>
       )}
       {dialog?.kind === "codes" && <RecoveryCodesModal codes={dialog.codes} onClose={close} />}
     </div>
@@ -103,9 +137,128 @@ type Dialog =
   | { kind: "totp" }
   | { kind: "key" }
   | { kind: "rename"; factor: FactorOut }
-  | { kind: "remove"; factor: FactorOut }
-  | { kind: "regenerate" }
   | { kind: "codes"; codes: string[] };
+
+/**
+ * Confirm who is there before the factors are shown: with a second factor where
+ * there is one, otherwise with the password.
+ */
+function ConfirmStep({ status }: { status: TwoFactorStatus }) {
+  const toast = useToast();
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const confirm = useApiMutation(
+    (body: components["schemas"]["ConfirmIn"]) =>
+      unwrap(client.POST("/api/logindata/two-factor/confirm", { body })),
+    { invalidate: [STATUS_KEY], onError: (e: Error) => toast.error(e.message) },
+  );
+  const withKey = useApiMutation(
+    async () => {
+      const { options, state } = await unwrap(
+        client.POST("/api/logindata/two-factor/confirm/options"),
+      );
+      const credential = await getCredential(options);
+      return unwrap(
+        client.POST("/api/logindata/two-factor/confirm", { body: { credential, state } }),
+      );
+    },
+    {
+      invalidate: [STATUS_KEY],
+      onError: (e: Error) =>
+        toast.error(e instanceof ApiError ? e.message : "Der Sicherheitsschlüssel hat nicht geantwortet."),
+    },
+  );
+
+  if (!status.enabled) {
+    return (
+      <form
+        className="stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          confirm.mutate({ password });
+        }}
+      >
+        <p>Bitte bestätige mit deinem Passwort, dass du es bist.</p>
+        <Field label="Dein Passwort *">
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </Field>
+        <div className="row-actions">
+          <Button type="submit" busy={confirm.isPending}>
+            Bestätigen
+          </Button>
+        </div>
+      </form>
+    );
+  }
+  return (
+    <div className="stack">
+      <p>Bitte bestätige mit deinem zweiten Faktor, dass du es bist.</p>
+      {status.has_webauthn && webauthnSupported() && (
+        <div className="row-actions">
+          <Button type="button" busy={withKey.isPending} onClick={() => withKey.mutate(undefined)}>
+            Mit Sicherheitsschlüssel bestätigen
+          </Button>
+        </div>
+      )}
+      {status.has_totp && (
+        <form
+          className="stack"
+          onSubmit={(e) => {
+            e.preventDefault();
+            confirm.mutate({ code });
+          }}
+        >
+          <Field label="Code aus deiner Authenticator-App *">
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+            />
+          </Field>
+          <div className="row-actions">
+            <Button type="submit" busy={confirm.isPending}>
+              Bestätigen
+            </Button>
+          </div>
+        </form>
+      )}
+      <details>
+        <summary>Wiederherstellungscode verwenden</summary>
+        <form
+          className="stack"
+          onSubmit={(e) => {
+            e.preventDefault();
+            confirm.mutate({ recovery_code: recoveryCode });
+          }}
+        >
+          <Field label="Wiederherstellungscode *">
+            <input
+              value={recoveryCode}
+              onChange={(e) => setRecoveryCode(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              required
+            />
+          </Field>
+          <div className="row-actions">
+            <Button type="submit" variant="ghost" busy={confirm.isPending}>
+              Mit Code bestätigen
+            </Button>
+          </div>
+        </form>
+      </details>
+    </div>
+  );
+}
 
 function TwoFactorBody({
   status,
@@ -114,6 +267,27 @@ function TwoFactorBody({
   status: TwoFactorStatus;
   onDialog: (d: Dialog) => void;
 }) {
+  const toast = useToast();
+  const confirm = useConfirmDialog();
+  const fail = useFail();
+  const remove = useApiMutation(
+    (factor: FactorOut) =>
+      unwrap(
+        client.POST("/api/logindata/two-factor/{kind}/{factor_id}/remove", {
+          params: { path: { kind: factor.kind, factor_id: factor.id } },
+        }),
+      ),
+    { invalidate: [STATUS_KEY], onSuccess: () => toast.success("Entfernt."), onError: fail },
+  );
+  const regenerate = useApiMutation(
+    () => unwrap(client.POST("/api/logindata/two-factor/recovery-codes")),
+    {
+      invalidate: [STATUS_KEY],
+      onSuccess: (r) => onDialog({ kind: "codes", codes: r.codes }),
+      onError: fail,
+    },
+  );
+
   if (status.factors.length === 0) {
     return <EmptyState>Du hast noch keinen zweiten Faktor eingerichtet.</EmptyState>;
   }
@@ -137,7 +311,20 @@ function TwoFactorBody({
                 <Button type="button" variant="ghost" onClick={() => onDialog({ kind: "rename", factor: f })}>
                   Umbenennen
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => onDialog({ kind: "remove", factor: f })}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        message: `„${f.name}“ entfernen? Danach meldest du dich nicht mehr damit an. Ist es dein letzter zweiter Faktor, verfallen auch deine Wiederherstellungscodes.`,
+                        danger: true,
+                        confirmLabel: "Entfernen",
+                      })
+                    )
+                      remove.mutate(f);
+                  }}
+                >
                   Entfernen
                 </Button>
               </div>
@@ -152,7 +339,20 @@ function TwoFactorBody({
         unbenutzte Codes.
       </p>
       <div className="row-actions">
-        <Button type="button" variant="ghost" onClick={() => onDialog({ kind: "regenerate" })}>
+        <Button
+          type="button"
+          variant="ghost"
+          busy={regenerate.isPending}
+          onClick={async () => {
+            if (
+              await confirm({
+                message: "Neue Codes erzeugen? Sie ersetzen alle bisherigen; die alten gelten danach nicht mehr.",
+                confirmLabel: "Erzeugen",
+              })
+            )
+              regenerate.mutate(undefined);
+          }}
+        >
           Neue Codes erzeugen
         </Button>
       </div>
@@ -191,43 +391,16 @@ function ChooseFactorModal({ onClose, onChoose }: { onClose: () => void; onChoos
   );
 }
 
-function PasswordField({
-  value,
-  onChange,
-  errors,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  errors?: string[];
-}) {
-  return (
-    <Field label="Dein Passwort *" hint="Zur Bestätigung, dass du es bist.">
-      <input
-        type="password"
-        autoComplete="current-password"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        required
-      />
-      <FieldError errors={errors} />
-    </Field>
-  );
-}
-
 function AddTotpModal({ onClose, onAdded }: { onClose: () => void; onAdded: (r: FactorAdded) => void }) {
   const toast = useToast();
-  const [password, setPassword] = useState("");
   const [setup, setSetup] = useState<TOTPSetup | null>(null);
   const [name, setName] = useState("Authenticator-App");
   const [code, setCode] = useState("");
   const [errors, setErrors] = useState<Record<string, string[]>>({});
-  const fail = (e: Error) => {
-    setErrors(errorsOf(e));
-    toast.error(e.message);
-  };
+  const fail = useFail(setErrors);
 
   const start = useApiMutation(
-    () => unwrap(client.POST("/api/logindata/two-factor/totp/setup", { body: { password } })),
+    () => unwrap(client.POST("/api/logindata/two-factor/totp/setup")),
     { onSuccess: (s: TOTPSetup) => setSetup(s), onError: fail },
   );
   const confirm = useApiMutation(
@@ -258,7 +431,9 @@ function AddTotpModal({ onClose, onAdded }: { onClose: () => void; onAdded: (r: 
             start.mutate(undefined);
           }}
         >
-          <PasswordField value={password} onChange={setPassword} errors={errors.password} />
+          <Field label="Name *" hint="Damit du die App später wiedererkennst.">
+            <input value={name} onChange={(e) => setName(e.target.value)} required />
+          </Field>
           <div className="row-actions">
             <Button type="submit" busy={start.isPending}>
               Weiter
@@ -283,10 +458,7 @@ function AddTotpModal({ onClose, onAdded }: { onClose: () => void; onAdded: (r: 
             </ChunkBoundary>
           </div>
           <code className="token-secret">{setup.secret}</code>
-          <Field label="Name *" hint="Damit du die App später wiedererkennst.">
-            <input value={name} onChange={(e) => setName(e.target.value)} required />
-            <FieldError errors={errors.name} />
-          </Field>
+          <FieldError errors={errors.name} />
           <Field label="Code aus der App *">
             <input
               value={code}
@@ -310,15 +482,13 @@ function AddTotpModal({ onClose, onAdded }: { onClose: () => void; onAdded: (r: 
 
 function AddKeyModal({ onClose, onAdded }: { onClose: () => void; onAdded: (r: FactorAdded) => void }) {
   const toast = useToast();
-  const [password, setPassword] = useState("");
   const [name, setName] = useState("Sicherheitsschlüssel");
   const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const fail = useFail(setErrors);
 
   const add = useApiMutation(
     async () => {
-      const setup = await unwrap(
-        client.POST("/api/logindata/two-factor/webauthn/setup", { body: { password } }),
-      );
+      const setup = await unwrap(client.POST("/api/logindata/two-factor/webauthn/setup"));
       const credential = await createCredential(setup.options);
       return unwrap(
         client.POST("/api/logindata/two-factor/webauthn", {
@@ -332,11 +502,9 @@ function AddKeyModal({ onClose, onAdded }: { onClose: () => void; onAdded: (r: F
         toast.success("Sicherheitsschlüssel hinzugefügt.");
         onAdded(r);
       },
-      onError: (e: Error) => {
-        setErrors(errorsOf(e));
+      onError: (e: Error) =>
         // The browser's own errors (cancelled, timed out) are not for reading.
-        toast.error(e instanceof ApiError ? e.message : "Der Sicherheitsschlüssel hat nicht geantwortet.");
-      },
+        fail(e instanceof ApiError ? e : new Error("Der Sicherheitsschlüssel hat nicht geantwortet.")),
     },
   );
 
@@ -354,7 +522,6 @@ function AddKeyModal({ onClose, onAdded }: { onClose: () => void; onAdded: (r: F
           <input value={name} onChange={(e) => setName(e.target.value)} required />
           <FieldError errors={errors.name} />
         </Field>
-        <PasswordField value={password} onChange={setPassword} errors={errors.password} />
         <p className="muted small">
           Nach „Hinzufügen“ fragt dein Browser nach dem Schlüssel. Kann er dich selbst prüfen (PIN,
           Fingerabdruck), meldet er dich künftig auch ohne Passwort an.
@@ -373,6 +540,7 @@ function RenameModal({ factor, onClose }: { factor: FactorOut; onClose: () => vo
   const toast = useToast();
   const [name, setName] = useState(factor.name);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const fail = useFail(setErrors);
   const rename = useApiMutation(
     () =>
       unwrap(
@@ -387,10 +555,7 @@ function RenameModal({ factor, onClose }: { factor: FactorOut; onClose: () => vo
         toast.success("Umbenannt.");
         onClose();
       },
-      onError: (e: Error) => {
-        setErrors(errorsOf(e));
-        toast.error(e.message);
-      },
+      onError: fail,
     },
   );
   return (
@@ -409,92 +574,6 @@ function RenameModal({ factor, onClose }: { factor: FactorOut; onClose: () => vo
         <div className="row-actions">
           <Button type="submit" busy={rename.isPending}>
             Speichern
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function RemoveModal({ factor, onClose }: { factor: FactorOut; onClose: () => void }) {
-  const toast = useToast();
-  const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
-  const remove = useApiMutation(
-    () =>
-      unwrap(
-        client.POST("/api/logindata/two-factor/{kind}/{factor_id}/remove", {
-          params: { path: { kind: factor.kind, factor_id: factor.id } },
-          body: { password },
-        }),
-      ),
-    {
-      invalidate: [STATUS_KEY],
-      onSuccess: () => {
-        toast.success("Entfernt.");
-        onClose();
-      },
-      onError: (e: Error) => {
-        setErrors(errorsOf(e));
-        toast.error(e.message);
-      },
-    },
-  );
-  return (
-    <Modal title={`„${factor.name}“ entfernen`} onClose={onClose} size="sm">
-      <form
-        className="stack"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setErrors({});
-          remove.mutate(undefined);
-        }}
-      >
-        <p>
-          Danach meldest du dich nicht mehr damit an. Ist es dein letzter zweiter Faktor, verfallen
-          auch deine Wiederherstellungscodes.
-        </p>
-        <PasswordField value={password} onChange={setPassword} errors={errors.password} />
-        <div className="row-actions">
-          <Button type="submit" variant="danger" busy={remove.isPending}>
-            Entfernen
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function RegenerateModal({ onClose, onCodes }: { onClose: () => void; onCodes: (c: string[]) => void }) {
-  const toast = useToast();
-  const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
-  const regenerate = useApiMutation(
-    () => unwrap(client.POST("/api/logindata/two-factor/recovery-codes", { body: { password } })),
-    {
-      invalidate: [STATUS_KEY],
-      onSuccess: (r) => onCodes(r.codes),
-      onError: (e: Error) => {
-        setErrors(errorsOf(e));
-        toast.error(e.message);
-      },
-    },
-  );
-  return (
-    <Modal title="Neue Wiederherstellungscodes" onClose={onClose} size="sm">
-      <form
-        className="stack"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setErrors({});
-          regenerate.mutate(undefined);
-        }}
-      >
-        <p>Die neuen Codes ersetzen alle bisherigen; die alten gelten danach nicht mehr.</p>
-        <PasswordField value={password} onChange={setPassword} errors={errors.password} />
-        <div className="row-actions">
-          <Button type="submit" busy={regenerate.isPending}>
-            Erzeugen
           </Button>
         </div>
       </form>

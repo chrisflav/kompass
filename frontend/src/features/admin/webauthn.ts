@@ -1,5 +1,5 @@
 /**
- * The browser half of registering a security key. The server sends the
+ * The browser half of registering and using a security key. The server sends the
  * creation options as JSON with base64url strings where the WebAuthn API takes
  * binary buffers, and verifies the answer as JSON again; this converts both
  * ways and checks nothing itself.
@@ -47,6 +47,31 @@ export async function createCredential(options: Json): Promise<Json> {
       clientDataJSON: toBase64url(response.clientDataJSON),
       attestationObject: toBase64url(response.attestationObject),
       transports: response.getTransports?.() ?? [],
+    },
+    clientExtensionResults: credential.getClientExtensionResults(),
+  };
+}
+
+/** Run `navigator.credentials.get` with the server's options; the answer as JSON. */
+export async function getCredential(options: Json): Promise<Json> {
+  const allow = (options.allowCredentials as Json[] | undefined) ?? [];
+  const publicKey = {
+    ...options,
+    challenge: toBytes(options.challenge as string),
+    allowCredentials: allow.map((c) => ({ ...c, id: toBytes(c.id as string) })),
+  } as unknown as PublicKeyCredentialRequestOptions;
+  const credential = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential | null;
+  if (!credential) throw new Error("Der Sicherheitsschlüssel hat nicht geantwortet.");
+  const response = credential.response as AuthenticatorAssertionResponse;
+  return {
+    id: credential.id,
+    rawId: toBase64url(credential.rawId),
+    type: credential.type,
+    response: {
+      clientDataJSON: toBase64url(response.clientDataJSON),
+      authenticatorData: toBase64url(response.authenticatorData),
+      signature: toBase64url(response.signature),
+      userHandle: response.userHandle ? toBase64url(response.userHandle) : null,
     },
     clientExtensionResults: credential.getClientExtensionResults(),
   };

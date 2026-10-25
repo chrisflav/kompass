@@ -12164,10 +12164,76 @@
             }
           }
         },
-        "description": "The requesting user's second factors.",
+        "description": "What the requesting user can confirm with, and their factors once confirmed.",
         "tags": [
           "logindata"
         ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/two-factor/confirm/options": {
+      "post": {
+        "operationId": "logindata_api_two_factor_router_confirm_options",
+        "summary": "Confirm Options",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmOptions"
+                }
+              }
+            }
+          }
+        },
+        "description": "Request options for confirming with one of the user's security keys.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/two-factor/confirm": {
+      "post": {
+        "operationId": "logindata_api_two_factor_router_confirm",
+        "summary": "Confirm",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Elevated"
+                }
+              }
+            }
+          }
+        },
+        "description": "Confirm who is signed in; the sign-in may then manage factors for ten minutes.",
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmIn"
+              }
+            }
+          },
+          "required": true
+        },
         "security": [
           {
             "OAuth2Bearer": []
@@ -12192,20 +12258,10 @@
             }
           }
         },
-        "description": "Start adding an authenticator app: check the password, hand out a secret.",
+        "description": "Start adding an authenticator app: hand out a new secret.",
         "tags": [
           "logindata"
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PasswordIn"
-              }
-            }
-          },
-          "required": true
-        },
         "security": [
           {
             "OAuth2Bearer": []
@@ -12268,20 +12324,10 @@
             }
           }
         },
-        "description": "Start adding a security key: check the password, hand out the creation options.",
+        "description": "Start adding a security key: hand out the creation options.",
         "tags": [
           "logindata"
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PasswordIn"
-              }
-            }
-          },
-          "required": true
-        },
         "security": [
           {
             "OAuth2Bearer": []
@@ -12424,16 +12470,6 @@
         "tags": [
           "logindata"
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PasswordIn"
-              }
-            }
-          },
-          "required": true
-        },
         "security": [
           {
             "OAuth2Bearer": []
@@ -12462,16 +12498,6 @@
         "tags": [
           "logindata"
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PasswordIn"
-              }
-            }
-          },
-          "required": true
-        },
         "security": [
           {
             "OAuth2Bearer": []
@@ -26124,6 +26150,26 @@
             "title": "Enabled",
             "type": "boolean"
           },
+          "has_totp": {
+            "title": "Has Totp",
+            "type": "boolean"
+          },
+          "has_webauthn": {
+            "title": "Has Webauthn",
+            "type": "boolean"
+          },
+          "elevated_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elevated Until"
+          },
           "factors": {
             "items": {
               "$ref": "#/components/schemas/FactorOut"
@@ -26139,10 +26185,110 @@
         "required": [
           "available",
           "enabled",
+          "has_totp",
+          "has_webauthn",
+          "elevated_until",
           "factors",
           "recovery_codes_remaining"
         ],
         "title": "TwoFactorStatus",
+        "type": "object"
+      },
+      "ConfirmOptions": {
+        "description": "The ``publicKey`` options for ``navigator.credentials.get``.",
+        "properties": {
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "options",
+          "state"
+        ],
+        "title": "ConfirmOptions",
+        "type": "object"
+      },
+      "Elevated": {
+        "properties": {
+          "elevated_until": {
+            "format": "date-time",
+            "title": "Elevated Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "elevated_until"
+        ],
+        "title": "Elevated",
+        "type": "object"
+      },
+      "ConfirmIn": {
+        "description": "One proof of who is signed in: the password only where there is no factor.\n\n``credential`` answers the options of ``/two-factor/confirm/options``, whose\n``state`` comes with it.",
+        "properties": {
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "recovery_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovery Code"
+          },
+          "credential": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credential"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "title": "ConfirmIn",
         "type": "object"
       },
       "TOTPSetup": {
@@ -26167,19 +26313,6 @@
           "state"
         ],
         "title": "TOTPSetup",
-        "type": "object"
-      },
-      "PasswordIn": {
-        "properties": {
-          "password": {
-            "title": "Password",
-            "type": "string"
-          }
-        },
-        "required": [
-          "password"
-        ],
-        "title": "PasswordIn",
         "type": "object"
       },
       "FactorAdded": {

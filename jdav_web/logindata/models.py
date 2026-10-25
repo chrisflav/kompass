@@ -190,6 +190,23 @@ class TwoFactorSetup(models.Model):
         default_permissions = ()
 
 
+class TwoFactorElevation(models.Model):
+    """A sign-in that recently confirmed who is using it, for managing second factors.
+
+    Bound to the access token it was confirmed with: another token, another
+    account's or the same account's, is not elevated by it, and it ends with
+    the token.
+    """
+
+    access_token = models.OneToOneField(
+        "oauth2_provider.AccessToken", on_delete=models.CASCADE, related_name="+"
+    )
+    expires = models.DateTimeField()
+
+    class Meta:
+        default_permissions = ()
+
+
 def initial_user_setup(user, member):
     try:
         standard_group = AuthGroup.objects.get(name="Standard")

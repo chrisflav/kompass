@@ -37,11 +37,17 @@ way around it.
 
 Attempts are counted per account before they are checked: every five of them
 without a successful second factor lock the second step, first for fifteen
-minutes, then twice as long each further time, up to a day. Wrong passwords
-when changing factors count too. The first lock is mailed to the user, once
+minutes, then twice as long each further time, up to a day. Attempts to confirm
+the frontend's 2FA settings count too. The first lock is mailed to the user, once
 until a second factor succeeds again. Adding the first factor revokes the
 account's other OAuth2 tokens (not the session doing it, nor personal access
 tokens): a token obtained with the password alone does not outlive it.
+
+The frontend's 2FA settings first confirm who is signed in
+(``POST /api/logindata/two-factor/confirm``): with a second factor where the
+account has one, with the password where it has none. That elevates the access
+token it was made with, and only it, for ten minutes; every endpoint that shows
+or changes factors requires the elevation.
 
 TOTP secrets are stored encrypted with a key derived from ``SECRET_KEY``. When
 rotating it, keep the old key in Django's ``SECRET_KEY_FALLBACKS``, or every

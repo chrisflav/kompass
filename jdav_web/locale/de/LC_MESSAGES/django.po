@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-25 17:50+0100\n"
+"POT-Creation-Date: 2026-10-25 19:28+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -166,13 +166,11 @@ msgstr ""
 msgid "Two-factor authentication is handled by your identity provider."
 msgstr "Die Zwei-Faktor-Authentifizierung übernimmt dein Identitätsanbieter."
 
-msgid "Too many failed attempts. Please wait a few minutes and try again."
-msgstr ""
-"Zu viele Fehlversuche. Bitte warte ein paar Minuten und versuche es dann "
-"erneut."
+msgid "Please confirm it is you first."
+msgstr "Bitte bestätige zuerst, dass du es bist."
 
-msgid "The password is not correct."
-msgstr "Das Passwort ist nicht korrekt."
+msgid "Please confirm with one of your second factors."
+msgstr "Bitte bestätige mit einem deiner zweiten Faktoren."
 
 msgid "This setup has expired. Please start again."
 msgstr "Die Einrichtung ist abgelaufen. Bitte beginne von vorn."
@@ -182,6 +180,17 @@ msgstr "Gib einen Namen an."
 
 msgid "At most 100 characters."
 msgstr "Höchstens 100 Zeichen."
+
+msgid "You have no security key."
+msgstr "Du hast keinen Sicherheitsschlüssel."
+
+msgid "Too many failed attempts. Please wait a few minutes and try again."
+msgstr ""
+"Zu viele Fehlversuche. Bitte warte ein paar Minuten und versuche es dann "
+"erneut."
+
+msgid "That did not work. Please try again."
+msgstr "Das hat nicht geklappt. Bitte versuche es erneut."
 
 msgid "The code is not correct. Please try again."
 msgstr "Der Code ist nicht korrekt. Bitte versuche es erneut."
@@ -197,9 +206,6 @@ msgstr "Richte zuerst einen zweiten Faktor ein."
 
 msgid "Authentication"
 msgstr "Authentifizierung"
-
-msgid "That did not work. Please try again."
-msgstr "Das hat nicht geklappt. Bitte versuche es erneut."
 
 msgid "Signing in with this security key did not work."
 msgstr "Die Anmeldung mit diesem Sicherheitsschlüssel hat nicht geklappt."
