@@ -12,6 +12,7 @@ from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
 from logindata.rights import account_refusal
+from logindata.rights import login_refusal
 from logindata.rights import member_change_refusal
 from members.models import ActivityCategory
 from members.models import annotate_activity_score
@@ -118,9 +119,11 @@ def _apply_member_update(request, member, payload):
     if any(field in data for field in MEMBER_ORGANIZATIONAL_FIELDS):
         authorize(request, "members.may_change_organizationals")
     changes = {key: data[key] for key in ("email",) if key in data}
-    if data.get("user_id") is not None:
+    if "user_id" in data:
         # An unknown id is left to ``partial_clean`` below (422).
-        changes["user"] = User.objects.filter(pk=data["user_id"]).first()
+        changes["user"] = (
+            User.objects.filter(pk=data["user_id"]).first() if data["user_id"] is not None else None
+        )
     refusal = member_change_refusal(request.user, member, changes)
     if refusal:
         raise Forbidden(refusal)
@@ -813,6 +816,9 @@ def invite_as_user(request, member_id: int):
     """
     authorize(request, "members.may_invite_as_user")
     member = get_object_or_404(Member, pk=member_id)
+    refusal = login_refusal(request.user, member)
+    if refusal:
+        raise Forbidden(refusal)
     if not member.invite_as_user():
         raise ValidationError(_("Member has no internal email address or is already registered."))
     return member

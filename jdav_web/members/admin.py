@@ -42,6 +42,7 @@ from finance.models import BillOnExcursionProxy
 from finance.models import Statement
 from finance.models import StatementOnExcursionProxy
 from logindata.rights import account_refusal
+from logindata.rights import login_refusal
 from logindata.rights import member_change_refusal
 from mailer.models import Message
 from members.pdf import NO_PUBLIC_GROUPS
@@ -636,6 +637,11 @@ class MemberAdmin(AccountGuardAdminMixin, ExtraButtonsMixin, CommonAdminMixin, a
     def invite_as_user(self, request, queryset):
         failures = []
         for member in queryset:
+            refusal = login_refusal(request.user, member)
+            if refusal:
+                failures.append(member)
+                messages.error(request, "{}: {}".format(member.name, refusal))
+                continue
             success = member.invite_as_user()
             if not success:
                 failures.append(member)

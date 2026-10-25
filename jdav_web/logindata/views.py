@@ -57,11 +57,8 @@ def register(request):
         return HttpResponseRedirect(reverse("startpage:index"))
 
     key = request.GET["key"] if request.method == "GET" else request.POST["key"]
-    if not key:
-        return render_register_failed(request)
-    try:
-        member = Member.objects.get(invite_as_user_key=key)
-    except (Member.DoesNotExist, Member.MultipleObjectsReturned):
+    member = Member.for_login_key(key)
+    if member is None:
         return render_register_failed(request)
 
     is_reset_mode = bool(member.user)
@@ -87,7 +84,7 @@ def register(request):
             if not form.is_valid():
                 return render_register_form(request, key, password, member, form, is_reset_mode)
             form.save()
-            member.invite_as_user_key = ""
+            member.clear_login_key()
             member.save()
             return render_register_success(request, is_reset_mode)
         else:

@@ -1,3 +1,4 @@
+from datetime import timedelta
 from http import HTTPStatus
 
 from django.contrib.auth.models import Group
@@ -32,6 +33,7 @@ class RegisterViewTestCase(TestCase):
             email="test@example.com",
             gender=DIVERSE,
             invite_as_user_key="test_key_123",
+            invite_as_user_key_expire=timezone.now() + timedelta(days=1),
         )
         self.member_with_user = Member.objects.create(
             prename="Test",
@@ -39,10 +41,14 @@ class RegisterViewTestCase(TestCase):
             birth_date=timezone.now().date(),
             email="test@example.com",
             gender=DIVERSE,
-            invite_as_user_key="test_key_with_user_123",
         )
         u = User.objects.create_user(username="test_user", password="secret")
         self.member_with_user.user = u
+        self.member_with_user.save()
+        # Issued for the account now linked, as `request_password_reset` does.
+        self.member_with_user.invite_as_user_key = "test_key_with_user_123"
+        self.member_with_user.invite_as_user_key_expire = timezone.now() + timedelta(days=1)
+        self.member_with_user.invite_as_user_key_user = u
         self.member_with_user.save()
 
         # Create a registration password

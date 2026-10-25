@@ -15,6 +15,8 @@ import uuid
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.messages import get_messages
+from django.contrib.messages.storage.fallback import FallbackStorage
+from django.contrib.sessions.middleware import SessionMiddleware
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.test import override_settings
@@ -214,6 +216,71 @@ class AccountTakeoverApiTestCase(TestCase):
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(mail.outbox[0].to, ["ohne@{}".format(DOMAIN)])
 
+    # --- freeing a record with rights for an invitation ----------------------
+
+    def lead(self, member):
+        Group.objects.create(name="Gemsen-{}".format(member.pk)).leiters.add(member)
+
+    def invite(self, member, user):
+        return self.client.post(
+            "/api/members/{}/invite-as-user".format(member.pk), **self.auth(user)
+        )
+
+    def test_a_stronger_account_cannot_be_unlinked(self):
+        self.assertRefused(
+            self.patch(self.chef_member, {"user_id": None}, self.actor), SUPERUSER_ACCOUNT
+        )
+        self.chef_member.refresh_from_db()
+        self.assertEqual(self.chef_member.user, self.chef)
+
+    def test_an_account_with_member_rights_cannot_be_unlinked(self):
+        self.lead(self.plain_member)
+        self.assertRefused(
+            self.patch(self.plain_member, {"user_id": None}, self.actor), MEMBER_RIGHTS
+        )
+        self.plain_member.refresh_from_db()
+        self.assertEqual(self.plain_member.user, self.plain)
+
+    def test_ones_own_record_with_rights_cannot_go_to_another_account(self):
+        self.lead(self.actor_member)
+        other = User.objects.create_user("zweitkonto", password="secret")
+        r = self.patch(self.actor_member, {"user_id": other.pk}, self.actor)
+        self.assertRefused(r, MEMBER_RIGHTS)
+        self.actor_member.refresh_from_db()
+        self.assertEqual(self.actor_member.user, self.actor)
+
+    def test_a_weaker_account_may_be_unlinked(self):
+        r = self.patch(self.plain_member, {"user_id": None}, self.actor)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.plain_member.refresh_from_db()
+        self.assertIsNone(self.plain_member.user)
+
+    def test_the_email_of_an_unlinked_record_with_rights_cannot_be_changed(self):
+        self.lead(self.target)
+        r = self.patch(self.target, {"email": "mine@{}".format(DOMAIN)}, self.actor)
+        self.assertRefused(r, MEMBER_RIGHTS)
+        self.target.refresh_from_db()
+        self.assertEqual(self.target.email, "ohne@{}".format(DOMAIN))
+
+    def test_the_email_of_an_unlinked_record_without_rights_may_be_changed(self):
+        r = self.patch(self.target, {"email": "neu@{}".format(DOMAIN)}, self.actor)
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_a_record_with_rights_cannot_be_invited(self):
+        self.lead(self.target)
+        mail.outbox = []
+        self.assertRefused(self.invite(self.target, self.actor), MEMBER_RIGHTS)
+        self.assertEqual(mail.outbox, [])
+        self.target.refresh_from_db()
+        self.assertEqual(self.target.invite_as_user_key, "")
+
+    def test_a_superuser_may_invite_a_record_with_rights(self):
+        self.lead(self.target)
+        mail.outbox = []
+        r = self.invite(self.target, self.superuser)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(len(mail.outbox), 1)
+
 
 class MemberRightsTestCase(TestCase):
     """What counts as rights through a member record."""
@@ -325,3 +392,127 @@ class AccountTakeoverAdminTestCase(TestCase):
             self.reset(self.superuser),
         )
         self.assertEqual(mail.outbox[0].to, ["chef@{}".format(DOMAIN)])
+
+    def test_unlinking_a_stronger_account_is_refused(self):
+        with self.assertRaisesMessage(ValidationError, str(SUPERUSER_ACCOUNT)):
+            self.clean(Member, self.chef_member, self.actor, {"user": None})
+
+    def test_the_email_of_an_unlinked_record_with_rights_cannot_be_changed(self):
+        Group.objects.create(name="Gemsen").leiters.add(self.target)
+        with self.assertRaisesMessage(ValidationError, str(MEMBER_RIGHTS)):
+            self.clean(Member, self.target, self.actor, {"email": "mine@{}".format(DOMAIN)})
+
+    def invite_action(self, user, *members):
+        request = self.factory.post("/")
+        request.user = user
+        SessionMiddleware(lambda r: None).process_request(request)
+        request._messages = FallbackStorage(request)
+        mail.outbox = []
+        admin.site._registry[Member].invite_as_user(
+            request, Member.objects.filter(pk__in=[m.pk for m in members])
+        )
+        return [str(m) for m in get_messages(request)]
+
+    def test_the_invite_action_skips_a_record_with_rights(self):
+        Group.objects.create(name="Gemsen").leiters.add(self.target)
+        plain = Member.objects.create(
+            prename="Neu", lastname="Ling", gender=DIVERSE, email="neu@{}".format(DOMAIN)
+        )
+        messages = self.invite_action(self.actor, self.target, plain)
+        self.assertIn("{}: {}".format(self.target.name, MEMBER_RIGHTS), messages)
+        self.assertEqual([m.to for m in mail.outbox], [["neu@{}".format(DOMAIN)]])
+
+    def test_the_invite_action_lets_a_superuser_invite_a_record_with_rights(self):
+        Group.objects.create(name="Gemsen").leiters.add(self.target)
+        self.invite_action(self.superuser, self.target)
+        self.assertEqual([m.to for m in mail.outbox], [["ohne@{}".format(DOMAIN)]])
+
+
+@override_settings(ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER=[DOMAIN])
+class LoginKeyTestCase(TestCase):
+    """A login key is valid for a limited time, and only for its own account."""
+
+    REGISTER = "/api/logindata/register"
+
+    def setUp(self):
+        self.member = Member.objects.create(
+            prename="Neu", lastname="Ling", gender=DIVERSE, email="neu@{}".format(DOMAIN)
+        )
+        self.account, self.linked = linked_member("konto")
+
+    def test_an_invitation_lasts_a_week_and_a_reset_a_day(self):
+        now = timezone.now()
+        self.assertTrue(self.member.invite_as_user())
+        self.assertAlmostEqual(
+            self.member.invite_as_user_key_expire,
+            now + Member.INVITE_KEY_VALIDITY,
+            delta=datetime.timedelta(minutes=1),
+        )
+        self.assertTrue(self.linked.request_password_reset())
+        self.assertAlmostEqual(
+            self.linked.invite_as_user_key_expire,
+            now + Member.RESET_KEY_VALIDITY,
+            delta=datetime.timedelta(minutes=1),
+        )
+        self.assertEqual(self.linked.invite_as_user_key_user, self.account)
+        self.assertEqual(Member.for_login_key(self.member.invite_as_user_key), self.member)
+        self.assertEqual(Member.for_login_key(self.linked.invite_as_user_key), self.linked)
+
+    def test_an_expired_key_is_refused(self):
+        self.member.invite_as_user()
+        Member.objects.filter(pk=self.member.pk).update(
+            invite_as_user_key_expire=timezone.now() - datetime.timedelta(seconds=1)
+        )
+        self.assertIsNone(Member.for_login_key(self.member.invite_as_user_key))
+        r = self.client.get(self.REGISTER, {"key": self.member.invite_as_user_key})
+        self.assertEqual(r.status_code, 404)
+
+    def test_a_key_without_an_expiry_is_refused(self):
+        # Keys issued before keys expired.
+        Member.objects.filter(pk=self.member.pk).update(invite_as_user_key="alt")
+        self.assertIsNone(Member.for_login_key("alt"))
+
+    def test_unknown_and_empty_keys_are_refused(self):
+        self.assertIsNone(Member.for_login_key(""))
+        self.assertIsNone(Member.for_login_key("unbekannt"))
+
+    def test_an_invitation_does_not_become_a_reset(self):
+        # Linked behind `save`'s back: the key is still bound to no account.
+        self.member.invite_as_user()
+        other = User.objects.create_user("spaeter", password="secret")
+        Member.objects.filter(pk=self.member.pk).update(user=other)
+        self.assertIsNone(Member.for_login_key(self.member.invite_as_user_key))
+        r = self.client.get(self.REGISTER, {"key": self.member.invite_as_user_key})
+        self.assertEqual(r.status_code, 404)
+
+    def test_changing_the_email_or_the_account_clears_the_key(self):
+        for change in (
+            {"email": "anders@{}".format(DOMAIN)},
+            {"user": User.objects.create_user("anders", password="secret")},
+        ):
+            with self.subTest(change=sorted(change)):
+                member = Member.objects.get(pk=self.member.pk)
+                member.invite_as_user()
+                for field, value in change.items():
+                    setattr(member, field, value)
+                member.save()
+                member.refresh_from_db()
+                self.assertEqual(member.invite_as_user_key, "")
+                self.assertIsNone(member.invite_as_user_key_expire)
+                member.user = None
+                member.email = "neu@{}".format(DOMAIN)
+                member.save()
+
+    def test_a_partial_save_of_the_email_clears_the_key_too(self):
+        self.member.invite_as_user()
+        self.member.email = "anders@{}".format(DOMAIN)
+        self.member.save(update_fields=["email"])
+        self.member.refresh_from_db()
+        self.assertEqual(self.member.invite_as_user_key, "")
+
+    def test_other_changes_keep_the_key(self):
+        self.member.invite_as_user()
+        key = self.member.invite_as_user_key
+        self.member.prename = "Anders"
+        self.member.save()
+        self.assertEqual(Member.for_login_key(key), self.member)

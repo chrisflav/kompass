@@ -32,17 +32,14 @@ router = Router()
 
 
 def _member_for_invite_key(key):
-    """Return the member for an ``invite_as_user_key`` or raise 404.
+    """Return the member for a valid ``invite_as_user_key`` or raise 404.
 
-    Mirrors the lookup in ``logindata.views.register``; an empty key never
-    resolves a member (the field default is ``""``).
+    See ``Member.for_login_key``, which ``logindata.views.register`` uses too.
     """
-    if not key:
+    member = Member.for_login_key(key)
+    if member is None:
         raise Http404(_("Registration key is invalid or has expired."))
-    try:
-        return Member.objects.get(invite_as_user_key=key)
-    except (Member.DoesNotExist, Member.MultipleObjectsReturned):
-        raise Http404(_("Registration key is invalid or has expired."))
+    return member
 
 
 def _form_error_messages(form):
@@ -86,7 +83,7 @@ def set_password(request, payload: RegisterIn):
         if not form.is_valid():
             raise ValidationError(_form_error_messages(form))
         form.save()
-        member.invite_as_user_key = ""
+        member.clear_login_key()
         member.save()
     else:
         form = UserCreationForm(

@@ -4,6 +4,8 @@ Mirrors ``logindata.tests.views`` but exercises the REST endpoints that set a
 member's login credentials from an emailed invite link (new account + reset).
 """
 
+from datetime import timedelta
+
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -24,6 +26,7 @@ class LogindataPublicApiTestCase(TestCase):
             email="test@example.com",
             gender=DIVERSE,
             invite_as_user_key="invite_key_new",
+            invite_as_user_key_expire=timezone.now() + timedelta(days=1),
         )
         self.reset_member = Member.objects.create(
             prename="Reset",
@@ -31,10 +34,14 @@ class LogindataPublicApiTestCase(TestCase):
             birth_date=timezone.now().date(),
             email="reset@example.com",
             gender=DIVERSE,
-            invite_as_user_key="invite_key_reset",
         )
         self.reset_user = User.objects.create_user(username="reset.person", password="oldpass123")
         self.reset_member.user = self.reset_user
+        self.reset_member.save()
+        # Issued for the account now linked, as `request_password_reset` does.
+        self.reset_member.invite_as_user_key = "invite_key_reset"
+        self.reset_member.invite_as_user_key_expire = timezone.now() + timedelta(days=1)
+        self.reset_member.invite_as_user_key_user = self.reset_user
         self.reset_member.save()
         RegistrationPassword.objects.create(password="invite-secret")
         Group.objects.get_or_create(name="Standard")

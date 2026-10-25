@@ -106,23 +106,41 @@ def credential_refusal(actor, user):
     return None
 
 
+def login_refusal(actor, member):
+    """Why ``actor`` may not decide who signs in as ``member``, or ``None``.
+
+    That is the member's linked account or, for a member without one, the
+    account an invitation would create -- which gets the member's rights.
+    """
+    if member.user_id:
+        return credential_refusal(actor, member.user)
+    if not actor.is_superuser and member_has_rights(member):
+        return MEMBER_RIGHTS
+    return None
+
+
 def member_change_refusal(actor, member, changes):
     """Why ``actor`` may not apply ``changes`` to ``member``, or ``None`` if they may.
 
     ``changes`` maps field names to new values; ``user`` is a ``User`` or
-    ``None``. Linking an account hands it the member's rights and the member's
-    password mails, and the primary ``email`` is where the linked account's
-    password mails go.
+    ``None``. Unlinking frees the record for an invitation, linking hands the
+    account the member's rights and its login mails, and the primary ``email``
+    is where those mails go.
     """
     if actor.is_superuser:
         return None
-    user = changes.get("user")
-    if user is not None and user.pk != member.user_id:
-        refusal = credential_refusal(actor, user)
-        if refusal:
-            return refusal
-        if member_has_rights(member):
-            return MEMBER_RIGHTS
-    if member.user_id and changes.get("email", member.email) != member.email:
-        return credential_refusal(actor, member.user)
+    if "user" in changes:
+        user = changes["user"]
+        if (user.pk if user else None) != member.user_id:
+            refusal = login_refusal(actor, member)
+            if refusal:
+                return refusal
+            if user is not None:
+                refusal = credential_refusal(actor, user)
+                if refusal:
+                    return refusal
+                if member_has_rights(member):
+                    return MEMBER_RIGHTS
+    if changes.get("email", member.email) != member.email:
+        return login_refusal(actor, member)
     return None

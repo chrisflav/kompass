@@ -1,6 +1,7 @@
 import re
 import uuid
 from datetime import datetime
+from datetime import timedelta
 
 import rules
 from contrib.models import CommonModel
@@ -136,6 +137,17 @@ class Member(Person):
         User, blank=True, null=True, on_delete=models.SET_NULL, verbose_name=_("Login data")
     )
     invite_as_user_key = models.CharField(max_length=32, default="")
+    # A login key sets the password of the account linked when it was issued
+    # (or creates one, if there was none) until it expires; see ``for_login_key``.
+    invite_as_user_key_expire = models.DateTimeField(null=True, blank=True, editable=False)
+    invite_as_user_key_user = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        editable=False,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
     waitinglist_application_date = models.DateTimeField(
         verbose_name=_("waitinglist application date"),
         null=True,
@@ -147,6 +159,9 @@ class Member(Person):
 
     objects = MemberManager()
     all_objects = models.Manager()
+
+    INVITE_KEY_VALIDITY = timedelta(days=7)
+    RESET_KEY_VALIDITY = timedelta(days=1)
 
     class Meta(CommonModel.Meta):
         verbose_name = _("member")
@@ -647,6 +662,54 @@ class Member(Person):
             or "*" in settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER
         )
 
+    def _issue_login_key(self, validity):
+        self.invite_as_user_key = uuid.uuid4().hex
+        self.invite_as_user_key_expire = timezone.now() + validity
+        self.invite_as_user_key_user = self.user
+        self.save()
+
+    def clear_login_key(self):
+        self.invite_as_user_key = ""
+        self.invite_as_user_key_expire = None
+        self.invite_as_user_key_user = None
+
+    @classmethod
+    def for_login_key(cls, key):
+        """The member an invite or reset key is for, or ``None`` if it is not valid.
+
+        A key is valid until it expires, and only for the account linked when it
+        was issued: an invitation must not turn into a reset for an account that
+        is linked later.
+        """
+        if not key:
+            return None
+        try:
+            member = cls.objects.get(invite_as_user_key=key)
+        except (cls.DoesNotExist, cls.MultipleObjectsReturned):
+            return None
+        expire = member.invite_as_user_key_expire
+        if expire is None or expire < timezone.now():
+            return None
+        if member.invite_as_user_key_user_id != member.user_id:
+            return None
+        return member
+
+    def save(self, *args, **kwargs):
+        # A key mailed to the old address, or issued for the old account, must
+        # not outlive a change of either.
+        if self.pk and self.invite_as_user_key:
+            stored = type(self).all_objects.filter(pk=self.pk).values("user_id", "email").first()
+            if stored and (stored["user_id"], stored["email"]) != (self.user_id, self.email):
+                self.clear_login_key()
+                update_fields = kwargs.get("update_fields")
+                if update_fields is not None:
+                    kwargs["update_fields"] = set(update_fields) | {
+                        "invite_as_user_key",
+                        "invite_as_user_key_expire",
+                        "invite_as_user_key_user",
+                    }
+        super().save(*args, **kwargs)
+
     def _send_login_link(self, subject, text):
         """Mail the login link to the primary, internal address only.
 
@@ -669,8 +732,7 @@ class Member(Person):
         if self.user:
             # don't reinvite if there is already userdata attached
             return False
-        self.invite_as_user_key = uuid.uuid4().hex
-        self.save()
+        self._issue_login_key(self.INVITE_KEY_VALIDITY)
         self._send_login_link(_("Set login data for Kompass"), settings.INVITE_AS_USER_TEXT)
         return True
 
@@ -680,8 +742,7 @@ class Member(Person):
             return False
         if not self.has_internal_email():
             return False
-        self.invite_as_user_key = uuid.uuid4().hex
-        self.save()
+        self._issue_login_key(self.RESET_KEY_VALIDITY)
         self._send_login_link(_("Reset your Kompass password"), settings.PASSWORD_RESET_TEXT)
         return True
 
