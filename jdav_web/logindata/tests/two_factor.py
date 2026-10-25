@@ -153,13 +153,44 @@ class TwoFactorModuleTestCase(TestCase):
             gender=MALE,
             user=self.user,
         )
-        for _i in range(4):
-            number = two_factor.claim_attempt(self.user)
-            two_factor.attempt_failed(self.user, number)
+
+        def fail():
+            two_factor.attempt_failed(self.user, two_factor.claim_attempt(self.user))
             self.unlock()
+
+        fail()
+        # A right password taken back hands out the same number again.
+        two_factor.refund_attempt(self.user, two_factor.claim_attempt(self.user))
+        fail()
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("Zora", mail.outbox[0].body)
         self.assertIn("gesperrt", mail.outbox[0].body)
+        # Not again for the next lock, nor for a failure that hands out the
+        # number of the first lock again after a refund.
+        fail()
+        fail()
+        self.assertEqual(len(mail.outbox), 1)
+        # After a second factor, a new lock is news again.
+        two_factor.record_success(self.user)
+        fail()
+        fail()
+        self.assertEqual(len(mail.outbox), 2)
+
+    def test_a_count_cleared_in_between_is_started_again(self):
+        real = TwoFactorAttempts.objects.get_or_create
+        calls = []
+
+        def racing_success(**kwargs):
+            # The first call finds the row a success then deletes.
+            calls.append(kwargs)
+            return (None, False) if len(calls) == 1 else real(**kwargs)
+
+        with patch.object(TwoFactorAttempts.objects, "get_or_create", side_effect=racing_success):
+            self.assertEqual(two_factor.claim_attempt(self.user), 1)
+        two_factor.record_success(self.user)
+        # Nothing to take back once a success cleared the count.
+        two_factor.refund_attempt(self.user, 1)
+        self.assertFalse(TwoFactorAttempts.objects.exists())
 
     def test_no_mail_without_a_member(self):
         two_factor.notify(self.user, "Betreff", "Hallo {name}")

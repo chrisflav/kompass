@@ -189,7 +189,11 @@ def _factor_model(kind):
 
 
 def _added(request, factor, first):
-    codes = two_factor.generate_recovery_codes(request.user) if first else []
+    codes = []
+    if first:
+        codes = two_factor.generate_recovery_codes(request.user)
+        # Signed in elsewhere with the password alone: that ends here.
+        two_factor.revoke_other_tokens(request.user, request.access_token)
     return 201, {"factor": _factor(factor), "recovery_codes": codes}
 
 

@@ -301,11 +301,11 @@ TWO_FACTOR_LOCKED_TEXT = get_text(
     "two_factor_locked",
     default="""Hallo {{name}},
 
-bei der Anmeldung in Kompass wurde für dein Konto mehrmals das richtige Passwort, aber ein
-falscher zweiter Faktor eingegeben. Die Anmeldung ist deshalb vorübergehend gesperrt.
+für dein Kompass-Konto gab es zu viele fehlgeschlagene Anmelde- oder Bestätigungsversuche.
+Die Anmeldung mit zweitem Faktor ist deshalb vorübergehend gesperrt.
 
-Warst du das nicht, kennt jemand anderes dein Passwort. Ändere es bitte so bald wie möglich und
-wende dich an {RESPONSIBLE_MAIL}.
+Warst du das nicht, ändere bitte so bald wie möglich dein Passwort und wende dich an
+{RESPONSIBLE_MAIL}.
 
 Viele Grüße
 Deine JDAV {SEKTION}""".format(SEKTION=SEKTION, RESPONSIBLE_MAIL=RESPONSIBLE_MAIL),

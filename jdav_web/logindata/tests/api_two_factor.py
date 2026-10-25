@@ -22,6 +22,7 @@ from members.models import MALE
 from members.models import Member
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
+from oauth2_provider.models import get_refresh_token_model
 
 from .authenticator import SoftAuthenticator
 from .two_factor import add_key
@@ -29,6 +30,7 @@ from .two_factor import add_totp
 
 AccessToken = get_access_token_model()
 Application = get_application_model()
+RefreshToken = get_refresh_token_model()
 BASE = "/api/logindata/two-factor"
 PASSWORD = "ein-langes-pw-42"
 
@@ -119,6 +121,48 @@ class TwoFactorApiTestCase(ApiTestCase):
         code = pyotp.TOTP(setup["secret"]).now()
         r = self.call("post", "/totp", {"name": "Tablet", "code": code, "state": setup["state"]})
         self.assertEqual(r.json()["recovery_codes"], [])
+
+    def test_the_first_factor_ends_tokens_got_with_the_password_alone(self):
+        script = Application.objects.create(
+            name="Skript",
+            client_id="skript",
+            client_secret="skript-secret",
+            client_type=Application.CLIENT_CONFIDENTIAL,
+            authorization_grant_type=Application.GRANT_PASSWORD,
+        )
+        old = self.token(self.user, script)
+        RefreshToken.objects.create(
+            user=self.user, application=script, token="r1", access_token=old
+        )
+        pat = self.token(self.user)
+        PersonalAccessToken.objects.create(access_token=pat, name="Skript", read_only=True)
+        session = self.token(self.user, self.frontend)
+        RefreshToken.objects.create(
+            user=self.user, application=self.frontend, token="r2", access_token=session
+        )
+        headers = {"HTTP_AUTHORIZATION": "Bearer " + session.token}
+
+        setup = self.call("post", "/totp/setup", {"password": PASSWORD}, headers=headers).json()
+        code = pyotp.TOTP(setup["secret"]).now()
+        payload = {"name": "Handy", "code": code, "state": setup["state"]}
+        self.assertEqual(self.call("post", "/totp", payload, headers=headers).status_code, 201)
+
+        remaining = set(AccessToken.objects.filter(user=self.user).values_list("pk", flat=True))
+        self.assertEqual(remaining, {pat.pk, session.pk})
+        self.assertEqual(list(RefreshToken.objects.values_list("token", flat=True)), ["r2"])
+        r = self.client.get(BASE, HTTP_AUTHORIZATION="Bearer " + old.token)
+        self.assertEqual(r.status_code, 401)
+
+        # A further factor leaves other sign-ins alone.
+        later = self.token(self.user, self.frontend)
+        setup = self.call("post", "/webauthn/setup", {"password": PASSWORD}, headers=headers).json()
+        payload = {
+            "name": "YubiKey",
+            "credential": SoftAuthenticator().create(setup["options"]),
+            "state": setup["state"],
+        }
+        self.assertEqual(self.call("post", "/webauthn", payload, headers=headers).status_code, 201)
+        self.assertTrue(AccessToken.objects.filter(pk=later.pk).exists())
 
     def test_adding_an_app_needs_the_password(self):
         r = self.call("post", "/totp/setup", {"password": "falsch"})

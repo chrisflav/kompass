@@ -38,6 +38,8 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
 from django.utils.translation import gettext_lazy as _
+from oauth2_provider.models import get_access_token_model
+from oauth2_provider.models import get_refresh_token_model
 from webauthn import generate_authentication_options
 from webauthn import generate_registration_options
 from webauthn import options_to_json
@@ -107,7 +109,10 @@ def claim_attempt(user):
     """
     TwoFactorAttempts.objects.get_or_create(user=user)
     with transaction.atomic():
-        attempts = TwoFactorAttempts.objects.select_for_update().get(user=user)
+        attempts = TwoFactorAttempts.objects.select_for_update().filter(user=user).first()
+        if attempts is None:
+            # A success deleted the row in between: start from a new one.
+            attempts, _created = TwoFactorAttempts.objects.get_or_create(user=user)
         if attempts.locked_until and attempts.locked_until > timezone.now():
             return None
         attempts.failures += 1
@@ -122,9 +127,13 @@ def claim_attempt(user):
 def attempt_failed(user, number):
     """The claimed attempt ``number`` failed; the first lock tells the user by mail.
 
-    Someone who gets that far had the password, so the user should know.
+    Once only, until a second factor succeeds: ``lock_mailed`` is set by a
+    conditional UPDATE, so neither a refunded attempt that hands out the same
+    number again nor two racing requests mail twice.
     """
-    if number == settings.TWO_FACTOR_MAX_FAILURES:
+    if number % settings.TWO_FACTOR_MAX_FAILURES == 0 and TwoFactorAttempts.objects.filter(
+        user=user, lock_mailed=False
+    ).update(lock_mailed=True):
         notify(user, _("Your Kompass login was locked"), settings.TWO_FACTOR_LOCKED_TEXT)
 
 
@@ -134,7 +143,10 @@ def refund_attempt(user, number):
     A lock that attempt set is lifted with it.
     """
     with transaction.atomic():
-        attempts = TwoFactorAttempts.objects.select_for_update().get(user=user)
+        attempts = TwoFactorAttempts.objects.select_for_update().filter(user=user).first()
+        if attempts is None:
+            # A success already cleared the count.
+            return
         attempts.failures = max(attempts.failures - 1, 0)
         if number % settings.TWO_FACTOR_MAX_FAILURES == 0:
             attempts.locked_until = None
@@ -144,6 +156,19 @@ def refund_attempt(user, number):
 def record_success(user):
     """A second factor checked out: the count starts again."""
     TwoFactorAttempts.objects.filter(user=user).delete()
+
+
+def revoke_other_tokens(user, keep):
+    """End every OAuth2 token of ``user`` but ``keep`` (and its refresh token).
+
+    For when the first factor is added: a token obtained with the password alone
+    before (through the password grant, say) must not outlive that. Personal
+    access tokens stay; they can only be created from a frontend sign-in.
+    """
+    get_refresh_token_model().objects.filter(user=user).exclude(access_token=keep).delete()
+    get_access_token_model().objects.filter(user=user, personal__isnull=True).exclude(
+        pk=getattr(keep, "pk", None)
+    ).delete()
 
 
 def notify(user, subject, text, **context):

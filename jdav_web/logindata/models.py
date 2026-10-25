@@ -162,6 +162,8 @@ class TwoFactorAttempts(models.Model):
     )
     failures = models.PositiveIntegerField(default=0)
     locked_until = models.DateTimeField(null=True, blank=True)
+    # Whether the user was told of a lock since their last second factor.
+    lock_mailed = models.BooleanField(default=False)
 
     class Meta:
         default_permissions = ()
