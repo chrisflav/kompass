@@ -7893,6 +7893,130 @@
         ]
       }
     },
+    "/api/material/types/{type_id}/set-entries": {
+      "post": {
+        "operationId": "equipment_api_router_create_set_entry",
+        "summary": "Create Set Entry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_id",
+            "schema": {
+              "title": "Type Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetEntryOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Make a type a set, or add another member type to it.",
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetEntryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/set-entries/{entry_id}": {
+      "patch": {
+        "operationId": "equipment_api_router_update_set_entry",
+        "summary": "Update Set Entry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "schema": {
+              "title": "Entry Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetEntryOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetEntryUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "equipment_api_router_delete_set_entry",
+        "summary": "Delete Set Entry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "schema": {
+              "title": "Entry Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "description": "Take a member type out of its set. The last one taken out makes it a plain type again.",
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
     "/api/material/reservations/check": {
       "post": {
         "operationId": "equipment_api_router_check_reservation",
@@ -19237,6 +19361,13 @@
               }
             ],
             "title": "Sets"
+          },
+          "set_entries": {
+            "items": {
+              "$ref": "#/components/schemas/SetEntryOut"
+            },
+            "title": "Set Entries",
+            "type": "array"
           }
         },
         "required": [
@@ -19252,9 +19383,43 @@
           "available_direct",
           "groups",
           "sizes",
-          "sets"
+          "sets",
+          "set_entries"
         ],
         "title": "ProductTypeCard",
+        "type": "object"
+      },
+      "SetEntryOut": {
+        "description": "A member type of a set. ``available`` is how many of it are free in the asked period.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "product_type": {
+            "$ref": "#/components/schemas/Ref"
+          },
+          "per_set": {
+            "title": "Per Set",
+            "type": "integer"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "available": {
+            "title": "Available",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "product_type",
+          "per_set",
+          "position",
+          "available"
+        ],
+        "title": "SetEntryOut",
         "type": "object"
       },
       "SizeOut": {
@@ -19530,6 +19695,13 @@
             ],
             "title": "Sets"
           },
+          "set_entries": {
+            "items": {
+              "$ref": "#/components/schemas/SetEntryOut"
+            },
+            "title": "Set Entries",
+            "type": "array"
+          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -19610,6 +19782,13 @@
               }
             ],
             "title": "Retired Parts"
+          },
+          "in_sets": {
+            "items": {
+              "$ref": "#/components/schemas/Ref"
+            },
+            "title": "In Sets",
+            "type": "array"
           }
         },
         "required": [
@@ -19626,6 +19805,7 @@
           "groups",
           "sizes",
           "sets",
+          "set_entries",
           "description",
           "article_number",
           "manual",
@@ -19634,7 +19814,8 @@
           "daily_rate",
           "calendar",
           "parts",
-          "retired_parts"
+          "retired_parts",
+          "in_sets"
         ],
         "title": "ProductTypeOut",
         "type": "object"
@@ -20776,6 +20957,57 @@
           }
         },
         "title": "SizeUpdate",
+        "type": "object"
+      },
+      "SetEntryIn": {
+        "properties": {
+          "product_type": {
+            "title": "Product Type",
+            "type": "integer"
+          },
+          "per_set": {
+            "default": 1,
+            "title": "Per Set",
+            "type": "integer"
+          },
+          "position": {
+            "default": 0,
+            "title": "Position",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_type"
+        ],
+        "title": "SetEntryIn",
+        "type": "object"
+      },
+      "SetEntryUpdate": {
+        "properties": {
+          "per_set": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Set"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          }
+        },
+        "title": "SetEntryUpdate",
         "type": "object"
       },
       "ReservationCheckOut": {

@@ -70,6 +70,7 @@ const CARD = {
   ],
   sizes: [],
   sets: null,
+  set_entries: [] as unknown[],
 };
 
 const size = (id: number, name: string, overrides: Record<string, unknown> = {}) => ({
@@ -100,6 +101,30 @@ const FRIENDS = {
   sets: 1,
 };
 
+const setEntry = (id: number, typeId: number, name: string, perSet: number, available: number) => ({
+  id,
+  product_type: ref(typeId, name),
+  per_set: perSet,
+  position: id,
+  available,
+});
+
+/** A set of types whose pieces have IDs: one CAM 0.5 and two CAM 1. */
+const CAM_SET = {
+  ...CARD,
+  id: 12,
+  name: "Totem Satz",
+  manufacturer: "Totem",
+  is_psa: false,
+  tags: [],
+  total: 2,
+  available: 1,
+  available_direct: 1,
+  groups: [],
+  sets: 1,
+  set_entries: [setEntry(1, 13, "CAM 0.5", 1, 1), setEntry(2, 14, "CAM 1", 2, 3)],
+};
+
 const TYPE = {
   ...CARD,
   description: "Genähte Schlinge",
@@ -112,7 +137,11 @@ const TYPE = {
     { start: TOMORROW, end: TOMORROW, status: "confirmed", count: 2, borrower: ref(8, "Peter Lustig") },
   ],
   parts: [part(1), part(2, { holder: ref(8, "Peter Lustig"), location: null, lent_until: TOMORROW })],
+  in_sets: [] as unknown[],
 };
+
+/** The detail of ``CAM_SET``: a set has no pieces or sizes of its own. */
+const SET_TYPE = { ...TYPE, ...CAM_SET, calendar: [], parts: [], retired_parts: [] };
 
 function partOut(overrides: Record<string, unknown> = {}) {
   return {
@@ -437,6 +466,59 @@ describe("material — Materialbrowser", () => {
     expect(cart.getByLabelText("Anzahl Friends 2")).toHaveValue(2);
   });
 
+  it("puts a set of types in the cart as its pieces and reserves them", async () => {
+    let body: unknown = null;
+    server.use(
+      http.get(api("/api/material/types"), () => HttpResponse.json([CARD, CAM_SET])),
+      http.post(api("/api/material/reservations/check"), () => checked()),
+      http.post(api("/api/material/reservations"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(reservation());
+      }),
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({ held: [], held_sizes: [], reservations: [], to_decide: 0 }),
+      ),
+    );
+    const { user } = renderRoute("/kompass/material");
+    expect(await screen.findByText("1 Satz frei")).toBeInTheDocument();
+    expect(screen.getByText("2 Sätze aus 2 Typen")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Satz Totem Satz in den Korb" }));
+    const cart = within(screen.getByRole("complementary", { name: "Korb" }));
+    // The pieces are gathered under the set's name, each a line of its own type.
+    expect(cart.getByText("Totem Satz")).toBeInTheDocument();
+    expect(cart.getByLabelText("Anzahl CAM 0.5")).toHaveValue(1);
+    expect(cart.getByLabelText("Anzahl CAM 1")).toHaveValue(2);
+    expect(await cart.findByText("Alles frei")).toBeInTheDocument();
+    await user.click(cart.getByRole("button", { name: "Reservieren" }));
+    await waitFor(() =>
+      expect(body).toEqual({
+        start: TODAY,
+        end: TOMORROW,
+        note: "",
+        lines: [
+          { product_type: 13, quantity: 1 },
+          { product_type: 14, quantity: 2 },
+        ],
+      }),
+    );
+  });
+
+  it("keeps the set's name of a stored cart line", async () => {
+    localStorage.setItem(
+      CART_KEY,
+      JSON.stringify({
+        start: TODAY,
+        end: TOMORROW,
+        lines: [{ key: "t13", quantity: 1, productType: ref(13, "CAM 0.5"), set: "Totem Satz" }],
+      }),
+    );
+    server.use(http.post(api("/api/material/reservations/check"), () => checked()));
+    renderRoute("/kompass/material");
+    const cart = within(await screen.findByRole("complementary", { name: "Korb" }));
+    expect(await cart.findByText("Totem Satz")).toBeInTheDocument();
+    expect(cart.getByLabelText("Anzahl CAM 0.5")).toHaveValue(1);
+  });
+
   it("takes sizes from the cart right away", async () => {
     let body: unknown = null;
     server.use(
@@ -750,6 +832,95 @@ describe("material — Materialtyp", () => {
     await waitFor(() =>
       expect(created).toEqual({ name: "3", quantity: 1, per_set: 1, group: null, location: null, position: 3 }),
     );
+  });
+
+  it("lists the types of a set and puts a set in the cart", async () => {
+    server.use(http.get(api("/api/material/types/12"), () => HttpResponse.json(SET_TYPE)));
+    const { user } = renderRoute("/kompass/material/types/12");
+    await user.click(await screen.findByRole("tab", { name: "Satz (2)" }));
+    expect(screen.getByRole("link", { name: "CAM 1" })).toHaveAttribute("href", "/kompass/material/types/14");
+    expect(screen.queryByRole("tab", { name: /Größen/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /Teile/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Typ hinzufügen" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Satz in den Korb" }));
+    expect(screen.getByLabelText("Anzahl CAM 1")).toHaveValue(2);
+    await user.click(screen.getByRole("tab", { name: "Verfügbarkeit" }));
+    expect(screen.getByText(/Sätzen frei/)).toBeInTheDocument();
+  });
+
+  it("names the sets a type belongs to, and offers it no set of its own", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    server.use(
+      http.get(api("/api/material/types/10"), () =>
+        HttpResponse.json({ ...TYPE, parts: [], in_sets: [ref(12, "Totem Satz")] }),
+      ),
+    );
+    renderRoute("/kompass/material/types/10");
+    expect(await screen.findByRole("link", { name: "Totem Satz" })).toHaveAttribute(
+      "href",
+      "/kompass/material/types/12",
+    );
+    expect(screen.queryByRole("tab", { name: /Satz/ })).not.toBeInTheDocument();
+  });
+
+  it("lets the inventory add, change and remove the types of a set", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    const calls: Record<string, unknown> = {};
+    server.use(
+      http.get(api("/api/material/types/12"), () => HttpResponse.json(SET_TYPE)),
+      http.get(api("/api/material/types"), () =>
+        HttpResponse.json([CARD, CAM_SET, { ...CARD, id: 13, name: "CAM 0.5" }]),
+      ),
+      http.post(api("/api/material/types/12/set-entries"), async ({ request }) => {
+        calls.post = await request.json();
+        return HttpResponse.json(setEntry(3, 10, "Bandschlinge 120 cm", 1, 3));
+      }),
+      http.patch(api("/api/material/set-entries/2"), async ({ request }) => {
+        calls.patch = await request.json();
+        return djangoValidation({ per_set: ["Höchstens so viele, wie es gibt."] });
+      }),
+      http.delete(api("/api/material/set-entries/2"), () => {
+        calls.delete = true;
+        return HttpResponse.json({ success: true });
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/types/12");
+    await user.click(await screen.findByRole("tab", { name: "Satz (2)" }));
+    await user.click(screen.getByRole("button", { name: "Typ hinzufügen" }));
+    let d = await dialog();
+    await user.click(d.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText("Wähle einen Typ.")).toBeInTheDocument();
+    await user.click(document.querySelector('[role="dialog"] .ss-trigger') as HTMLElement);
+    // The set itself and the types already in it are not offered.
+    await waitFor(() => expect(dropdown().getByRole("button", { name: "Bandschlinge 120 cm" })).toBeInTheDocument());
+    expect(dropdown().queryByRole("button", { name: "Totem Satz" })).not.toBeInTheDocument();
+    expect(dropdown().queryByRole("button", { name: "CAM 0.5" })).not.toBeInTheDocument();
+    await user.click(dropdown().getByRole("button", { name: "Bandschlinge 120 cm" }));
+    await user.click(d.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(calls.post).toEqual({ product_type: 10, per_set: 1, position: 3 }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("cell", { name: "3" }));
+    d = await dialog();
+    const perSet = d.getByLabelText("Im Satz");
+    await user.clear(perSet);
+    await user.type(perSet, "3");
+    await user.click(d.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(calls.patch).toEqual({ per_set: 3 }));
+    expect(await d.findByText("Höchstens so viele, wie es gibt.")).toBeInTheDocument();
+    await user.click(d.getByRole("button", { name: "Herausnehmen" }));
+    const confirmation = screen.getAllByRole("dialog")[screen.getAllByRole("dialog").length - 1];
+    await user.click(within(confirmation).getByRole("button", { name: "Herausnehmen" }));
+    await waitFor(() => expect(calls.delete).toBe(true));
+    expect(await screen.findByText("Aus dem Satz genommen.")).toBeInTheDocument();
+  });
+
+  it("offers an empty type to the inventory to become a set", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    server.use(http.get(api("/api/material/types/10"), () => HttpResponse.json({ ...TYPE, parts: [] })));
+    const { user } = renderRoute("/kompass/material/types/10");
+    await user.click(await screen.findByRole("tab", { name: "Satz (0)" }));
+    expect(screen.getByText("Noch kein Satz: füge die Typen hinzu, aus denen er besteht.")).toBeInTheDocument();
   });
 
   it("lets the inventory edit the type, replace its photo and add pieces", async () => {

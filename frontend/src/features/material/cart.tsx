@@ -22,7 +22,8 @@ import {
  * The cart: what the user is about to reserve or borrow, and for when.
  *
  * A line is a type and a quantity (the server picks the pieces), one
- * specific piece, or a size of a type kept by size and a quantity. Kept in
+ * specific piece, or a size of a type kept by size and a quantity. A set of
+ * types goes in as its member types, each a line of its own. Kept in
  * localStorage, per user, so it survives a reload but not a change of user on
  * a shared device; the period is shared with the catalogue, whose
  * availability it drives.
@@ -33,6 +34,8 @@ export interface CartLine {
   quantity: number;
   part?: { id: number; label: string; typeName: string };
   size?: { id: number; name: string; typeName: string };
+  /** The set a type line came with, to show it under the set's name. */
+  set?: string;
 }
 
 interface CartState {
@@ -47,6 +50,8 @@ interface Cart extends CartState {
   addPart: (part: Pick<PartBrief, "id" | "label" | "product_type">) => void;
   /** Add ``quantity`` of each size, such as one set: ``per_set`` of every size. */
   addSizes: (typeName: string, sizes: { id: number; name: string; quantity: number }[]) => void;
+  /** Add one set of a set type: ``quantity`` of each member type. */
+  addSet: (setName: string, types: { id: number; name: string; quantity: number }[]) => void;
   setQuantity: (key: string, quantity: number) => void;
   remove: (key: string) => void;
   clear: () => void;
@@ -85,7 +90,8 @@ function readLine(raw: unknown): CartLine | null {
   }
   if (isRef(l.productType)) {
     const { id, name } = l.productType;
-    return { key: `t${id}`, quantity, productType: { id, name } };
+    const set = typeof l.set === "string" ? { set: l.set } : {};
+    return { key: `t${id}`, quantity, productType: { id, name }, ...set };
   }
   return null;
 }
@@ -170,6 +176,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
           lines = lines.some((l) => l.key === key)
             ? lines.map((l) => (l.key === key ? { ...l, quantity: l.quantity + size.quantity } : l))
             : [...lines, { key, quantity: size.quantity, size: { id: size.id, name: size.name, typeName } }];
+        }
+        return { ...s, lines };
+      }),
+    addSet: (setName, types) =>
+      setState((s) => {
+        let lines = s.lines;
+        for (const type of types) {
+          if (type.quantity < 1) continue;
+          const key = `t${type.id}`;
+          lines = lines.some((l) => l.key === key)
+            ? lines.map((l) => (l.key === key ? { ...l, quantity: l.quantity + type.quantity } : l))
+            : [
+                ...lines,
+                { key, quantity: type.quantity, productType: { id: type.id, name: type.name }, set: setName },
+              ];
         }
         return { ...s, lines };
       }),
@@ -259,11 +280,11 @@ export function WithCart({ always = false, children }: { always?: boolean; child
   );
 }
 
-/** Cart lines with the sizes of one type gathered under its name. */
+/** Cart lines with the sizes of one type, or the types of one set, gathered under its name. */
 function groupLines(lines: CartLine[]): { title?: string; lines: CartLine[] }[] {
   const groups: { title?: string; lines: CartLine[] }[] = [];
   for (const line of lines) {
-    const title = line.size?.typeName;
+    const title = line.size?.typeName ?? line.set;
     const last = groups[groups.length - 1];
     if (title && last?.title === title) last.lines.push(line);
     else groups.push({ title, lines: [line] });
@@ -415,7 +436,7 @@ export function CartPanel() {
               g.title ? (
                 <li key={g.title} className="cart-group">
                   <span className="cart-group-title">{g.title}</span>
-                  <ul>{g.lines.map((l) => line(l, `Größe ${l.size!.name}`))}</ul>
+                  <ul>{g.lines.map((l) => line(l, l.size ? `Größe ${l.size.name}` : lineName(l)))}</ul>
                 </li>
               ) : (
                 g.lines.map((l) => line(l, lineName(l)))

@@ -17,6 +17,7 @@ import {
   DeficitButton,
   mediaUrl,
   period,
+  setTypes,
   useOwnerGroups,
   useTags,
   type ProductTypeCard,
@@ -33,6 +34,18 @@ function useSettled<T>(value: T, ms = 250): T {
 }
 
 function Availability({ card }: { card: ProductTypeCard }) {
+  if (card.set_entries.length > 0) {
+    return (
+      <span className="availability">
+        <Badge tone={card.sets ? "success" : "danger"}>
+          {card.sets === 1 ? "1 Satz frei" : `${card.sets ?? 0} Sätze frei`}
+        </Badge>
+        <span className="muted small">
+          {card.total === 1 ? "1 Satz" : `${card.total} Sätze`} aus {card.set_entries.length} Typen
+        </span>
+      </span>
+    );
+  }
   if (card.total === 0) return <span className="muted small">noch keine Teile</span>;
   if (card.sets !== null) {
     return (
@@ -88,10 +101,12 @@ function TypeCard({ card }: { card: ProductTypeCard }) {
               variant="ghost"
               disabled={card.sets === 0}
               onClick={() =>
-                cart.addSizes(
-                  card.name,
-                  card.sizes.map((s) => ({ id: s.id, name: s.name, quantity: s.per_set })),
-                )
+                card.set_entries.length > 0
+                  ? cart.addSet(card.name, setTypes(card))
+                  : cart.addSizes(
+                      card.name,
+                      card.sizes.map((s) => ({ id: s.id, name: s.name, quantity: s.per_set })),
+                    )
               }
               aria-label={`Satz ${card.name} in den Korb`}
             >

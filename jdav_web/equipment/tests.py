@@ -18,8 +18,10 @@ from .models import Inspection
 from .models import LentSize
 from .models import Loan
 from .models import Part
+from .models import ProductType
 from .models import Reservation
 from .models import ReservedPart
+from .models import SetEntry
 from .models import Size
 from .models import Tag
 from .services import Conflict
@@ -142,6 +144,7 @@ class AvailabilityTestCase(MaterialFixture, TestCase):
                 "groups": {None: ["", 4]},
                 "sizes": {},
                 "sets": None,
+                "entries": {},
             },
         )
         entry = counts[self.crampon_type.pk]
@@ -774,6 +777,74 @@ class SizeTestCase(MaterialFixture, TestCase):
         services.lend(self.alice, [], self.alice, due=days(1), sizes=[(self.size2, 2)])
         self.assertEqual(services.send_notices()["returns"], 1)
         self.assertIn("- 2 × Friends 2", mail.outbox[-1].body)
+
+
+class SetTestCase(MaterialFixture, TestCase):
+    """A set of types whose pieces have IDs, each type also lent on its own."""
+
+    def setUp(self):
+        self.setUpMaterial()
+        self.setUpSet()
+
+    def test_str_and_is_set(self):
+        self.assertEqual(str(self.small_entry), "1 × CAM 0.5")
+        self.assertTrue(self.cam_set.is_set)
+        self.assertFalse(self.small_type.is_set)
+
+    def test_a_set_contains_neither_itself_nor_a_set(self):
+        SetEntry().clean()
+        with self.assertRaisesMessage(ValidationError, "A set cannot contain itself."):
+            SetEntry(set_type=self.cam_set, product_type=self.cam_set).full_clean()
+        other = ProductType.objects.create(name="Großer Satz")
+        with self.assertRaisesMessage(ValidationError, "A set cannot contain another set."):
+            SetEntry(set_type=other, product_type=self.cam_set).full_clean()
+        with self.assertRaisesMessage(ValidationError, "cannot be a set itself."):
+            SetEntry(set_type=self.small_type, product_type=self.sling_type).full_clean()
+        with self.assertRaisesMessage(ValidationError, "pieces or sizes of its own"):
+            SetEntry(set_type=self.sling_type, product_type=self.harness_type).full_clean()
+        self.setUpSizes()
+        with self.assertRaisesMessage(ValidationError, "pieces or sizes of its own"):
+            SetEntry(set_type=self.friends_type, product_type=self.harness_type).full_clean()
+        with self.assertRaisesMessage(ValidationError, "greater than or equal to 1"):
+            SetEntry(set_type=other, product_type=self.sling_type, per_set=0).full_clean()
+        SetEntry(set_type=other, product_type=self.sling_type).full_clean()
+
+    def test_a_set_has_no_pieces_or_sizes(self):
+        with self.assertRaisesMessage(ValidationError, "A set has no pieces of its own."):
+            Part(product_type=self.cam_set).full_clean()
+        with self.assertRaisesMessage(ValidationError, "A set has no sizes of its own."):
+            Size(product_type=self.cam_set, name="1").full_clean()
+
+    def test_availability(self):
+        counts = services.availability([self.cam_set], member=self.alice)
+        self.assertEqual(list(counts), [self.cam_set.pk])
+        entry = counts[self.cam_set.pk]
+        self.assertEqual(
+            (entry["total"], entry["available"], entry["available_direct"], entry["sets"]),
+            (2, 2, 1, 2),
+        )
+        self.assertEqual(entry["entries"], {self.small_entry.pk: 2, self.large_entry.pk: 2})
+        services.reserve(self.alice, days(1), days(1), [Line(part=self.small_cams[0])])
+        counts = services.availability([self.cam_set, self.small_type], days(1), days(1))
+        self.assertEqual(counts[self.cam_set.pk]["sets"], 1)
+        self.assertEqual(counts[self.small_type.pk]["available"], 1)
+        self.large_entry.per_set = 2
+        self.large_entry.save()
+        self.cam_set = ProductType.objects.get(pk=self.cam_set.pk)
+        entry = services.availability([self.cam_set])[self.cam_set.pk]
+        self.assertEqual((entry["total"], entry["sets"]), (1, 1))
+
+    def test_a_set_is_reserved_as_its_pieces(self):
+        _parts, _sizes, problems, _groups = services.check_reservation(
+            self.alice, days(1), days(1), [Line(self.cam_set)]
+        )
+        self.assertEqual(problems, ["Totem Satz is a set. Reserve the pieces it is made of."])
+        reservation = services.reserve(
+            self.alice, days(1), days(1), [Line(self.small_type), Line(self.large_type)]
+        )
+        self.assertEqual(
+            {p.product_type for p in reservation.parts.all()}, {self.small_type, self.large_type}
+        )
 
 
 class ApprovalAtLendingTestCase(MaterialFixture, TestCase):

@@ -2919,6 +2919,47 @@ export interface paths {
         patch: operations["equipment_api_router_update_size"];
         trace?: never;
     };
+    "/api/material/types/{type_id}/set-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Set Entry
+         * @description Make a type a set, or add another member type to it.
+         */
+        post: operations["equipment_api_router_create_set_entry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/set-entries/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Set Entry
+         * @description Take a member type out of its set. The last one taken out makes it a plain type again.
+         */
+        delete: operations["equipment_api_router_delete_set_entry"];
+        options?: never;
+        head?: never;
+        /** Update Set Entry */
+        patch: operations["equipment_api_router_update_set_entry"];
+        trace?: never;
+    };
     "/api/material/reservations/check": {
         parameters: {
             query?: never;
@@ -7352,6 +7393,23 @@ export interface components {
             sizes: components["schemas"]["SizeOut"][];
             /** Sets */
             sets: number | null;
+            /** Set Entries */
+            set_entries: components["schemas"]["SetEntryOut"][];
+        };
+        /**
+         * SetEntryOut
+         * @description A member type of a set. ``available`` is how many of it are free in the asked period.
+         */
+        SetEntryOut: {
+            /** Id */
+            id: number;
+            product_type: components["schemas"]["Ref"];
+            /** Per Set */
+            per_set: number;
+            /** Position */
+            position: number;
+            /** Available */
+            available: number;
         };
         /**
          * SizeOut
@@ -7439,6 +7497,8 @@ export interface components {
             sizes: components["schemas"]["SizeOut"][];
             /** Sets */
             sets: number | null;
+            /** Set Entries */
+            set_entries: components["schemas"]["SetEntryOut"][];
             /** Description */
             description: string;
             /** Article Number */
@@ -7457,6 +7517,8 @@ export interface components {
             parts: components["schemas"]["PartBrief"][] | null;
             /** Retired Parts */
             retired_parts: components["schemas"]["PartBrief"][] | null;
+            /** In Sets */
+            in_sets: components["schemas"]["Ref"][];
         };
         /** ProductTypeIn */
         ProductTypeIn: {
@@ -7777,6 +7839,28 @@ export interface components {
             group?: number | null;
             /** Location */
             location?: number | null;
+            /** Position */
+            position?: number | null;
+        };
+        /** SetEntryIn */
+        SetEntryIn: {
+            /** Product Type */
+            product_type: number;
+            /**
+             * Per Set
+             * @default 1
+             */
+            per_set: number;
+            /**
+             * Position
+             * @default 0
+             */
+            position: number;
+        };
+        /** SetEntryUpdate */
+        SetEntryUpdate: {
+            /** Per Set */
+            per_set?: number | null;
             /** Position */
             position?: number | null;
         };
@@ -14346,6 +14430,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SizeOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_create_set_entry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetEntryIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetEntryOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_delete_set_entry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    equipment_api_router_update_set_entry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetEntryUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetEntryOut"];
                 };
             };
         };

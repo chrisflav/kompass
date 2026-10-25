@@ -1,6 +1,6 @@
 import { Fragment, useId, useState } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
@@ -36,12 +36,14 @@ import {
   postMultipart,
   period,
   ReservationStatus,
+  setTypes,
   useLocations,
   useMaterialRoles,
   useTags,
   Whereabouts,
   type PartBrief,
   type ProductTypeOut,
+  type SetEntryOut,
   type SizeOut,
 } from "./shared";
 
@@ -121,6 +123,7 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
   const [adding, setAdding] = useState(false);
   const [deficit, setDeficit] = useState(false);
   const [sizeEditing, setSizeEditing] = useState<SizeOut | "new" | null>(null);
+  const [entryEditing, setEntryEditing] = useState<SetEntryOut | "new" | null>(null);
   const formId = useId();
 
   // Saving sends the fields, then the manual if one was chosen in the form.
@@ -238,8 +241,24 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
         />
       ),
     },
+    ...(type.in_sets.length > 0
+      ? [
+          {
+            label: "Teil von",
+            value: (
+              <span>
+                {type.in_sets.map((s, i) => (
+                  <Fragment key={s.id}>
+                    {i > 0 && ", "}
+                    <Link to={`${BASE}/types/${s.id}`}>{s.name}</Link>
+                  </Fragment>
+                ))}
+              </span>
+            ),
+          },
+        ]
+      : []),
   ];
-
 
   const overview = (
     <div className="material-detail">
@@ -252,7 +271,46 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
     </div>
   );
 
-  const sized = type.sizes.length > 0 || type.parts?.length === 0;
+  // A set is made of other types; a type without pieces or sizes of its own may
+  // become one, unless it belongs to a set itself.
+  const isSet = type.set_entries.length > 0;
+  const empty = type.sizes.length === 0 && type.parts?.length === 0;
+  const setShown = isSet || (roles.inventory && empty && type.in_sets.length === 0);
+  const sized = !isSet && (type.sizes.length > 0 || type.parts?.length === 0);
+  const entries = (
+    <section className="inline-section">
+      <div className="inline-head">
+        <h3 className="fieldset-title">Satz</h3>
+        {roles.inventory && (
+          <Button variant="ghost" onClick={() => setEntryEditing("new")}>
+            Typ hinzufügen
+          </Button>
+        )}
+      </div>
+      <p className="muted small">
+        Ein Satz besteht aus Teilen anderer Typen. Wer ihn in den Korb legt, bekommt sie alle; jedes
+        Teil lässt sich weiter auch einzeln ausleihen.
+      </p>
+      <DataTable
+        rows={type.set_entries}
+        rowKey={(e) => e.id}
+        onRowClick={roles.inventory ? (e) => setEntryEditing(e) : undefined}
+        empty="Noch kein Satz: füge die Typen hinzu, aus denen er besteht."
+        columns={[
+          {
+            header: "Typ",
+            cell: (e) => (
+              <Link to={`${BASE}/types/${e.product_type.id}`} onClick={(ev) => ev.stopPropagation()}>
+                {e.product_type.name}
+              </Link>
+            ),
+          },
+          { header: "Im Satz", cell: (e) => e.per_set },
+          { header: "Frei", cell: (e) => e.available },
+        ]}
+      />
+    </section>
+  );
   const sizes = (
     <section className="inline-section">
       <div className="inline-head">
@@ -300,7 +358,7 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
     <div className="page-stack">
       <p>
         Im gewählten Zeitraum ({period(cart.start, cart.end)}) sind <strong>{type.available}</strong>{" "}
-        von {type.total} frei.
+        von {type.total} {isSet ? "Sätzen " : ""}frei.
       </p>
       <DataTable
         rows={type.groups}
@@ -334,6 +392,7 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
 
   const tabs = [
     { id: "overview", label: "Übersicht", content: overview },
+    ...(setShown ? [{ id: "set", label: `Satz (${type.set_entries.length})`, content: entries }] : []),
     ...(sized ? [{ id: "sizes", label: `Größen (${type.sizes.length})`, content: sizes }] : []),
     { id: "availability", label: "Verfügbarkeit", content: availability },
     { id: "calendar", label: "Belegung", content: calendar },
@@ -347,7 +406,7 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
     { header: "Wo", cell: (p: PartBrief) => <Whereabouts part={p} /> },
     { header: "Status", cell: (p: PartBrief) => <PartStatus status={p.status} /> },
   ];
-  if (type.parts && type.sizes.length === 0) {
+  if (type.parts && type.sizes.length === 0 && !isSet) {
     tabs.push({
       id: "parts",
       label: `Teile (${type.parts.length})`,
@@ -412,7 +471,7 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
                     Bearbeiten
                   </Button>
                 )}
-                {roles.inventory && type.sizes.length === 0 && (
+                {roles.inventory && type.sizes.length === 0 && !isSet && (
                   <Button variant="ghost" onClick={() => setAdding(true)}>
                     Teile hinzufügen
                   </Button>
@@ -441,10 +500,12 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
                 <Button
                   disabled={type.sets === 0}
                   onClick={() => {
-                    cart.addSizes(
-                      type.name,
-                      type.sizes.map((s) => ({ id: s.id, name: s.name, quantity: s.per_set })),
-                    );
+                    if (isSet) cart.addSet(type.name, setTypes(type));
+                    else
+                      cart.addSizes(
+                        type.name,
+                        type.sizes.map((s) => ({ id: s.id, name: s.name, quantity: s.per_set })),
+                      );
                     toast.success(`Ein Satz ${type.name} im Korb.`);
                   }}
                 >
@@ -490,7 +551,143 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
           onClose={() => setSizeEditing(null)}
         />
       )}
+      {entryEditing && (
+        <SetEntryModal
+          type={type}
+          entry={entryEditing === "new" ? null : entryEditing}
+          onClose={() => setEntryEditing(null)}
+        />
+      )}
     </>
+  );
+}
+
+/** Add a type to a set, or change how many of it go into one set. */
+function SetEntryModal({
+  type,
+  entry,
+  onClose,
+}: {
+  type: Pick<ProductTypeOut, "id" | "name" | "set_entries">;
+  entry: SetEntryOut | null;
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const confirm = useConfirmDialog();
+  const [productType, setProductType] = useState("");
+  const [perSet, setPerSet] = useState(String(entry?.per_set ?? 1));
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const types = useApiQuery(["material", "types", "set-candidates"], () =>
+    unwrap(client.GET("/api/material/types")),
+  );
+  // Sets are not nested, and a type is in a set once.
+  const taken = new Set([type.id, ...type.set_entries.map((e) => e.product_type.id)]);
+  const options = (types.data ?? [])
+    .filter((t) => !taken.has(t.id) && t.set_entries.length === 0)
+    .map((t) => ({ value: t.id, label: t.name }));
+  const save = useApiMutation(
+    () =>
+      entry
+        ? unwrap(
+            client.PATCH("/api/material/set-entries/{entry_id}", {
+              params: { path: { entry_id: entry.id } },
+              body: { per_set: Number(perSet) || 0 },
+            }),
+          )
+        : unwrap(
+            client.POST("/api/material/types/{type_id}/set-entries", {
+              params: { path: { type_id: type.id } },
+              body: {
+                product_type: Number(productType),
+                per_set: Number(perSet) || 0,
+                position: type.set_entries.length + 1,
+              },
+            }),
+          ),
+    {
+      invalidate: [MATERIAL],
+      onSuccess: () => {
+        toast.success("Gespeichert.");
+        onClose();
+      },
+      onError: (e) => {
+        if (e instanceof ApiError) setErrors(e.fieldErrors);
+        toast.error(errorText(e));
+      },
+    },
+  );
+  const remove = useApiMutation(
+    () =>
+      unwrap(
+        client.DELETE("/api/material/set-entries/{entry_id}", {
+          params: { path: { entry_id: entry!.id } },
+        }),
+      ),
+    {
+      invalidate: [MATERIAL],
+      onSuccess: () => {
+        toast.success("Aus dem Satz genommen.");
+        onClose();
+      },
+      onError: (e) => toast.error(errorText(e)),
+    },
+  );
+  return (
+    <Modal
+      title={entry ? `${entry.product_type.name} im Satz ${type.name}` : `${type.name}: Typ hinzufügen`}
+      onClose={onClose}
+      size="sm"
+    >
+      <form
+        className="stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setErrors({});
+          if (!entry && !productType) {
+            toast.error("Wähle einen Typ.");
+            return;
+          }
+          save.mutate(undefined);
+        }}
+      >
+        {!entry && (
+          <Field label="Typ">
+            <Select value={productType} onChange={setProductType} options={options} />
+            {errors.product_type && <div className="field-error">{errors.product_type.join(" ")}</div>}
+          </Field>
+        )}
+        <Field label="Im Satz">
+          <input type="number" min={1} value={perSet} onChange={(e) => setPerSet(e.target.value)} />
+          {errors.per_set && <div className="field-error">{errors.per_set.join(" ")}</div>}
+        </Field>
+        <ModalActions>
+          <Button type="submit" busy={save.isPending}>
+            Speichern
+          </Button>
+          {entry && (
+            <Button
+              variant="danger"
+              busy={remove.isPending}
+              onClick={async () => {
+                if (
+                  await confirm({
+                    message: `${entry.product_type.name} aus dem Satz nehmen?`,
+                    danger: true,
+                    confirmLabel: "Herausnehmen",
+                  })
+                )
+                  remove.mutate(undefined);
+              }}
+            >
+              Herausnehmen
+            </Button>
+          )}
+          <Button variant="ghost" onClick={onClose}>
+            Abbrechen
+          </Button>
+        </ModalActions>
+      </form>
+    </Modal>
   );
 }
 

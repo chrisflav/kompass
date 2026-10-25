@@ -10,6 +10,7 @@ from members.models import Member
 from .models import Location
 from .models import Part
 from .models import ProductType
+from .models import SetEntry
 from .models import Size
 
 
@@ -86,4 +87,30 @@ class MaterialFixture:
             quantity=1,
             group=self.hochtour,
             position=3,
+        )
+
+    def setUpSet(self):
+        """``cam_set``, a set of one ``small_cam`` and one ``large_cam``, pieces with IDs.
+
+        There are two small cams of the section, and two large ones: one of the
+        section, one of ``hochtour``.
+        """
+        self.small_type = ProductType.objects.create(name="CAM 0.5")
+        self.large_type = ProductType.objects.create(name="CAM 1")
+        self.small_cams = [
+            self.make_part(self.small_type, psa_id="C05-1", location=self.cupboard),
+            self.make_part(self.small_type, psa_id="C05-2", location=self.cupboard),
+        ]
+        self.large_cams = [
+            self.make_part(self.large_type, psa_id="C1-1", location=self.cupboard),
+            self.make_part(
+                self.large_type, psa_id="C1-2", group=self.hochtour, location=self.cupboard
+            ),
+        ]
+        self.cam_set = ProductType.objects.create(name="Totem Satz")
+        self.small_entry = SetEntry.objects.create(
+            set_type=self.cam_set, product_type=self.small_type, position=1
+        )
+        self.large_entry = SetEntry.objects.create(
+            set_type=self.cam_set, product_type=self.large_type, position=2
         )

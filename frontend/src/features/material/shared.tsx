@@ -16,6 +16,7 @@ export type PartOut = components["schemas"]["PartOut"];
 export type ReservationOut = components["schemas"]["ReservationOut"];
 export type LoanOut = components["schemas"]["LoanOut"];
 export type SizeOut = components["schemas"]["SizeOut"];
+export type SetEntryOut = components["schemas"]["SetEntryOut"];
 export type SizeRef = components["schemas"]["SizeRef"];
 export type LocationOut = components["schemas"]["LocationOut"];
 
@@ -32,6 +33,11 @@ export function useMaterialRoles() {
     lending: can("equipment.manage_lending"),
     manager: canAny("equipment.manage_inventory", "equipment.manage_lending"),
   };
+}
+
+/** One set of a set type, as the cart takes it: its member types, each ``per_set`` times. */
+export function setTypes(type: Pick<ProductTypeCard, "set_entries">) {
+  return type.set_entries.map((e) => ({ id: e.product_type.id, name: e.product_type.name, quantity: e.per_set }));
 }
 
 /** An absolute URL for a media path the API returns ("/media/…"). */
