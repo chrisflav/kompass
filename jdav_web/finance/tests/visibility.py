@@ -486,3 +486,32 @@ class SignerVisibilityTestCase(TestCase):
         self.assertFalse(statement.names_as_signer(None))
         self.assertEqual(list(ApprovalConstraint.objects.naming(None)), [])
         self.assertEqual(list(ApprovalConstraint.objects.naming(self.leitung)), [statement.pk])
+
+    def test_the_payload_answers_the_person_who_is_asking(self):
+        """``may_approve`` in the payload is *this* asker's answer.
+
+        It is ``Statement.may_be_approved_by(member)``, served under the name
+        the client reads, and the one thing a page needs in order to decide
+        whether to offer the button. Two askers, one statement, two answers —
+        asserted against each other, because a field that is simply constant
+        passes every test written about one asker.
+        """
+        statement = self.a_statement()
+        self.assertEqual(
+            {
+                member.prename: statement.may_be_approved_by(member)
+                for member in (self.leitung, self.kollegin, self.payer)
+            },
+            {"Leitung": True, "Kollegin": False, "Zahlerin": False},
+            "the signer is told yes and the two who cannot sign are told no",
+        )
+        # And that is the field the client reads, under the name it reads it
+        # by: `may_approve` in the `/approval` payload.
+        for user, expected in ((self.leitung_user, True), (self.payer_user, False)):
+            with self.subTest(user=user.username):
+                r = self.client.get(
+                    "/api/finance/statements/{}/approval".format(statement.pk),
+                    **bearer(user),
+                )
+                self.assertEqual(r.status_code, 200, r.content)
+                self.assertEqual(r.json()["may_approve"], expected)
