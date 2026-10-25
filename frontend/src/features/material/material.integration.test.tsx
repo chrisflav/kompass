@@ -641,8 +641,32 @@ describe("material — Materialbrowser", () => {
     await user.click(await screen.findByRole("button", { name: "Bandschlinge 120 cm in den Korb" }));
     await user.click(screen.getByRole("button", { name: "Jetzt mitnehmen" }));
     await user.click((await dialog()).getByRole("button", { name: "Abbrechen" }));
+    await user.click((await dialog()).getByRole("button", { name: "Reservierung behalten" }));
     expect(await screen.findByText("Reserviert – abholen kannst du es unter Mein Material.")).toBeInTheDocument();
     await waitFor(() => expect(currentUrl()).toBe("/kompass/material/mine"));
+  });
+
+  it("drops what was reserved to take along when asked to, and keeps the cart (Feedback #30)", async () => {
+    let cancelled = false;
+    server.use(
+      http.post(api("/api/material/reservations"), () => HttpResponse.json(reservation())),
+      http.post(api("/api/material/reservations/20/cancel"), () => {
+        cancelled = true;
+        return HttpResponse.json(reservation({ status: "cancelled" }));
+      }),
+    );
+    const { user } = renderRoute("/kompass/material");
+    await user.click(await screen.findByRole("button", { name: "Bandschlinge 120 cm in den Korb" }));
+    await user.click(screen.getByRole("button", { name: "Jetzt mitnehmen" }));
+    await dialog();
+    // Closing by the backdrop asks just the same.
+    await user.click(document.querySelector(".modal-backdrop")!);
+    await user.click((await dialog()).getByRole("button", { name: "Reservierung verwerfen" }));
+    expect(await screen.findByText("Nichts reserviert.")).toBeInTheDocument();
+    expect(cancelled).toBe(true);
+    expect(currentUrl()).toBe("/kompass/material");
+    const cart = within(screen.getByRole("complementary", { name: "Korb" }));
+    expect(cart.getByRole("button", { name: "Jetzt mitnehmen" })).toBeInTheDocument();
   });
 
   it("reports a deficit", async () => {
@@ -1551,6 +1575,25 @@ describe("material — Mein Material", () => {
     await user.click(screen.getByRole("button", { name: "Stornieren" }));
     await user.click((await dialog()).getByRole("button", { name: "Stornieren" }));
     await waitFor(() => expect(calls.cancel).toBe(true));
+  });
+
+  it("closes the pick-up of a reservation without asking", async () => {
+    let cancelled = false;
+    server.use(
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({ held: [], held_sizes: [], reservations: [reservation()], to_decide: 0 }),
+      ),
+      http.post(api("/api/material/reservations/20/cancel"), () => {
+        cancelled = true;
+        return HttpResponse.json(reservation({ status: "cancelled" }));
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/mine");
+    await user.click(await screen.findByRole("button", { name: "Abholen" }));
+    await user.click((await dialog()).getByRole("button", { name: "Abbrechen" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Abholen" })).toBeInTheDocument();
+    expect(cancelled).toBe(false);
   });
 
   it("hands selected pieces over for good", async () => {
