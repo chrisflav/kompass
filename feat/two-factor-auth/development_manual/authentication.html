@@ -154,16 +154,26 @@ fingerprint and a five-minute deadline, and <code class="docutils literal notran
 calls <code class="docutils literal notranslate"><span class="pre">login()</span></code> once a factor checks out. <code class="docutils literal notranslate"><span class="pre">/o/authorize/</span></code> therefore never
 sees a half-authenticated session. A passkey (a discoverable credential created
 with user verification) also logs in on its own from the login page’s „Mit
-Sicherheitsschlüssel anmelden“ button. Five wrong codes lock an account’s second
-step for fifteen minutes. The admin’s own login form under <code class="docutils literal notranslate"><span class="pre">/kompass</span></code> is
-replaced by a redirect to <code class="docutils literal notranslate"><span class="pre">/accounts/login/</span></code>, so it is no way around this.</p>
+Sicherheitsschlüssel anmelden“ button. The admin’s own login form under
+<code class="docutils literal notranslate"><span class="pre">/kompass</span></code> is replaced by a redirect to <code class="docutils literal notranslate"><span class="pre">/accounts/login/</span></code>, and the OAuth2
+<em>password</em> grant is refused for accounts with a second factor, so neither is a
+way around it.</p>
+<p>Attempts are counted per account before they are checked: every five of them
+without a successful second factor lock the second step, first for fifteen
+minutes, then twice as long each further time, up to a day. Wrong passwords
+when changing factors count too. The first lock is mailed to the user.</p>
 <p>TOTP secrets are stored encrypted with a key derived from <code class="docutils literal notranslate"><span class="pre">SECRET_KEY</span></code>. When
 rotating it, keep the old key in Django’s <code class="docutils literal notranslate"><span class="pre">SECRET_KEY_FALLBACKS</span></code>, or every
-authenticator app has to be set up again. Recovery codes are stored hashed.
-Personal access tokens are unaffected: they are created after signing in.</p>
+authenticator app has to be set up again; Kompass logs an error for each app it
+can no longer decrypt, and does not count those logins against the user.
+Recovery codes are stored hashed. Personal access tokens are unaffected: they
+are created after signing in.</p>
 <p>An account’s factors can be removed by anyone with <code class="docutils literal notranslate"><span class="pre">auth.change_user</span></code> (a
 superuser’s only by a superuser) from the user’s page in the frontend. Each such
-reset is logged as a warning by <code class="docutils literal notranslate"><span class="pre">logindata.api.admin_router</span></code>.</p>
+reset is logged as a warning by <code class="docutils literal notranslate"><span class="pre">logindata.api.admin_router</span></code>. The user is
+mailed when a factor is removed or reset. The mails‘ texts can be changed in
+<code class="docutils literal notranslate"><span class="pre">texts.toml</span></code> as <code class="docutils literal notranslate"><span class="pre">two_factor_locked</span></code>, <code class="docutils literal notranslate"><span class="pre">two_factor_removed</span></code> (with
+<code class="docutils literal notranslate"><span class="pre">{factor}</span></code>) and <code class="docutils literal notranslate"><span class="pre">two_factor_reset</span></code>, each with <code class="docutils literal notranslate"><span class="pre">{name}</span></code>.</p>
 <section id="configuration">
 <h3>Configuration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#configuration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#configuration'">¶</a></h3>
 <p>WebAuthn ties a security key to a <em>relying party ID</em>, a domain, and accepts it

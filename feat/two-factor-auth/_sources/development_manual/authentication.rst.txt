@@ -30,18 +30,29 @@ fingerprint and a five-minute deadline, and ``/accounts/login/two-factor/``
 calls ``login()`` once a factor checks out. ``/o/authorize/`` therefore never
 sees a half-authenticated session. A passkey (a discoverable credential created
 with user verification) also logs in on its own from the login page's "Mit
-Sicherheitsschlüssel anmelden" button. Five wrong codes lock an account's second
-step for fifteen minutes. The admin's own login form under ``/kompass`` is
-replaced by a redirect to ``/accounts/login/``, so it is no way around this.
+Sicherheitsschlüssel anmelden" button. The admin's own login form under
+``/kompass`` is replaced by a redirect to ``/accounts/login/``, and the OAuth2
+*password* grant is refused for accounts with a second factor, so neither is a
+way around it.
+
+Attempts are counted per account before they are checked: every five of them
+without a successful second factor lock the second step, first for fifteen
+minutes, then twice as long each further time, up to a day. Wrong passwords
+when changing factors count too. The first lock is mailed to the user.
 
 TOTP secrets are stored encrypted with a key derived from ``SECRET_KEY``. When
 rotating it, keep the old key in Django's ``SECRET_KEY_FALLBACKS``, or every
-authenticator app has to be set up again. Recovery codes are stored hashed.
-Personal access tokens are unaffected: they are created after signing in.
+authenticator app has to be set up again; Kompass logs an error for each app it
+can no longer decrypt, and does not count those logins against the user.
+Recovery codes are stored hashed. Personal access tokens are unaffected: they
+are created after signing in.
 
 An account's factors can be removed by anyone with ``auth.change_user`` (a
 superuser's only by a superuser) from the user's page in the frontend. Each such
-reset is logged as a warning by ``logindata.api.admin_router``.
+reset is logged as a warning by ``logindata.api.admin_router``. The user is
+mailed when a factor is removed or reset. The mails' texts can be changed in
+``texts.toml`` as ``two_factor_locked``, ``two_factor_removed`` (with
+``{factor}``) and ``two_factor_reset``, each with ``{name}``.
 
 Configuration
 ^^^^^^^^^^^^^
