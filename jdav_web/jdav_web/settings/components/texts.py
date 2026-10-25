@@ -515,6 +515,10 @@ Ansprechpersonen:
 
 {contacts}
 
+Erreichen kannst du das Materialteam über den Materialbereich:
+
+{material}
+
 Abgeben kannst du es auch hier:
 
 {locations}

@@ -719,7 +719,10 @@ class InspectionReminderTestCase(MaterialFixture, TestCase):
         self.assertIn(
             "- {}: inspection due on {}".format(self.harness, date(2024, 12, 31)), message.body
         )
-        self.assertIn("- Carol Test (carol@example.com)", message.body)
+        # The material team is named, not its addresses: the material area reaches it.
+        self.assertIn("- Carol Test\n", message.body)
+        self.assertNotIn("carol@example.com", message.body)
+        self.assertIn("http://localhost:8000/kompass/material\n", message.body)
         self.assertNotIn("Alice", message.body)
         self.assertIn("- Griffwerk: Hauptstraße 1, Do 18-20 Uhr", message.body)
         self.assertIn("- Kletterhalle\n", message.body)
@@ -781,11 +784,38 @@ class InspectionReminderTestCase(MaterialFixture, TestCase):
 
     def test_new_holder_is_asked(self):
         self.remind()
-        services.transfer([self.harness], self.bob, member=self.carol)
+        services.transfer([self.harness], self.bob, member=self.alice)
         self.harness.refresh_from_db()
         self.assertIsNone(self.harness.inspection_reminder_sent)
         self.assertEqual(self.remind(days(1)), 1)
-        self.assertEqual(mail.outbox[-1].to, ["carol@example.com"])
+        self.assertEqual(mail.outbox[-1].to, ["alice@example.com"])
+
+    def test_assembling_into_a_piece_elsewhere_starts_afresh(self):
+        self.remind()
+        services.assemble(self.harness, self.slings[3], self.carol)
+        self.harness.refresh_from_db()
+        self.assertEqual(self.harness.holder, self.carol)
+        self.assertIsNone(self.harness.inspection_reminder_sent)
+
+    def test_the_material_team_is_not_asked(self):
+        # Carol takes PSA in herself: she is not asked to hand it to herself.
+        services.transfer([self.harness], self.bob, member=self.carol)
+        self.assertEqual(self.remind(), 0)
+        self.assertEqual(mail.outbox, [])
+
+    def test_material_other_than_psa(self):
+        services.transfer([self.harness], self.bob, location=self.cupboard)
+        sling = self.slings[2]
+        sling.buy_date = date(2020, 1, 1)
+        sling.save()
+        self.assertEqual(self.remind(), 0)
+        self.assertEqual(mail.outbox, [])
+
+    def test_holder_without_email(self):
+        self.bob.email = ""
+        self.bob.save()
+        self.remind()
+        self.assertEqual(mail.outbox, [])
 
     def test_same_holder_keeps_the_date(self):
         self.remind()

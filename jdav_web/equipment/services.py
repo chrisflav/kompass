@@ -1149,9 +1149,8 @@ def inspection_contacts():
     return Member.objects.filter(user__in=users).order_by("prename", "lastname")
 
 
-def _contacts_text():
-    lines = ["- {} ({})".format(m.name, m.email) for m in inspection_contacts()]
-    return "\n".join(lines) or "-"
+def _contacts_text(contacts):
+    return "\n".join("- {}".format(m.name) for m in contacts) or "-"
 
 
 def _locations_text():
@@ -1165,26 +1164,38 @@ def _locations_text():
     return "\n".join(lines) or "-"
 
 
-def inspections_coming_up(today=None):
+def _top_level_id(part_id, parents):
+    """The id of the outermost assembly of the piece ``part_id``, by the ``parents`` map."""
+    seen = {part_id}
+    while parents.get(part_id) is not None and parents[part_id] not in seen:
+        part_id = parents[part_id]
+        seen.add(part_id)
+    return part_id
+
+
+def inspections_coming_up(today, contacts):
     """Per member: the PSA pieces they hold whose inspection is due within the reminder window.
 
     Each piece comes with its due date. A piece out on a loan that ends by the
     due date is left out: it comes back before, and the return reminder covers it.
+    The ``contacts`` (see :func:`inspection_contacts`) take the pieces in
+    themselves, so pieces they hold are left out too.
     """
-    today = today or timezone.localdate()
     horizon = today + timedelta(days=settings.MATERIAL_INSPECTION_REMINDER_DAYS)
     loan_dues = open_loan_dues()
+    parents = dict(Part.objects.filter(parent__isnull=False).values_list("pk", "parent_id"))
     held = {}
     for part in (
         Part.objects.filter(product_type__is_psa=True, holder__isnull=False)
         .exclude(status=Part.RETIRED)
+        .exclude(holder__in=contacts)
         .select_related("product_type", "holder")
         .prefetch_related("inspections")
     ):
         due = part.next_inspection_due(list(part.inspections.all()))
         if due is None or due > horizon:
             continue
-        loan_due = loan_dues.get(part.top_level.pk)
+        loan_due = loan_dues.get(_top_level_id(part.pk, parents))
         if loan_due is not None and loan_due <= due:
             continue
         held.setdefault(part.holder, []).append((part, due))
@@ -1200,8 +1211,11 @@ def send_inspection_reminders(today=None):
     """
     today = today or timezone.localdate()
     repeat = settings.MATERIAL_INSPECTION_REMINDER_REPEAT_DAYS
+    contacts = list(inspection_contacts())
+    contacts_text = _contacts_text(contacts)
+    locations_text = _locations_text()
     sent = 0
-    for holder, pieces in inspections_coming_up(today).items():
+    for holder, pieces in inspections_coming_up(today, contacts).items():
         if not any(
             part.inspection_reminder_sent is None
             or (repeat and part.inspection_reminder_sent <= today - timedelta(days=repeat))
@@ -1219,8 +1233,9 @@ def send_inspection_reminders(today=None):
                     "- " + _("%(part)s: inspection due on %(due)s") % {"part": part, "due": due}
                     for part, due in pieces
                 ),
-                contacts=_contacts_text(),
-                locations=_locations_text(),
+                contacts=contacts_text,
+                locations=locations_text,
+                material=material_link(),
                 link=material_link("/mine"),
             ),
         )
