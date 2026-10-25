@@ -109,6 +109,13 @@ FINANCE_VERIFY_HOURS = get_var("finance", "verify_hours", default=24)
 # are asked to bring them back. From the last of these days on they are asked
 # daily, until the reservation is picked up.
 MATERIAL_HOLDER_NOTICE_DAYS = get_var("material", "holder_notice_days", default=[7, 2])
+# Days before its next inspection is due from which the member holding a PSA
+# piece is asked to hand it in for the inspection, and the days after which an
+# unanswered request is repeated (0: ask only once per holder).
+MATERIAL_INSPECTION_REMINDER_DAYS = get_var("material", "inspection_reminder_days", default=30)
+MATERIAL_INSPECTION_REMINDER_REPEAT_DAYS = get_var(
+    "material", "inspection_reminder_repeat_days", default=7
+)
 
 # links
 

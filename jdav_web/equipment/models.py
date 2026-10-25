@@ -162,6 +162,9 @@ class Part(models.Model):
         on_delete=models.SET_NULL,
         related_name="parts",
     )
+    #: The last day the holder was asked to hand the piece in for its inspection.
+    #: Cleared when the piece is inspected or changes hands.
+    inspection_reminder_sent = models.DateField(null=True, blank=True)
 
     def __str__(self):
         label = self.psa_id or self.serial_number or "#{}".format(self.pk)

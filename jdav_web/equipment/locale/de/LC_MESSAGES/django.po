@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-25 13:37+0100\n"
+"POT-Creation-Date: 2026-10-25 15:57+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -543,6 +543,16 @@ msgstr "Materialanfrage freigegeben"
 
 msgid "Material request declined"
 msgstr "Materialanfrage abgelehnt"
+
+msgid "PSA inspection overdue"
+msgstr "PSA-Prüfung überfällig"
+
+msgid "PSA inspection due soon"
+msgstr "PSA-Prüfung steht an"
+
+#, python-format
+msgid "%(part)s: inspection due on %(due)s"
+msgstr "%(part)s: Prüfung fällig am %(due)s"
 
 msgid "No answer before the start."
 msgstr "Keine Antwort vor Beginn."
