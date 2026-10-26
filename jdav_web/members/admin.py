@@ -89,8 +89,16 @@ class AccountGuardAdminMixin:
     """Refuse a member form that would take over an account (see ``logindata.rights``).
 
     Linking or unlinking an account, or changing the addresses its login and
-    echo mails go to, decides who can sign in as it.
+    echo mails go to, decides who can sign in as it. Deleting the record strips
+    the account of the member rights that protect it, so that is refused under
+    the same rule -- for the delete page and the bulk action alike, which both
+    ask ``has_delete_permission`` per object.
     """
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and login_refusal(request.user, obj):
+            return False
+        return super().has_delete_permission(request, obj)
 
     def get_form(self, request, obj=None, **kwargs):
         base = super().get_form(request, obj, **kwargs)

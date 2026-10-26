@@ -84,7 +84,10 @@ def member_has_rights(member):
 
     That is an access list of its own, one of a group it belongs to, or leading
     a group or an excursion -- the rights the rules predicates hand its account.
+    A record not saved yet has none.
     """
+    if member.pk is None:
+        return False
     return (
         PermissionMember.objects.filter(_GRANTS_SOMETHING, member=member).exists()
         or PermissionGroup.objects.filter(_GRANTS_SOMETHING, group__in=member.group.all()).exists()

@@ -268,6 +268,41 @@ class AccountTakeoverApiTestCase(TestCase):
         r = self.patch(self.target, {"alternative_email": ""}, self.actor)
         self.assertNotEqual(r.status_code, 403, r.content)
 
+    # --- creating and deleting records -------------------------------------
+
+    def test_a_new_record_with_an_email_may_be_created(self):
+        actor = grant(self.actor, "add_global_member")
+        r = self.client.post(
+            "/api/members/",
+            data={
+                "prename": "Neue",
+                "lastname": "Person",
+                "gender": DIVERSE,
+                "email": "neue@{}".format(DOMAIN),
+            },
+            content_type="application/json",
+            **self.auth(actor),
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+
+    def delete(self, member):
+        actor = grant(self.actor, "delete_global_member")
+        return self.client.delete("/api/members/{}".format(member.pk), **self.auth(actor))
+
+    def test_a_record_with_rights_cannot_be_deleted(self):
+        # Its account would lose the member rights that protect it.
+        self.lead(self.plain_member)
+        self.assertRefused(self.delete(self.plain_member), MEMBER_RIGHTS)
+        self.assertTrue(Member.objects.filter(pk=self.plain_member.pk).exists())
+
+    def test_the_record_of_a_stronger_account_cannot_be_deleted(self):
+        self.assertRefused(self.delete(self.chef_member), SUPERUSER_ACCOUNT)
+        self.assertTrue(Member.objects.filter(pk=self.chef_member.pk).exists())
+
+    def test_a_record_without_rights_may_be_deleted(self):
+        self.assertEqual(self.delete(self.plain_member).status_code, 204)
+        self.assertFalse(Member.objects.filter(pk=self.plain_member.pk).exists())
+
     # --- freeing a record with rights for an invitation ----------------------
 
     def lead(self, member):
@@ -428,6 +463,58 @@ class AccountTakeoverAdminTestCase(TestCase):
         Group.objects.create(name="Gemsen").leiters.add(self.target)
         changes = {"alternative_email": None}
         self.assertEqual(self.clean(Member, self.target, self.actor, changes), changes)
+
+    def test_the_add_form_checks_only_the_account(self):
+        # An unsaved record has no rights, and asking for them would fail.
+        changes = {"user": None, "email": "neu@{}".format(DOMAIN), "alternative_email": None}
+        self.assertEqual(self.clean(Member, Member(), self.actor, changes), changes)
+        weak = User.objects.create_user("frei", password="secret")
+        self.assertEqual(self.clean(Member, Member(), self.actor, {"user": weak}), {"user": weak})
+        self.chef_member.user = None
+        self.chef_member.save()
+        with self.assertRaisesMessage(ValidationError, str(SUPERUSER_ACCOUNT)):
+            self.clean(Member, Member(), self.actor, {"user": self.chef})
+
+    def test_the_add_page_saves_a_member_with_an_email(self):
+        actor = grant(self.actor, "add_global_member")
+        self.client.force_login(actor, backend="django.contrib.auth.backends.ModelBackend")
+        response = self.client.post(
+            reverse("admin:members_member_add"),
+            {
+                "prename": "Neue",
+                "lastname": "Person",
+                "gender": DIVERSE,
+                "email": "neue@{}".format(DOMAIN),
+            },
+        )
+        self.assertNotEqual(response.status_code, 500)
+        self.assertNotContains(response, str(SUPERUSER_ACCOUNT), status_code=response.status_code)
+
+    def test_a_record_with_rights_cannot_be_deleted(self):
+        actor = grant(self.actor, "delete_global_member", "list_global_member")
+        Group.objects.create(name="Gemsen").leiters.add(self.target)
+        plain = Member.objects.create(prename="Neu", lastname="Ling", gender=DIVERSE)
+        self.client.force_login(actor, backend="django.contrib.auth.backends.ModelBackend")
+        response = self.client.post(
+            reverse("admin:members_member_delete", args=(self.target.pk,)), {"post": "yes"}
+        )
+        self.assertEqual(response.status_code, 403)
+        self.client.post(
+            reverse("admin:members_member_changelist"),
+            {
+                "action": "delete_selected",
+                "_selected_action": [self.target.pk, self.chef_member.pk, plain.pk],
+                "post": "yes",
+            },
+        )
+        self.assertTrue(Member.objects.filter(pk=self.target.pk).exists())
+        self.assertTrue(Member.objects.filter(pk=self.chef_member.pk).exists())
+        site = admin.site._registry[Member]
+        request = self.factory.post("/")
+        request.user = actor
+        self.assertTrue(site.has_delete_permission(request, plain))
+        request.user = self.superuser
+        self.assertTrue(site.has_delete_permission(request, self.target))
 
     def test_harmless_changes_pass(self):
         changes = {"user": None, "email": "neu@{}".format(DOMAIN)}

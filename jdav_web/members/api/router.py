@@ -1093,5 +1093,10 @@ def update_member(request, member_id: int, payload: MemberUpdate):
 def delete_member(request, member_id: int):
     """Delete a member, authorized per object (``delete_obj_member``)."""
     member = get_authorized(request, Member, member_id, "members.delete_obj_member")
+    # Deleting the record strips its account of the member rights that protect
+    # it from a takeover, so it is a takeover check itself.
+    refusal = login_refusal(request.user, member)
+    if refusal:
+        raise Forbidden(refusal)
     member.delete()
     return 204, None
