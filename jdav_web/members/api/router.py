@@ -1,6 +1,7 @@
 """Members API routes."""
 
 from contrib.api.perms import authorize
+from contrib.api.perms import Forbidden
 from contrib.api.perms import get_authorized
 from contrib.api.perms import partial_clean
 from contrib.api.perms import set_scalar_fields
@@ -9,6 +10,8 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
+from logindata.rights import login_refusal
+from logindata.rights import member_change_refusal
 from members.models import ActivityCategory
 from members.models import annotate_activity_score
 from members.models import Freizeit
@@ -108,6 +111,17 @@ def _apply_member_update(request, member, payload):
         authorize(request, "members.may_set_auth_user")
     if any(field in data for field in MEMBER_ORGANIZATIONAL_FIELDS):
         authorize(request, "members.may_change_organizationals")
+    changes = {key: data[key] for key in ("email", "alternative_email") if key in data}
+    if data.get("user_id") is not None:
+        # An unknown id is left to ``partial_clean`` below (422).
+        user = User.objects.filter(pk=data["user_id"]).first()
+        if user is not None:
+            changes["user"] = user
+    elif "user_id" in data:
+        changes["user"] = None
+    refusal = member_change_refusal(request.user, member, changes)
+    if refusal:
+        raise Forbidden(refusal)
     changed = set_scalar_fields(
         member, data, MEMBER_UPDATE_SCALAR_FIELDS + MEMBER_ORGANIZATIONAL_FIELDS
     )
@@ -755,7 +769,10 @@ def invite_as_user(request, member_id: int):
     """
     authorize(request, "members.may_invite_as_user")
     member = get_object_or_404(Member, pk=member_id)
-    if not member.invite_as_user():
+    refusal = login_refusal(request.user, member)
+    if refusal:
+        raise Forbidden(refusal)
+    if not member.invite_as_user(request.user):
         raise ValidationError(_("Member has no internal email address or is already registered."))
     return member
 
@@ -765,7 +782,12 @@ def request_password_reset(request, member_id: int):
     """Send a password-reset mail to a member who already has login data."""
     authorize(request, "members.may_invite_as_user")
     member = get_object_or_404(Member, pk=member_id)
-    if not member.request_password_reset():
+    # The mail goes to the account's owner, but whoever controls the member's
+    # addresses could have redirected it, so this is a takeover check.
+    refusal = member.user and login_refusal(request.user, member)
+    if refusal:
+        raise Forbidden(refusal)
+    if not member.request_password_reset(request.user):
         raise ValidationError(_("Member has no linked account or no internal email address."))
     return member
 
@@ -1023,5 +1045,10 @@ def update_member(request, member_id: int, payload: MemberUpdate):
 def delete_member(request, member_id: int):
     """Delete a member, authorized per object (``delete_obj_member``)."""
     member = get_authorized(request, Member, member_id, "members.delete_obj_member")
+    # Deleting the record strips its account of the member rights that protect
+    # it from a takeover, so it is a takeover check itself.
+    refusal = login_refusal(request.user, member)
+    if refusal:
+        raise Forbidden(refusal)
     member.delete()
     return 204, None

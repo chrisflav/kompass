@@ -129,6 +129,14 @@ msgstr ""
 msgid "You cannot change an account that has rights you do not hold yourself."
 msgstr "Du kannst kein Konto ändern, das Rechte hat, die du selbst nicht hast."
 
+msgid ""
+"Only a superuser may do this for an account or member record that has rights "
+"through the member access lists or by leading groups or excursions."
+msgstr ""
+"Nur Administrator*innen können das für ein Konto oder einen Teilnehmenden-"
+"Datensatz tun, der über die Zugriffslisten oder als Leitung von Gruppen oder "
+"Ausfahrten Rechte hat."
+
 #, python-format
 msgid "You cannot grant permissions you do not hold yourself: %(permissions)s"
 msgstr ""

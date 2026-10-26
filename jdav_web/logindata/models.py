@@ -43,6 +43,6 @@ def initial_user_setup(user, member):
     user.save()
     user.groups.add(standard_group)
     member.user = user
-    member.invite_as_user_key = ""
+    member.clear_login_key()
     member.save()
     return True

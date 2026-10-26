@@ -33,6 +33,7 @@ from logindata.models import AuthGroup
 from logindata.models import LoginDatum
 from logindata.models import RegistrationPassword
 from logindata.rights import account_refusal
+from logindata.rights import credential_refusal
 from logindata.rights import MISSING_PERMISSIONS
 from logindata.rights import missing_permissions
 from ninja import Router
@@ -189,7 +190,9 @@ def set_user_password(request, user_id: int, payload: SetPasswordIn):
     """Set a user's password via ``SetPasswordForm`` (same validators as the admin)."""
     authorize(request, "auth.change_user")
     user = get_object_or_404(LoginDatum, pk=user_id)
-    _guard_account(request, user)
+    refusal = credential_refusal(request.user, user)
+    if refusal:
+        raise Forbidden(refusal)
     form = SetPasswordForm(
         user, {"new_password1": payload.new_password1, "new_password2": payload.new_password2}
     )
