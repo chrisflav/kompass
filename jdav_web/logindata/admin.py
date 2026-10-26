@@ -1,9 +1,11 @@
 from django.contrib import admin
+from django.contrib.admin.utils import unquote
 from django.contrib.auth.admin import GroupAdmin as BaseAuthGroupAdmin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group as BaseAuthGroup
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User as BaseUser
+from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from members.models import Member
@@ -12,6 +14,7 @@ from .models import AuthGroup
 from .models import LoginDatum
 from .models import RegistrationPassword
 from .rights import account_refusal
+from .rights import credential_refusal
 from .rights import MISSING_PERMISSIONS
 from .rights import missing_permissions
 
@@ -97,6 +100,14 @@ class LoginDatumAdmin(BaseUserAdmin):
         if obj is not None and account_refusal(request.user, obj):
             return False
         return super().has_delete_permission(request, obj)
+
+    def user_change_password(self, request, id, form_url=""):
+        # Setting a password is a takeover, so rights through the member record
+        # count as well (see ``logindata.rights``).
+        user = self.get_object(request, unquote(id))
+        if user is not None and credential_refusal(request.user, user):
+            raise PermissionDenied
+        return super().user_change_password(request, id, form_url)
 
     def get_form(self, request, obj=None, **kwargs):
         base = super().get_form(request, obj, **kwargs)

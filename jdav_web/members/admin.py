@@ -41,6 +41,8 @@ from finance.inputs import stored as stored_answers
 from finance.models import BillOnExcursionProxy
 from finance.models import Statement
 from finance.models import StatementOnExcursionProxy
+from logindata.rights import login_refusal
+from logindata.rights import member_change_refusal
 from mailer.models import Message
 from members.pdf import NO_PUBLIC_GROUPS
 from members.pdf import render_tex_with_attachments
@@ -81,6 +83,40 @@ from .pdf import render_tex
 # from easy_select2 import apply_select2
 
 _thread_locals = threading.local()
+
+
+class AccountGuardAdminMixin:
+    """Refuse a member form that would take over an account (see ``logindata.rights``).
+
+    Linking or unlinking an account, or changing the addresses its login and
+    echo mails go to, decides who can sign in as it. Deleting the record strips
+    the account of the member rights that protect it, so that is refused under
+    the same rule -- for the delete page and the bulk action alike, which both
+    ask ``has_delete_permission`` per object.
+    """
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and login_refusal(request.user, obj):
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def get_form(self, request, obj=None, **kwargs):
+        base = super().get_form(request, obj, **kwargs)
+
+        class Form(base):
+            def clean(self):
+                cleaned = super().clean()
+                changes = {
+                    key: cleaned[key]
+                    for key in ("user", "email", "alternative_email")
+                    if key in cleaned
+                }
+                refusal = member_change_refusal(request.user, self.instance, changes)
+                if refusal:
+                    raise ValidationError(refusal)
+                return cleaned
+
+        return Form
 
 
 class FilteredMemberFieldMixin:
@@ -251,7 +287,7 @@ class MemberAdminForm(forms.ModelForm):
 
 
 # Register your models here.
-class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
+class MemberAdmin(AccountGuardAdminMixin, ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     documentation_url = "user_manual/members.html"
     fieldsets = [
         (
@@ -612,7 +648,12 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     def invite_as_user(self, request, queryset):
         failures = []
         for member in queryset:
-            success = member.invite_as_user()
+            refusal = login_refusal(request.user, member)
+            if refusal:
+                failures.append(member)
+                messages.error(request, "{}: {}".format(member.name, refusal))
+                continue
+            success = member.invite_as_user(request.user)
             if not success:
                 failures.append(member)
                 messages.error(
@@ -632,7 +673,11 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             )
 
     def request_password_reset(self, request, member):
-        success = member.request_password_reset()
+        refusal = member.user and login_refusal(request.user, member)
+        if refusal:
+            messages.error(request, refusal)
+            return
+        success = member.request_password_reset(request.user)
         if success:
             messages.success(
                 request, _("Password reset email sent to %(name)s.") % {"name": str(member)}
@@ -827,7 +872,9 @@ class DemoteToWaiterForm(forms.Form):
     _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
 
 
-class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
+class MemberUnconfirmedAdmin(
+    AccountGuardAdminMixin, ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin
+):
     documentation_url = "user_manual/waitinglist.html"
     extra_buttons_model = MemberUnconfirmedProxy
     fieldsets = [

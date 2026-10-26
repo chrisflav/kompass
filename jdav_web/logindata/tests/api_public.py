@@ -4,6 +4,8 @@ Mirrors ``logindata.tests.views`` but exercises the REST endpoints that set a
 member's login credentials from an emailed invite link (new account + reset).
 """
 
+from datetime import timedelta
+
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -17,6 +19,7 @@ class LogindataPublicApiTestCase(TestCase):
     REGISTER = "/api/logindata/register"
 
     def setUp(self):
+        self.issuer = User.objects.create_user(username="issuer", password="secret")
         self.member = Member.objects.create(
             prename="Test",
             lastname="User",
@@ -24,6 +27,8 @@ class LogindataPublicApiTestCase(TestCase):
             email="test@example.com",
             gender=DIVERSE,
             invite_as_user_key="invite_key_new",
+            invite_as_user_key_expire=timezone.now() + timedelta(days=1),
+            invite_as_user_key_issuer=self.issuer,
         )
         self.reset_member = Member.objects.create(
             prename="Reset",
@@ -31,10 +36,15 @@ class LogindataPublicApiTestCase(TestCase):
             birth_date=timezone.now().date(),
             email="reset@example.com",
             gender=DIVERSE,
-            invite_as_user_key="invite_key_reset",
         )
         self.reset_user = User.objects.create_user(username="reset.person", password="oldpass123")
         self.reset_member.user = self.reset_user
+        self.reset_member.save()
+        # Issued for the account now linked, as `request_password_reset` does.
+        self.reset_member.invite_as_user_key = "invite_key_reset"
+        self.reset_member.invite_as_user_key_expire = timezone.now() + timedelta(days=1)
+        self.reset_member.invite_as_user_key_user = self.reset_user
+        self.reset_member.invite_as_user_key_issuer = self.reset_user
         self.reset_member.save()
         RegistrationPassword.objects.create(password="invite-secret")
         Group.objects.get_or_create(name="Standard")
@@ -133,6 +143,18 @@ class LogindataPublicApiTestCase(TestCase):
             new_password2="Str0ngPass!x",
         )
         self.assertEqual(r.status_code, 404)
+
+    def test_key_for_member_who_gained_rights_on_set_password(self):
+        # The issuer may no longer invite the member, so neither may the key.
+        self.member.leited_groups.create(name="Gemsen")
+        r = self._post(
+            key=self.member.invite_as_user_key,
+            registration_password="invite-secret",
+            new_password1="Str0ngPass!x",
+            new_password2="Str0ngPass!x",
+        )
+        self.assertEqual(r.status_code, 404)
+        self.assertFalse(User.objects.filter(member=self.member).exists())
 
     # --- set password: reset mode ----------------------------------------
 
