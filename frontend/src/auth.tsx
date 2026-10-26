@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 import { API_BASE } from "./api/client";
 import { setUnauthorizedHandler } from "./api/http";
+import { leavePage } from "./components/unsavedChanges";
 
 const TOKEN_KEY = "kompass_token";
 const VERIFIER_KEY = "kompass_pkce_verifier";
@@ -75,16 +76,23 @@ function markLoggedOut() {
   writeGuard((storage) => storage.setItem(LOGGED_OUT_KEY, "1"));
 }
 
-/** Ends the sign-in at the backend: the token is revoked, and the provider's
- *  session, which would otherwise let the next login through without asking,
- *  is ended with it. The session cookie travels only to an API on the same
- *  origin, as in production; a cross-origin development API still revokes the
- *  token. Best effort: signing out must not hang on an unreachable server. */
-async function endSession(token: string) {
+/** Ends the sign-in at the backend: the token is revoked with its refresh
+ *  token, and the provider's session, which would otherwise let the next login
+ *  through without asking, is ended with it. The session also signs the
+ *  request when the token no longer works, an expired one say, which takes the
+ *  CSRF token fetched first. The session cookie travels only to an API on the
+ *  same origin, as in production; a cross-origin development API still revokes
+ *  the token. Best effort: signing out must not hang on an unreachable server. */
+async function endSession(token: string | null) {
   try {
+    const csrf = await fetch(`${API_BASE}/api/logindata/csrf`);
+    const { token: csrfToken } = (await csrf.json()) as { token: string };
     await fetch(`${API_BASE}/api/logindata/logout`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        "X-CSRFToken": csrfToken,
+      },
     });
   } catch {
     // The token is dropped here regardless.
@@ -212,24 +220,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function logout() {
     // Before anything else, so no page reached from here on starts a login.
     markLoggedOut();
-    const current = getToken();
-    if (current) await endSession(current);
+    // Even without a token in storage, another tab having signed out already:
+    // the browser's session at the provider may still be open.
+    await endSession(getToken());
     // A full page load rather than an in-app navigation: it also drops every
     // answer cached for the user who just left. The token goes from storage
     // only, so the page does not flash the login screen while it unloads.
+    // Unsaved input was asked about before signing out began.
     localStorage.removeItem(TOKEN_KEY);
-    window.location.assign("/");
+    leavePage("/");
   }
 
   // An expired token makes every request 401; drop it once, centrally, so the
   // route guard sends the user to the login screen instead of each page
-  // rendering its own "not authorised" state.
+  // rendering its own "not authorised" state. A token already gone from
+  // storage, removed by another tab, still has to leave this tab's state.
   useEffect(() => {
     setUnauthorizedHandler(() => {
       if (getToken()) dropToken();
+      else setToken(null);
     });
     return () => setUnauthorizedHandler(null);
   }, [dropToken]);
+
+  // Signing in or out in another tab changes the token in storage; follow it,
+  // rather than keep sending requests without one that all come back 401.
+  useEffect(() => {
+    function follow(e: StorageEvent) {
+      if (e.key === TOKEN_KEY || e.key === null) setToken(getToken());
+    }
+    window.addEventListener("storage", follow);
+    return () => window.removeEventListener("storage", follow);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ token, beginLogin, completeLogin, logout }}>

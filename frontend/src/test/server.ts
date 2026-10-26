@@ -158,6 +158,7 @@ export const TERMIN_ENUMS: TerminEnums = {
 const baseHandlers = [
   http.get(api("/api/members/me"), () => HttpResponse.json(DEFAULT_ME)),
   // Every sign-out tells the backend; a test checking what it sends overrides it.
+  http.get(api("/api/logindata/csrf"), () => HttpResponse.json({ token: "csrf-token" })),
   http.post(api("/api/logindata/logout"), () => new HttpResponse(null, { status: 204 })),
   http.get(api("/api/startpage/public/site"), () => HttpResponse.json(DEFAULT_SITE)),
   // Every Termin form builds its selects from these, so they belong here

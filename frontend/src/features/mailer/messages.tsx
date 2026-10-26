@@ -16,6 +16,7 @@ import {
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft } from "../../components/inlineDraft";
+import { useUnloadWarning } from "../../components/unsavedChanges";
 import {
   Badge,
   Button,
@@ -261,12 +262,7 @@ function MessageComposer() {
   // Closing or reloading the tab asks first while there is unsaved input. (The
   // app runs on a <BrowserRouter>, where react-router's useBlocker is not
   // available, so in-app navigation away is not intercepted.)
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  useUnloadWarning(dirty);
 
   async function requestCancel() {
     if (dirty && !(await confirm("Änderungen verwerfen?"))) return;

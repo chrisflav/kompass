@@ -8,6 +8,7 @@ import { ContourField, contourSeed, KompassMark } from "./Contour";
 import { AppLayout, ProtectedRoute, PublicLayout } from "./Layout";
 import { NotFound, Placeholder } from "./Placeholder";
 import { SiteHeader } from "./SiteHeader";
+import { useUnloadWarning } from "./unsavedChanges";
 
 const NAV = {
   root_section: { id: 1, title: "Verein", urlname: "verein" },
@@ -225,6 +226,47 @@ describe("SiteHeader — admin variant", () => {
     await user.click(screen.getByRole("button", { name: "Abmelden" }));
     await waitFor(() => expect(assigned).toEqual(["/"]));
     expect(localStorage.getItem("kompass_token")).toBeNull();
+  });
+
+  it("asks before signing out over unsaved input, and only then revokes", async () => {
+    const assigned = captureNavigations();
+    let logouts = 0;
+    server.use(
+      http.post(api("/api/logindata/logout"), () => {
+        logouts += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    function Draft() {
+      useUnloadWarning(true);
+      return null;
+    }
+    const { user } = renderWithApp(
+      <>
+        <SiteHeader variant="app" />
+        <Draft />
+      </>,
+      { route: "/kompass" },
+    );
+    const openMenu = async () =>
+      user.click(await screen.findByRole("button", { name: /Hannah Beckers/ }));
+
+    await openMenu();
+    await user.click(screen.getByRole("button", { name: "Abmelden" }));
+    expect(await screen.findByText("Änderungen verwerfen?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Abbrechen" }));
+    expect(logouts).toBe(0);
+    expect(localStorage.getItem("kompass_token")).not.toBeNull();
+
+    await openMenu();
+    await user.click(screen.getByRole("button", { name: "Abmelden" }));
+    await user.click(await screen.findByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(assigned).toEqual(["/"]));
+    expect(logouts).toBe(1);
+    // Already asked: the browser's own prompt stays quiet on the way out.
+    const unload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(false);
   });
 
   it("says so when the account has no member profile", async () => {
