@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 
 import { useSite } from "../api/site";
-import { useAuth } from "../auth";
+import { autostartVerdict, markLoginFailed, markLoginStart, useAuth } from "../auth";
 import { ContourField, KompassMark } from "../components/Contour";
 import { Button, useDocumentTitle } from "../components/ui";
 
@@ -11,24 +11,62 @@ export function Login() {
   const { token, beginLogin } = useAuth();
   const site = useSite();
   const location = useLocation();
+  const from = (location.state as { from?: string } | null)?.from;
+  const returnTo = from ?? "/kompass";
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Sent here from a protected page or the header, the user wants the
+  // provider's login form, so go there directly. A token that is rejected the
+  // moment it is used would then bounce login → provider → callback → login
+  // forever, so a second automatic start before a signed-in request has gone
+  // through, or one after a refused callback, stops at the card and its button
+  // instead; so does the first visit after signing out. Judged once, on the
+  // first render, so the marker set below does not flip it.
+  const [verdict] = useState(() => (from ? autostartVerdict() : null));
+  const held = verdict === "held";
+  const [redirecting, setRedirecting] = useState(verdict === "go" && !token);
+  // A ref, as in AuthCallback: StrictMode replays mount effects, and the
+  // provider must be left for once.
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (!redirecting || started.current) return;
+    started.current = true;
+    if (!markLoginStart()) {
+      setRedirecting(false);
+      return;
+    }
+    beginLogin(returnTo).catch(() => {
+      setError("Anmeldung derzeit nicht möglich. Bitte wende dich an die Administration.");
+      setRedirecting(false);
+    });
+    // Runs once for the visit that landed here; the ref keeps it to one start.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (token) return <Navigate to="/kompass" replace />;
 
-  // Deliberately a button rather than an automatic redirect: a token that is
-  // rejected the moment it is used would otherwise bounce login → provider →
-  // callback → login forever, with nothing on screen to say why.
   async function onLogin() {
     setError(null);
     setBusy(true);
+    markLoginStart();
     try {
-      const returnTo = (location.state as { from?: string } | null)?.from ?? "/kompass";
       await beginLogin(returnTo);
     } catch {
       setError("Anmeldung derzeit nicht möglich. Bitte wende dich an die Administration.");
       setBusy(false);
     }
+  }
+
+  if (redirecting) {
+    return (
+      <div className="login">
+        <ContourField />
+        <p className="muted" role="status">
+          Weiterleitung zur Anmeldung …
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -40,6 +78,12 @@ export function Login() {
           <KompassMark size={34} />
           <h1>Kompass</h1>
         </div>
+        {held && (
+          <p className="error">
+            Die Anmeldung hat nicht geklappt. Bitte versuche es erneut oder wende dich an die
+            Administration.
+          </p>
+        )}
         <p className="muted">Bitte anmelden, um den Verwaltungsbereich zu öffnen.</p>
         {error && <p className="error">{error}</p>}
         <Button onClick={onLogin} busy={busy}>
@@ -92,6 +136,16 @@ export function AuthCallback() {
     // dependency list, is what keeps it to one attempt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Whatever went wrong, the next visit to /login must wait for a click rather
+  // than send the user round the same failure again. Not while a token is
+  // held: that is a signed-in user replaying an old callback with the back
+  // button, and nothing failed for them.
+  useEffect(() => {
+    if (error && !token) markLoginFailed();
+    // Judged when the error appears; the token alone changes nothing here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [error]);
 
   if (target) return <Navigate to={target} replace />;
   // A token without a target means the exchange finished on an earlier render.

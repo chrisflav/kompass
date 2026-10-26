@@ -12109,6 +12109,53 @@
         ]
       }
     },
+    "/api/logindata/csrf": {
+      "get": {
+        "operationId": "logindata_api_session_router_csrf",
+        "summary": "Csrf",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsrfOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "The CSRF token for signing out by session, set as its cookie too.\n\nReadable only from the frontend's own origin, which is the point: a page\nelsewhere cannot learn it and so cannot sign the user out.",
+        "tags": [
+          "logindata"
+        ]
+      }
+    },
+    "/api/logindata/logout": {
+      "post": {
+        "operationId": "logindata_api_session_router_logout",
+        "summary": "Logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Revoke the token the request names and end the browser's session.\n\nThe token is revoked even when it has expired: knowing it is all it takes\nto end it, and its refresh token would otherwise stay usable. A personal\naccess token is left alone: it belongs to a script, not to the browser\nsigning out, and is ended from the token list instead.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          },
+          {
+            "SessionAuth": []
+          }
+        ]
+      }
+    },
     "/api/ludwigsburgalpin/public/enums": {
       "get": {
         "operationId": "ludwigsburgalpin_api_public_public_termin_enums",
@@ -25688,6 +25735,19 @@
         "title": "PersonalTokenIn",
         "type": "object"
       },
+      "CsrfOut": {
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "CsrfOut",
+        "type": "object"
+      },
       "TerminSubmit": {
         "description": "Public submission payload mirroring ``ludwigsburgalpin.views.TerminForm``.\n\nField requiredness follows the public form, which is looser than the model's\n``blank=False`` flags: the choice, date and numeric fields are required while\nthe organizer / contact and free-text fields are optional. Like the view, the\ncreated ``Termin`` is *not* run through ``full_clean`` (that stricter check is\nreserved for the authenticated management router).",
         "properties": {
@@ -25809,6 +25869,11 @@
       "OAuth2Bearer": {
         "type": "http",
         "scheme": "bearer"
+      },
+      "SessionAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sessionid"
       }
     }
   },

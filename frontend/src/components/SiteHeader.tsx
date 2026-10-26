@@ -8,6 +8,8 @@ import { useAuth } from "../auth";
 import { useThemeChoice, type ThemeChoice } from "../theme";
 import { KompassMark } from "./Contour";
 import { FeedbackButton } from "./FeedbackButton";
+import { useConfirmDialog } from "./ui";
+import { hasUnsavedChanges } from "./unsavedChanges";
 
 /* --- navigation model ----------------------------------------------------- */
 
@@ -223,7 +225,7 @@ const TOKENS_PERMISSION = "logindata.create_personalaccesstoken";
 
 /** The signed-in user's menu: name → profile, access tokens, plus logout. */
 function UserMenu({ memberId, name }: { memberId: number | null; name: string }) {
-  const { logout } = useAuth();
+  const logout = useLogout();
   const { can } = usePermissions();
   const [open, setOpen] = useState(false);
   const ref = useOutsideClose(() => setOpen(false));
@@ -444,7 +446,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
               <UserMenu memberId={memberId} name={name} />
             </>
           ) : (
-            <NavLink to="/login" className="btn topbar-login">
+            <NavLink to="/login" state={{ from: "/kompass" }} className="btn topbar-login">
               Anmelden
             </NavLink>
           )}
@@ -536,7 +538,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
             </div>
           ) : (
             <div className="drawer-group">
-              <NavLink to="/login" className="drawer-item">
+              <NavLink to="/login" state={{ from: "/kompass" }} className="drawer-item">
                 Anmelden
               </NavLink>
             </div>
@@ -547,8 +549,19 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
   );
 }
 
-function LogoutDrawerItem() {
+/** Signs out, asking first when a form on the page holds unsaved input: once
+ *  the token is revoked there is no saving it any more. */
+function useLogout() {
   const { logout } = useAuth();
+  const confirm = useConfirmDialog();
+  return async () => {
+    if (hasUnsavedChanges() && !(await confirm("Änderungen verwerfen?"))) return;
+    await logout();
+  };
+}
+
+function LogoutDrawerItem() {
+  const logout = useLogout();
   return (
     <button type="button" className="drawer-item as-button" onClick={logout}>
       Abmelden

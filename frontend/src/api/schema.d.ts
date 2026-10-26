@@ -4486,6 +4486,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/logindata/csrf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Csrf
+         * @description The CSRF token for signing out by session, set as its cookie too.
+         *
+         *     Readable only from the frontend's own origin, which is the point: a page
+         *     elsewhere cannot learn it and so cannot sign the user out.
+         */
+        get: operations["logindata_api_session_router_csrf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Revoke the token the request names and end the browser's session.
+         *
+         *     The token is revoked even when it has expired: knowing it is all it takes
+         *     to end it, and its refresh token would otherwise stay usable. A personal
+         *     access token is left alone: it belongs to a script, not to the browser
+         *     signing out, and is ended from the token list instead.
+         */
+        post: operations["logindata_api_session_router_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ludwigsburgalpin/public/enums": {
         parameters: {
             query?: never;
@@ -9848,6 +9896,11 @@ export interface components {
             days: number | null;
             /** User Id */
             user_id?: number | null;
+        };
+        /** CsrfOut */
+        CsrfOut: {
+            /** Token */
+            token: string;
         };
         /**
          * TerminSubmit
@@ -17159,6 +17212,44 @@ export interface operations {
             path: {
                 token_id: number;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    logindata_api_session_router_csrf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsrfOut"];
+                };
+            };
+        };
+    };
+    logindata_api_session_router_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;

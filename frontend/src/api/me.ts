@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getToken } from "../auth";
+import { getToken, markSignedIn } from "../auth";
 import { API_BASE } from "./client";
 
 /** The authenticated user's identity, from `GET /api/members/me`. */
@@ -22,6 +22,8 @@ async function fetchMe(): Promise<Me> {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error("Konnte aktuelle Anmeldung nicht laden.");
+  // The first answer that proves the token works ends the login's loop guard.
+  markSignedIn();
   const me = (await res.json()) as Me;
   // Older backends did not send these; treat them as "no extra rights" rather
   // than letting `undefined` blow up a permission check.
