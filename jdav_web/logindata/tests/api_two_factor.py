@@ -17,6 +17,7 @@ from logindata.api.two_factor_router import _use_up
 from logindata.models import PersonalAccessToken
 from logindata.models import TOTPDevice
 from logindata.models import TwoFactorAttempts
+from logindata.models import TwoFactorDefault
 from logindata.models import TwoFactorElevation
 from logindata.models import TwoFactorSetup
 from logindata.models import WebAuthnCredential
@@ -117,8 +118,12 @@ class TwoFactorApiTestCase(ApiTestCase):
                 "enabled": False,
                 "has_totp": False,
                 "has_webauthn": False,
+                "preferred_method": None,
+                "preferred_key_id": None,
                 "factors": [],
                 "recovery_codes_remaining": 0,
+                "default_method": None,
+                "default_key_id": None,
             },
         )
 
@@ -343,6 +348,69 @@ class TwoFactorApiTestCase(ApiTestCase):
         self.assertFalse(two_factor.use_recovery_code(self.user, old[0]))
         self.assertTrue(two_factor.use_recovery_code(self.user, codes[0]))
 
+    def default(self, method, key_id=None):
+        return self.call("put", "/default", {"method": method, "key_id": key_id})
+
+    def test_choosing_the_default_factor(self):
+        add_totp(self.user)
+        key = add_key(self.user)
+        other_key = add_key(self.user, name="Zweitschlüssel")
+        status = self.call("get", "").json()
+        # No default: a key comes first, any of them.
+        self.assertIsNone(status["default_method"])
+        self.assertEqual(status["preferred_method"], "webauthn")
+        self.assertIsNone(status["preferred_key_id"])
+        self.assertFalse(any(f["default"] for f in status["factors"]))
+        self.assertEqual(self.default("totp").status_code, 204)
+        status = self.call("get", "").json()
+        self.assertEqual(status["preferred_method"], "totp")
+        self.assertEqual([f["default"] for f in status["factors"]], [True, False, False])
+        self.assertEqual(self.default("webauthn", key.pk).status_code, 204)
+        status = self.call("get", "").json()
+        self.assertEqual((status["default_method"], status["default_key_id"]), ("webauthn", key.pk))
+        self.assertEqual(status["preferred_key_id"], key.pk)
+        self.assertEqual([f["default"] for f in status["factors"]], [False, True, False])
+        r = self.call("patch", "/webauthn/{}".format(key.pk), {"name": "Neu"})
+        self.assertTrue(r.json()["default"])
+        # Removing the default key leaves any key as the default.
+        self.call("post", "/webauthn/{}/remove".format(key.pk))
+        status = self.call("get", "").json()
+        self.assertEqual((status["default_method"], status["default_key_id"]), ("webauthn", None))
+        self.assertEqual(self.default(None).status_code, 204)
+        self.assertFalse(TwoFactorDefault.objects.exists())
+        # Removing the app it names makes the default no longer apply.
+        self.default("totp")
+        device = self.user.totp_devices.get()
+        self.call("post", "/totp/{}/remove".format(device.pk))
+        status = self.call("get", "").json()
+        self.assertIsNone(status["default_method"])
+        self.assertEqual(status["preferred_method"], "webauthn")
+        # With the last factor goes the choice.
+        self.default("webauthn", other_key.pk)
+        self.call("post", "/webauthn/{}/remove".format(other_key.pk))
+        self.assertFalse(TwoFactorDefault.objects.exists())
+
+    def test_the_default_has_to_be_ones_own_factor(self):
+        self.assertEqual(self.default("totp").status_code, 422)
+        self.assertEqual(self.default("webauthn").status_code, 422)
+        other = User.objects.create_user("andere", password=PASSWORD)
+        stranger = add_key(other)
+        add_key(self.user)
+        self.assertEqual(self.default("webauthn", stranger.pk).status_code, 404)
+        self.assertFalse(TwoFactorDefault.objects.exists())
+
+    def test_an_added_factor_says_whether_it_is_the_default(self):
+        add_totp(self.user)
+        self.default("totp")
+        setup = self.setup_totp()
+        payload = {
+            "name": "Tablet",
+            "code": pyotp.TOTP(setup["secret"]).now(),
+            "state": setup["state"],
+        }
+        r = self.call("post", "/totp", payload)
+        self.assertTrue(r.json()["factor"]["default"])
+
     @override_settings(OIDC_ENABLED=True)
     def test_nothing_to_change_where_the_provider_signs_in(self):
         self.assertFalse(self.call("get", "").json()["available"])
@@ -380,6 +448,7 @@ class ConfirmTestCase(ApiTestCase):
             ("post", "/recovery-codes", None),
             ("post", "/totp/{}/remove".format(device.pk), None),
             ("patch", "/totp/{}".format(device.pk), name),
+            ("put", "/default", {"method": None}),
         ]:
             with self.subTest(path):
                 r = self.call(method, path, data)
@@ -449,6 +518,18 @@ class ConfirmTestCase(ApiTestCase):
         self.assertEqual(self.confirm(code="123456").status_code, 422)
         self.assertEqual(self.attempts(), 1)
 
+    def test_the_options_can_ask_for_one_key(self):
+        key = add_key(self.user)
+        add_key(self.user)
+        options = self.call("post", "/confirm/options").json()["options"]
+        self.assertEqual(len(options["allowCredentials"]), 2)
+        r = self.call("post", "/confirm/options?key_id={}".format(key.pk))
+        allowed = r.json()["options"]["allowCredentials"]
+        self.assertEqual([c["id"] for c in allowed], [key.credential_id])
+        other = add_key(User.objects.create_user("andere", password=PASSWORD))
+        r = self.call("post", "/confirm/options?key_id={}".format(other.pk))
+        self.assertEqual(r.status_code, 422)
+
     def test_no_key_options_without_a_key(self):
         self.assertEqual(self.call("post", "/confirm/options").status_code, 422)
 
@@ -502,12 +583,14 @@ class ResetTwoFactorTestCase(ApiTestCase):
 
     def test_a_user_manager_resets_the_factors(self):
         add_member(self.user)
+        two_factor.set_default(self.user, "totp")
         with self.assertLogs("logindata.api.admin_router", "WARNING"):
             r = self.reset(self.user, self.admin)
         self.assertEqual(r.status_code, 200, r.content)
         self.assertFalse(r.json()["two_factor_enabled"])
         self.assertFalse(two_factor.enabled_for(self.user))
         self.assertFalse(self.user.recovery_codes.exists())
+        self.assertFalse(TwoFactorDefault.objects.filter(user=self.user).exists())
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("zurückgesetzt", mail.outbox[0].body)
 

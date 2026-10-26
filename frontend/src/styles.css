@@ -745,6 +745,15 @@ a.btn {
   user-select: all;
 }
 
+/* A factor's name with its badges: "Passkey" where it signs in alone, and
+   "Standard" for the one the login offers first. */
+.factor-name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 /* Recovered admin fieldset description, shown above a detail section. */
 .fieldset-help {
   margin: 0 0 0.9rem;

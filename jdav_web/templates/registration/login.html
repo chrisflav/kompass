@@ -28,7 +28,8 @@
         {% csrf_token %}
         <input type="hidden" name="credential">
         <input type="hidden" name="next" value="{{ next }}">
-        <button type="submit" class="secondary">{% translate "Sign in with a security key" %}</button>
+        <button type="submit" class="secondary">{% translate "Sign in with a passkey" %}</button>
       </form>
+      <p class="hint">{% translate "Without a password, with a security key set up as a passkey." %}</p>
     </div>
 {% endblock %}

@@ -56,6 +56,7 @@ from webauthn.helpers.structs import UserVerificationRequirement
 from .models import RecoveryCode
 from .models import TOTPDevice
 from .models import TwoFactorAttempts
+from .models import TwoFactorDefault
 from .models import WebAuthnCredential
 
 logger = logging.getLogger(__name__)
@@ -83,6 +84,47 @@ def enabled_for(user):
 def required_for(user):
     """Whether signing in as ``user`` takes a second step after the password."""
     return enabled_for(user)
+
+
+def default_for(user):
+    """The default factor ``user`` chose, while they still have one of its kind.
+
+    ``(method, key)``: ``"totp"`` or ``"webauthn"``, and for the latter one key
+    or ``None`` for any; ``(None, None)`` without a choice that applies.
+    """
+    choice = TwoFactorDefault.objects.filter(user=user).select_related("key").first()
+    if choice is not None:
+        if choice.method == "webauthn" and user.webauthn_credentials.exists():
+            return "webauthn", choice.key
+        if choice.method == "totp" and user.totp_devices.exists():
+            return "totp", None
+    return None, None
+
+
+def preferred(user):
+    """The factor the second step offers first, as :func:`default_for` answers.
+
+    Without a default that applies, a security key before the app: it is one
+    tap where the app is a code to type.
+    """
+    method, key = default_for(user)
+    if method is not None:
+        return method, key
+    if user.webauthn_credentials.exists():
+        return "webauthn", None
+    if user.totp_devices.exists():
+        return "totp", None
+    return None, None
+
+
+def set_default(user, method, key=None):
+    """Make ``method`` (and for a security key, ``key`` or any) the default; ``None`` clears it."""
+    if method is None:
+        TwoFactorDefault.objects.filter(user=user).delete()
+    else:
+        TwoFactorDefault.objects.update_or_create(
+            user=user, defaults={"method": method, "key": key}
+        )
 
 
 # --- lockout ----------------------------------------------------------------
@@ -300,6 +342,7 @@ def remove_all(user):
         user.totp_devices.all().delete()
         user.webauthn_credentials.all().delete()
         user.recovery_codes.all().delete()
+        TwoFactorDefault.objects.filter(user=user).delete()
         TwoFactorAttempts.objects.filter(user=user).delete()
 
 
@@ -307,6 +350,7 @@ def factor_removed(user):
     """Without any factor left, recovery codes would only be a way around nothing."""
     if not enabled_for(user):
         user.recovery_codes.all().delete()
+        TwoFactorDefault.objects.filter(user=user).delete()
 
 
 # --- WebAuthn ---------------------------------------------------------------

@@ -497,6 +497,52 @@ class SecondStepLoginTestCase(TestCase):
         )
         self.assertNotLoggedIn()
 
+    def test_the_default_key_is_asked_at_once(self):
+        key = add_key(self.user, SoftAuthenticator(), name="Erster")
+        add_key(self.user, SoftAuthenticator(), name="Zweiter")
+        two_factor.set_default(self.user, "webauthn", key)
+        self.password()
+        page = self.client.get("/accounts/login/two-factor/")
+        self.assertTrue(page.context["autostart"])
+        self.assertContains(page, "data-autostart", count=1)
+        self.assertContains(page, "/accounts/login/two-factor/options/?key={}".format(key.pk))
+        # The other keys, the app and a recovery code are the other methods.
+        self.assertContains(page, "Anderen Sicherheitsschlüssel verwenden")
+        self.assertContains(page, 'name="code"', count=2)
+        options = self.client.post(
+            "/accounts/login/two-factor/options/?key={}".format(key.pk)
+        ).json()["publicKey"]
+        self.assertEqual([c["id"] for c in options["allowCredentials"]], [key.credential_id])
+        options = self.client.post("/accounts/login/two-factor/options/?key=x").json()
+        self.assertEqual(len(options["publicKey"]["allowCredentials"]), 2)
+        # After a failed attempt the page waits for a click: no loop.
+        page = self.client.post("/accounts/login/two-factor/", {"method": "webauthn"})
+        self.assertFalse(page.context["autostart"])
+        self.assertNotContains(page, "data-autostart")
+
+    def test_without_a_default_a_key_comes_before_the_app(self):
+        add_key(self.user)
+        self.password()
+        page = self.client.get("/accounts/login/two-factor/")
+        self.assertEqual(page.context["preferred"], "webauthn")
+        self.assertIsNone(page.context["preferred_key"])
+        self.assertContains(page, "data-autostart")
+        self.assertNotContains(page, "Anderen Sicherheitsschlüssel verwenden")
+
+    def test_the_app_as_default_has_its_field_focused(self):
+        add_key(self.user)
+        two_factor.set_default(self.user, "totp")
+        self.password()
+        page = self.client.get("/accounts/login/two-factor/")
+        self.assertEqual(page.context["preferred"], "totp")
+        self.assertContains(page, "autofocus", count=1)
+        self.assertNotContains(page, "data-autostart")
+        # The key is another method.
+        self.assertContains(page, "data-webauthn-form")
+        # A failed recovery code opens the other methods again.
+        page = self.client.post("/accounts/login/two-factor/", {"method": "recovery", "code": "x"})
+        self.assertContains(page, "<details data-alternatives open>")
+
 
 @local_login
 class PasskeyLoginTestCase(TestCase):
@@ -514,6 +560,7 @@ class PasskeyLoginTestCase(TestCase):
     def test_the_login_page_offers_it(self):
         page = self.client.get("/accounts/login/")
         self.assertContains(page, 'action="/accounts/login/passkey/"')
+        self.assertContains(page, "Mit Passkey anmelden")
         self.assertContains(page, "webauthn-login.js")
 
     def test_a_passkey_signs_in(self):

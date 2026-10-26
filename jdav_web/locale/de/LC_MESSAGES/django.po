@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-25 19:34+0100\n"
+"POT-Creation-Date: 2026-10-25 22:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -200,6 +200,9 @@ msgstr "Der Code ist nicht korrekt. Bitte versuche es erneut."
 
 msgid "The security key could not be registered."
 msgstr "Der Sicherheitsschlüssel konnte nicht registriert werden."
+
+msgid "You have no authenticator app."
+msgstr "Du hast keine Authenticator-App."
 
 msgid "A second factor was removed from your Kompass login"
 msgstr "Von deinem Kompass-Konto wurde ein zweiter Faktor entfernt"
@@ -531,6 +534,15 @@ msgstr "Zu Gruppe einladen"
 msgid "Add another %(verbose_name)s"
 msgstr "%(verbose_name)s hinzufügen"
 
+msgid "Try again"
+msgstr "Erneut versuchen"
+
+msgid "Code from your authenticator app"
+msgstr "Code aus deiner Authenticator-App"
+
+msgid "Confirm"
+msgstr "Bestätigen"
+
 msgid "Please sign in to continue."
 msgstr "Bitte melde dich an, um fortzufahren."
 
@@ -548,8 +560,12 @@ msgstr "Anmelden"
 msgid "or"
 msgstr "oder"
 
-msgid "Sign in with a security key"
-msgstr "Mit Sicherheitsschlüssel anmelden"
+msgid "Sign in with a passkey"
+msgstr "Mit Passkey anmelden"
+
+msgid "Without a password, with a security key set up as a passkey."
+msgstr ""
+"Ohne Passwort, mit einem als Passkey eingerichteten Sicherheitsschlüssel."
 
 msgid "Confirm it is you with your second factor."
 msgstr "Bestätige mit deinem zweiten Faktor, dass du es bist."
@@ -557,14 +573,14 @@ msgstr "Bestätige mit deinem zweiten Faktor, dass du es bist."
 msgid "Use security key"
 msgstr "Sicherheitsschlüssel verwenden"
 
-msgid "Code from your authenticator app"
-msgstr "Code aus deiner Authenticator-App"
+msgid "Use another method"
+msgstr "Andere Methode verwenden"
 
-msgid "Confirm"
-msgstr "Bestätigen"
-
-msgid "Use a recovery code"
-msgstr "Wiederherstellungscode verwenden"
+msgid "Use another security key"
+msgstr "Anderen Sicherheitsschlüssel verwenden"
 
 msgid "Recovery code"
 msgstr "Wiederherstellungscode"
+
+msgid "Confirm with a recovery code"
+msgstr "Mit Wiederherstellungscode bestätigen"

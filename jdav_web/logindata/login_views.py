@@ -142,13 +142,21 @@ def login_two_factor(request):
                     return HttpResponseRedirect(pending["next"])
                 two_factor.attempt_failed(user, number)
                 error = WRONG
+    preferred, preferred_key = two_factor.preferred(user)
+    keys = user.webauthn_credentials.count()
     return render(
         request,
         "registration/login_two_factor.html",
         {
             "error": error,
             "has_totp": user.totp_devices.exists(),
-            "has_keys": user.webauthn_credentials.exists(),
+            "has_keys": keys > 0,
+            "other_keys": keys > 1,
+            "preferred": preferred,
+            "preferred_key": preferred_key,
+            # Ask the key straight away on arrival, not again after a failed
+            # attempt: the page then waits for a click.
+            "autostart": request.method == "GET",
             "method": request.POST.get("method", ""),
         },
     )
@@ -157,14 +165,15 @@ def login_two_factor(request):
 @require_POST
 @never_cache
 def login_two_factor_options(request):
-    """WebAuthn options for the second step: one of the pending user's own keys."""
+    """WebAuthn options for the second step: the pending user's keys, or the one ``?key=`` names."""
     _require_available()
     user, _pending_note = _pending(request)
     if user is None:
         raise Http404("No login in progress.")
-    return _options_response(
-        request, "login", user.webauthn_credentials.all(), UserVerificationRequirement.PREFERRED
-    )
+    keys = user.webauthn_credentials.all()
+    # The default key alone, so the browser goes straight to it.
+    one = keys.filter(pk=request.GET["key"]) if request.GET.get("key", "").isdigit() else None
+    return _options_response(request, "login", one or keys, UserVerificationRequirement.PREFERRED)
 
 
 @require_POST

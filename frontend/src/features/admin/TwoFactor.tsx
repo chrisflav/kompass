@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 import { ApiError, client, unwrap } from "../../api/http";
 import { ChunkBoundary } from "../../components/ChunkBoundary";
@@ -31,12 +31,7 @@ const QRCodeSVG = lazy(() => import("qrcode.react").then((m) => ({ default: m.QR
 const STATUS_KEY = ["auth", "two-factor"];
 
 function kindLabel(f: FactorOut) {
-  if (f.kind === "totp") return <Badge tone="info">Authenticator-App</Badge>;
-  return f.passwordless ? (
-    <Badge tone="success">Passkey</Badge>
-  ) : (
-    <Badge tone="info">Sicherheitsschlüssel</Badge>
-  );
+  return <Badge tone="info">{f.kind === "totp" ? "Authenticator-App" : "Sicherheitsschlüssel"}</Badge>;
 }
 
 function errorsOf(e: Error): Record<string, string[]> {
@@ -80,8 +75,11 @@ export function TwoFactorPage() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const close = () => setDialog(null);
+  const showCodes = (codes: string[]) => setDialog(codes.length ? { kind: "codes", codes } : null);
   const added = (result: FactorAdded) =>
-    setDialog(result.recovery_codes.length ? { kind: "codes", codes: result.recovery_codes } : null);
+    result.factor.kind === "webauthn" && !result.factor.passwordless
+      ? setDialog({ kind: "plainKey", codes: result.recovery_codes })
+      : showCodes(result.recovery_codes);
   const elevated = !!query.data && query.data.available && isElevated(query.data);
 
   // When the confirmation runs out, fetch the status again: the page then asks anew.
@@ -131,6 +129,9 @@ export function TwoFactorPage() {
           {dialog?.kind === "rename" && <RenameModal factor={dialog.factor} onClose={close} />}
         </>
       )}
+      {dialog?.kind === "plainKey" && (
+        <PlainKeyModal onClose={() => showCodes(dialog.codes)} />
+      )}
       {dialog?.kind === "codes" && <RecoveryCodesModal codes={dialog.codes} onClose={close} />}
     </div>
   );
@@ -141,26 +142,44 @@ type Dialog =
   | { kind: "totp" }
   | { kind: "key" }
   | { kind: "rename"; factor: FactorOut }
+  | { kind: "plainKey"; codes: string[] }
   | { kind: "codes"; codes: string[] };
 
 /**
  * Confirm who is there before the factors are shown: with a second factor where
- * there is one, otherwise with the password.
+ * there is one, otherwise with the password. The default factor comes first (a
+ * security key is asked at once), the others below; a failed key waits for a
+ * click rather than asking again by itself.
  */
 function ConfirmStep({ status }: { status: TwoFactorStatus }) {
   const toast = useToast();
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [recoveryCode, setRecoveryCode] = useState("");
+  const keys = status.has_webauthn && webauthnSupported();
+  // The preferred factor where this browser can use it; otherwise the app, or a key.
+  const primary =
+    status.preferred_method === "webauthn" && keys
+      ? "webauthn"
+      : status.has_totp
+        ? "totp"
+        : keys
+          ? "webauthn"
+          : null;
+  const defaultKey = primary === "webauthn" ? (status.preferred_key_id ?? null) : null;
+  const [keyFailed, setKeyFailed] = useState(false);
+  const [othersOpen, setOthersOpen] = useState(primary === null);
   const confirm = useApiMutation(
     (body: components["schemas"]["ConfirmIn"]) =>
       unwrap(client.POST("/api/logindata/two-factor/confirm", { body })),
     { invalidate: [STATUS_KEY], onError: (e: Error) => toast.error(e.message) },
   );
   const withKey = useApiMutation(
-    async () => {
+    async (keyId: number | null) => {
       const { options, state } = await unwrap(
-        client.POST("/api/logindata/two-factor/confirm/options"),
+        client.POST("/api/logindata/two-factor/confirm/options", {
+          params: { query: keyId === null ? {} : { key_id: keyId } },
+        }),
       );
       const credential = await getCredential(options);
       return unwrap(
@@ -169,10 +188,21 @@ function ConfirmStep({ status }: { status: TwoFactorStatus }) {
     },
     {
       invalidate: [STATUS_KEY],
-      onError: (e: Error) =>
-        toast.error(e instanceof ApiError ? e.message : "Der Sicherheitsschlüssel hat nicht geantwortet."),
+      onError: (e: Error) => {
+        setKeyFailed(true);
+        setOthersOpen(true);
+        toast.error(e instanceof ApiError ? e.message : "Der Sicherheitsschlüssel hat nicht geantwortet.");
+      },
     },
   );
+  // A security key first is asked once, as the step appears.
+  const asked = useRef(false);
+  useEffect(() => {
+    if (primary !== "webauthn" || asked.current) return;
+    asked.current = true;
+    withKey.mutate(defaultKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!status.enabled) {
     return (
@@ -201,64 +231,81 @@ function ConfirmStep({ status }: { status: TwoFactorStatus }) {
       </form>
     );
   }
+
+  const keyButton = (keyId: number | null, label: string, secondary: boolean) => (
+    <div className="row-actions">
+      <Button
+        type="button"
+        variant={secondary ? "ghost" : "primary"}
+        busy={withKey.isPending && withKey.variables === keyId}
+        onClick={() => withKey.mutate(keyId)}
+      >
+        {label}
+      </Button>
+    </div>
+  );
+  const totpForm = (secondary: boolean) => (
+    <form
+      className="stack"
+      onSubmit={(e) => {
+        e.preventDefault();
+        confirm.mutate({ code });
+      }}
+    >
+      <Field label="Code aus deiner Authenticator-App *">
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          autoFocus={!secondary}
+          required
+        />
+      </Field>
+      <div className="row-actions">
+        <Button type="submit" variant={secondary ? "ghost" : "primary"} busy={confirm.isPending}>
+          Bestätigen
+        </Button>
+      </div>
+    </form>
+  );
   return (
     <div className="stack">
       <p>Bitte bestätige mit deinem zweiten Faktor, dass du es bist.</p>
-      {status.has_webauthn && webauthnSupported() && (
-        <div className="row-actions">
-          <Button type="button" busy={withKey.isPending} onClick={() => withKey.mutate(undefined)}>
-            Mit Sicherheitsschlüssel bestätigen
-          </Button>
+      {primary === "webauthn" &&
+        keyButton(defaultKey, keyFailed ? "Erneut versuchen" : "Mit Sicherheitsschlüssel bestätigen", false)}
+      {primary === "totp" && totpForm(false)}
+      <details open={othersOpen} onToggle={(e) => setOthersOpen(e.currentTarget.open)}>
+        <summary>Andere Methode verwenden</summary>
+        <div className="stack">
+          {primary === "webauthn" && status.has_totp && totpForm(true)}
+          {primary === "totp" && keys && keyButton(null, "Mit Sicherheitsschlüssel bestätigen", true)}
+          {primary === "webauthn" &&
+            defaultKey !== null &&
+            keyButton(null, "Anderen Sicherheitsschlüssel verwenden", true)}
+          <form
+            className="stack"
+            onSubmit={(e) => {
+              e.preventDefault();
+              confirm.mutate({ recovery_code: recoveryCode });
+            }}
+          >
+            <Field label="Wiederherstellungscode *">
+              <input
+                value={recoveryCode}
+                onChange={(e) => setRecoveryCode(e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                required
+              />
+            </Field>
+            <div className="row-actions">
+              <Button type="submit" variant="ghost" busy={confirm.isPending}>
+                Mit Code bestätigen
+              </Button>
+            </div>
+          </form>
         </div>
-      )}
-      {status.has_totp && (
-        <form
-          className="stack"
-          onSubmit={(e) => {
-            e.preventDefault();
-            confirm.mutate({ code });
-          }}
-        >
-          <Field label="Code aus deiner Authenticator-App *">
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              required
-            />
-          </Field>
-          <div className="row-actions">
-            <Button type="submit" busy={confirm.isPending}>
-              Bestätigen
-            </Button>
-          </div>
-        </form>
-      )}
-      <details>
-        <summary>Wiederherstellungscode verwenden</summary>
-        <form
-          className="stack"
-          onSubmit={(e) => {
-            e.preventDefault();
-            confirm.mutate({ recovery_code: recoveryCode });
-          }}
-        >
-          <Field label="Wiederherstellungscode *">
-            <input
-              value={recoveryCode}
-              onChange={(e) => setRecoveryCode(e.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-              required
-            />
-          </Field>
-          <div className="row-actions">
-            <Button type="submit" variant="ghost" busy={confirm.isPending}>
-              Mit Code bestätigen
-            </Button>
-          </div>
-        </form>
       </details>
     </div>
   );
@@ -283,6 +330,10 @@ function TwoFactorBody({
       ),
     { invalidate: [STATUS_KEY], onSuccess: () => toast.success("Entfernt."), onError: fail },
   );
+  const setDefault = useApiMutation(
+    (body: DefaultIn) => unwrap(client.PUT("/api/logindata/two-factor/default", { body })),
+    { invalidate: [STATUS_KEY], onSuccess: () => toast.success("Gespeichert."), onError: fail },
+  );
   const regenerate = useApiMutation(
     () => unwrap(client.POST("/api/logindata/two-factor/recovery-codes")),
     {
@@ -301,7 +352,16 @@ function TwoFactorBody({
         rows={status.factors}
         rowKey={(f) => `${f.kind}-${f.id}`}
         columns={[
-          { header: "Name", cell: (f) => f.name },
+          {
+            header: "Name",
+            cell: (f) => (
+              <span className="factor-name">
+                {f.name}
+                {f.passwordless && <Badge tone="success">Passkey</Badge>}
+                {f.default && <Badge tone="neutral">Standard</Badge>}
+              </span>
+            ),
+          },
           { header: "Art", cell: kindLabel },
           { header: "Hinzugefügt", cell: (f) => formatDate(f.created) },
           {
@@ -312,6 +372,19 @@ function TwoFactorBody({
             header: "",
             cell: (f) => (
               <div className="row-actions inline-actions">
+                {!f.default && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() =>
+                      setDefault.mutate(
+                        f.kind === "totp" ? { method: "totp" } : { method: "webauthn", key_id: f.id },
+                      )
+                    }
+                  >
+                    Als Standard festlegen
+                  </Button>
+                )}
                 <Button type="button" variant="ghost" onClick={() => onDialog({ kind: "rename", factor: f })}>
                   Umbenennen
                 </Button>
@@ -336,6 +409,29 @@ function TwoFactorBody({
           },
         ]}
       />
+      <h3 className="fieldset-title">Standardmethode</h3>
+      <p className="fieldset-help">
+        Diese Methode bietet Kompass bei der Anmeldung zuerst an; ein Sicherheitsschlüssel wird dann
+        gleich abgefragt. Ohne Festlegung kommt ein Sicherheitsschlüssel vor der App.
+      </p>
+      <Field label="Bei der Anmeldung zuerst">
+        <select
+          value={defaultValue(status)}
+          disabled={setDefault.isPending}
+          onChange={(e) => setDefault.mutate(parseDefault(e.target.value))}
+        >
+          <option value="">Keine Festlegung</option>
+          {status.has_totp && <option value="totp">Authenticator-App</option>}
+          {status.has_webauthn && <option value="webauthn">Sicherheitsschlüssel (beliebiger)</option>}
+          {status.factors
+            .filter((f) => f.kind === "webauthn")
+            .map((f) => (
+              <option key={f.id} value={`webauthn:${f.id}`}>
+                Sicherheitsschlüssel „{f.name}“
+              </option>
+            ))}
+        </select>
+      </Field>
       <h3 className="fieldset-title">Wiederherstellungscodes</h3>
       <p className="fieldset-help">
         Hast du keinen deiner Faktoren zur Hand, meldest du dich mit einem Wiederherstellungscode an.
@@ -362,6 +458,23 @@ function TwoFactorBody({
       </div>
     </>
   );
+}
+
+type DefaultIn = components["schemas"]["DefaultIn"];
+
+/** The default as the choice's value: "", "totp", "webauthn" or "webauthn:<id>". */
+function defaultValue(status: TwoFactorStatus): string {
+  if (status.default_method === "webauthn" && status.default_key_id != null) {
+    return `webauthn:${status.default_key_id}`;
+  }
+  return status.default_method ?? "";
+}
+
+function parseDefault(value: string): DefaultIn {
+  if (value === "") return { method: null };
+  if (value === "totp") return { method: "totp" };
+  const [, id] = value.split(":");
+  return { method: "webauthn", key_id: id ? Number(id) : null };
 }
 
 const HINT = { margin: "0.35rem 0 0" };
@@ -527,8 +640,10 @@ function AddKeyModal({ onClose, onAdded }: { onClose: () => void; onAdded: (r: F
           <FieldError errors={errors.name} />
         </Field>
         <p className="muted small">
-          Nach „Hinzufügen“ fragt dein Browser nach dem Schlüssel. Kann er dich selbst prüfen (PIN,
-          Fingerabdruck), meldet er dich künftig auch ohne Passwort an.
+          Nach „Hinzufügen“ fragt dein Browser nach dem Schlüssel. Prüft er dich selbst per PIN,
+          Fingerabdruck oder Gesichtserkennung, wird er als <strong>Passkey</strong> eingerichtet:
+          Dann meldest du dich mit ihm auch ganz ohne Passwort an („Mit Passkey anmelden“). Sonst
+          dient er als zweiter Faktor nach dem Passwort.
         </p>
         <div className="row-actions">
           <Button type="submit" busy={add.isPending}>
@@ -581,6 +696,26 @@ function RenameModal({ factor, onClose }: { factor: FactorOut; onClose: () => vo
           </Button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+/** A key that came without passkey support: a second factor only. */
+function PlainKeyModal({ onClose }: { onClose: () => void }) {
+  return (
+    <Modal title="Ohne Passkey eingerichtet" onClose={onClose} size="sm">
+      <div className="stack">
+        <p>
+          Der Sicherheitsschlüssel wurde hinzugefügt, aber nicht als Passkey: Er prüft dich nicht
+          selbst per PIN oder Fingerabdruck. Du nutzt ihn nach dem Passwort als zweiten Faktor; ohne
+          Passwort meldet er dich nicht an.
+        </p>
+        <div className="row-actions">
+          <Button type="button" onClick={onClose}>
+            Verstanden
+          </Button>
+        </div>
+      </div>
     </Modal>
   );
 }

@@ -16,6 +16,9 @@ password is taken back, a right factor clears the count). An elevation belongs
 to one access token, so it cannot be used by another token or account, and it
 ends with the token. Adding the first factor leaves it in place until it expires.
 
+One factor can be the *default*: the one the second step of the login and the
+confirmation here offer first (see :func:`logindata.two_factor.preferred`).
+
 Adding a factor takes two requests; the first answers with a ``state`` naming a
 :class:`~logindata.models.TwoFactorSetup` that holds the new secret or the
 WebAuthn challenge for ten minutes, and the second uses it up, so it cannot be
@@ -64,6 +67,8 @@ class FactorOut(Schema):
     last_used: datetime | None
     # A security key that also signs in without a password.
     passwordless: bool
+    # Offered first when signing in: this key, or (for an app) the app.
+    default: bool
 
 
 class TwoFactorStatus(Schema):
@@ -75,9 +80,16 @@ class TwoFactorStatus(Schema):
     has_webauthn: bool
     # Until when this sign-in may manage factors; null when it has to confirm.
     elevated_until: datetime | None
-    # Empty and zero until the sign-in is elevated.
+    # What to offer first: the default, or a security key over the app; for a
+    # key, one key's id or null for any.
+    preferred_method: FactorKind | None
+    preferred_key_id: int | None
+    # Empty, zero and null until the sign-in is elevated.
     factors: list[FactorOut]
     recovery_codes_remaining: int
+    # The default the user chose: null for none, a key's id or null for any key.
+    default_method: FactorKind | None
+    default_key_id: int | None
 
 
 class ConfirmIn(Schema):
@@ -142,6 +154,13 @@ class FactorAdded(Schema):
 
 class RenameIn(Schema):
     name: str
+
+
+class DefaultIn(Schema):
+    """The default factor: ``null`` for none; for a security key, one or (``null``) any."""
+
+    method: FactorKind | None = None
+    key_id: int | None = None
 
 
 class RecoveryCodesOut(Schema):
@@ -246,8 +265,9 @@ def _clean_name(name):
     return name
 
 
-def _factor(obj):
+def _factor(obj, default=(None, None)):
     is_key = isinstance(obj, WebAuthnCredential)
+    method, key = default
     return {
         "id": obj.pk,
         "kind": "webauthn" if is_key else "totp",
@@ -255,6 +275,7 @@ def _factor(obj):
         "created": obj.created,
         "last_used": obj.last_used,
         "passwordless": is_key and obj.discoverable,
+        "default": (method == "webauthn" and key == obj) if is_key else method == "totp",
     }
 
 
@@ -268,7 +289,8 @@ def _added(request, factor, first):
         codes = two_factor.generate_recovery_codes(request.user)
         # Signed in elsewhere with the password alone: that ends here.
         two_factor.revoke_other_tokens(request.user, request.access_token)
-    return 201, {"factor": _factor(factor), "recovery_codes": codes}
+    factor_out = _factor(factor, two_factor.default_for(request.user))
+    return 201, {"factor": factor_out, "recovery_codes": codes}
 
 
 @router.get("/two-factor", response=TwoFactorStatus)
@@ -280,23 +302,31 @@ def two_factor_status(request):
     keys = list(user.webauthn_credentials.all())
     elevated_until = _elevation(request)
     factors = sorted([*totp, *keys], key=lambda f: f.created) if elevated_until else []
+    default = two_factor.default_for(user) if elevated_until else (None, None)
+    preferred_method, preferred_key = two_factor.preferred(user)
     return {
         "available": two_factor.available(),
         "enabled": bool(totp or keys),
         "has_totp": bool(totp),
         "has_webauthn": bool(keys),
         "elevated_until": elevated_until,
-        "factors": [_factor(f) for f in factors],
+        "preferred_method": preferred_method,
+        "preferred_key_id": preferred_key.pk if preferred_key else None,
+        "factors": [_factor(f, default) for f in factors],
         "recovery_codes_remaining": user.recovery_codes.count() if elevated_until else 0,
+        "default_method": default[0],
+        "default_key_id": default[1].pk if default[1] else None,
     }
 
 
 @router.post("/two-factor/confirm/options", response=ConfirmOptions)
-def confirm_options(request):
-    """Request options for confirming with one of the user's security keys."""
+def confirm_options(request, key_id: int | None = None):
+    """Request options for confirming with one of the user's security keys, or with ``key_id``."""
     _require_session(request)
     _require_available()
     keys = request.user.webauthn_credentials.all()
+    if key_id is not None:
+        keys = keys.filter(pk=key_id)
     if not keys:
         raise ValidationError(_("You have no security key."))
     options, challenge = two_factor.authentication_options(
@@ -399,7 +429,24 @@ def rename_factor(request, kind: FactorKind, factor_id: int, payload: RenameIn):
     factor = get_object_or_404(_factor_model(kind), pk=factor_id, user=request.user)
     factor.name = _clean_name(payload.name)
     factor.save(update_fields=["name"])
-    return _factor(factor)
+    return _factor(factor, two_factor.default_for(request.user))
+
+
+@router.put("/two-factor/default", response={204: None})
+def set_default(request, payload: DefaultIn):
+    """Choose the factor the login offers first, or none."""
+    _require_elevation(request)
+    user = request.user
+    key = None
+    if payload.method == "totp" and not user.totp_devices.exists():
+        raise ValidationError(_("You have no authenticator app."))
+    if payload.method == "webauthn":
+        if payload.key_id is not None:
+            key = get_object_or_404(WebAuthnCredential, pk=payload.key_id, user=user)
+        elif not user.webauthn_credentials.exists():
+            raise ValidationError(_("You have no security key."))
+    two_factor.set_default(user, payload.method, key)
+    return 204, None
 
 
 @router.post("/two-factor/{kind}/{factor_id}/remove", response={204: None})

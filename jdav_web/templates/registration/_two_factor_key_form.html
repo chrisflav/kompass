@@ -1,0 +1,7 @@
+{% load i18n %}
+<form method="post" data-webauthn-form data-options-url="{% url 'login-two-factor-options' %}{% if key %}?key={{ key.pk }}{% endif %}"{% if autostart %} data-autostart{% endif %} data-retry-label="{% translate 'Try again' %}">
+  {% csrf_token %}
+  <input type="hidden" name="method" value="webauthn">
+  <input type="hidden" name="credential">
+  <button type="submit"{% if secondary %} class="secondary"{% endif %}>{{ label }}</button>
+</form>

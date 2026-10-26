@@ -172,6 +172,26 @@ class TwoFactorAttempts(models.Model):
         default_permissions = ()
 
 
+class TwoFactorDefault(models.Model):
+    """The factor a user's second step offers first.
+
+    ``method`` is ``"totp"`` for the authenticator app or ``"webauthn"`` for a
+    security key; with ``key`` set, that one key, otherwise any of them. A key
+    that is removed leaves the choice at "any key".
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="two_factor_default"
+    )
+    method = models.CharField(max_length=20)
+    key = models.ForeignKey(
+        WebAuthnCredential, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+
+    class Meta:
+        default_permissions = ()
+
+
 class TwoFactorSetup(models.Model):
     """A factor being added: the secret or challenge between its two requests.
 

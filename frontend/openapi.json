@@ -12179,7 +12179,24 @@
       "post": {
         "operationId": "logindata_api_two_factor_router_confirm_options",
         "summary": "Confirm Options",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "key_id",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Key Id"
+            },
+            "required": false
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -12192,7 +12209,7 @@
             }
           }
         },
-        "description": "Request options for confirming with one of the user's security keys.",
+        "description": "Request options for confirming with one of the user's security keys, or with ``key_id``.",
         "tags": [
           "logindata"
         ],
@@ -12421,6 +12438,37 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RenameIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/two-factor/default": {
+      "put": {
+        "operationId": "logindata_api_two_factor_router_set_default",
+        "summary": "Set Default",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Choose the factor the login offers first, or none.",
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefaultIn"
               }
             }
           },
@@ -26127,6 +26175,10 @@
           "passwordless": {
             "title": "Passwordless",
             "type": "boolean"
+          },
+          "default": {
+            "type": "boolean",
+            "title": "Default"
           }
         },
         "required": [
@@ -26135,7 +26187,8 @@
           "name",
           "created",
           "last_used",
-          "passwordless"
+          "passwordless",
+          "default"
         ],
         "title": "FactorOut",
         "type": "object"
@@ -26170,6 +26223,32 @@
             ],
             "title": "Elevated Until"
           },
+          "preferred_method": {
+            "anyOf": [
+              {
+                "enum": [
+                  "totp",
+                  "webauthn"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Method"
+          },
+          "preferred_key_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Key Id"
+          },
           "factors": {
             "items": {
               "$ref": "#/components/schemas/FactorOut"
@@ -26180,6 +26259,32 @@
           "recovery_codes_remaining": {
             "title": "Recovery Codes Remaining",
             "type": "integer"
+          },
+          "default_method": {
+            "anyOf": [
+              {
+                "enum": [
+                  "totp",
+                  "webauthn"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Method"
+          },
+          "default_key_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Key Id"
           }
         },
         "required": [
@@ -26188,8 +26293,12 @@
           "has_totp",
           "has_webauthn",
           "elevated_until",
+          "preferred_method",
+          "preferred_key_id",
           "factors",
-          "recovery_codes_remaining"
+          "recovery_codes_remaining",
+          "default_method",
+          "default_key_id"
         ],
         "title": "TwoFactorStatus",
         "type": "object"
@@ -26413,6 +26522,39 @@
           "name"
         ],
         "title": "RenameIn",
+        "type": "object"
+      },
+      "DefaultIn": {
+        "description": "The default factor: ``null`` for none; for a security key, one or (``null``) any.",
+        "properties": {
+          "method": {
+            "anyOf": [
+              {
+                "enum": [
+                  "totp",
+                  "webauthn"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "key_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Id"
+          }
+        },
+        "title": "DefaultIn",
         "type": "object"
       },
       "RecoveryCodesOut": {

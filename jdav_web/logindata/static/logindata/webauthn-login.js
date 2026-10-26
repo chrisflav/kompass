@@ -3,6 +3,10 @@
 // security key, and submits the signed answer in its `credential` field. The
 // server checks everything; this only converts between the browser's binary
 // buffers and the base64url strings the server speaks.
+//
+// A form marked `data-autostart` asks the key once, as the page loads. When
+// that (or any) attempt fails, the error shows, the button reads its
+// `data-retry-label` and the other methods open; nothing asks again by itself.
 (function () {
   "use strict";
 
@@ -53,10 +57,17 @@
     };
   }
 
-  function showError() {
+  function showError(form) {
     document.querySelectorAll("[data-webauthn-error]").forEach(function (el) {
       el.hidden = false;
     });
+    document.querySelectorAll("details[data-alternatives]").forEach(function (el) {
+      el.open = true;
+    });
+    var button = form.querySelector("button");
+    if (form.dataset.retryLabel && button) {
+      button.textContent = form.dataset.retryLabel;
+    }
   }
 
   document.querySelectorAll("[data-webauthn]").forEach(function (el) {
@@ -87,7 +98,12 @@
           form.elements.credential.value = JSON.stringify(assertionJSON(credential));
           form.submit();
         })
-        .catch(showError);
+        .catch(function () {
+          showError(form);
+        });
     });
+    if (form.hasAttribute("data-autostart")) {
+      form.requestSubmit();
+    }
   });
 })();

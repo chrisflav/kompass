@@ -13,6 +13,7 @@ const APP = {
   created: "2026-10-01T10:00:00Z",
   last_used: null,
   passwordless: false,
+  default: false,
 };
 const PASSKEY = {
   id: 4,
@@ -21,6 +22,7 @@ const PASSKEY = {
   created: "2026-10-02T10:00:00Z",
   last_used: "2026-10-20T10:00:00Z",
   passwordless: true,
+  default: false,
 };
 const CODES = Array.from({ length: 10 }, (_, i) => `abcd-efgh-ijkl-mn${i}${i}`);
 const SOON = () => new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -29,16 +31,38 @@ type Factor = Omit<typeof APP, "last_used"> & { last_used: string | null };
 
 /** The status: confirmed (``elevated``) or not, with these factors. */
 function status(factors: Factor[], elevated = true, extra: Record<string, unknown> = {}) {
+  const hasTotp = factors.some((f) => f.kind === "totp");
+  const hasWebauthn = factors.some((f) => f.kind === "webauthn");
   return {
     available: true,
     enabled: factors.length > 0,
-    has_totp: factors.some((f) => f.kind === "totp"),
-    has_webauthn: factors.some((f) => f.kind === "webauthn"),
+    has_totp: hasTotp,
+    has_webauthn: hasWebauthn,
     elevated_until: elevated ? SOON() : null,
+    preferred_method: hasWebauthn ? "webauthn" : hasTotp ? "totp" : null,
+    preferred_key_id: null,
     factors: elevated ? factors : [],
     recovery_codes_remaining: elevated && factors.length ? 8 : 0,
+    default_method: null,
+    default_key_id: null,
     ...extra,
   };
+}
+
+/** A browser key that answers `navigator.credentials.get`. */
+function answeringKey() {
+  return vi.fn().mockResolvedValue({
+    id: "a2V5",
+    rawId: bytes("key"),
+    type: "public-key",
+    response: {
+      clientDataJSON: bytes("client"),
+      authenticatorData: bytes("auth"),
+      signature: bytes("sig"),
+      userHandle: bytes("2"),
+    },
+    getClientExtensionResults: () => ({}),
+  });
 }
 
 function statusReturns(factors: Factor[] = [], elevated = true, extra: Record<string, unknown> = {}) {
@@ -138,7 +162,7 @@ describe("confirming who is there", () => {
     await user.click(screen.getByRole("button", { name: "Bestätigen" }));
     expect(await screen.findByText("Das hat nicht geklappt.")).toBeInTheDocument();
 
-    await user.click(screen.getByText("Wiederherstellungscode verwenden"));
+    await user.click(screen.getByText("Andere Methode verwenden"));
     await user.type(screen.getByLabelText(/^Wiederherstellungscode/), "abcd-efgh");
     await user.click(screen.getByRole("button", { name: "Mit Code bestätigen" }));
     expect(await screen.findByText("Handy")).toBeInTheDocument();
@@ -148,18 +172,7 @@ describe("confirming who is there", () => {
   it("confirms with a security key", async () => {
     let confirmed = false;
     let body: Record<string, unknown> | null = null;
-    const get = vi.fn().mockResolvedValue({
-      id: "a2V5",
-      rawId: bytes("key"),
-      type: "public-key",
-      response: {
-        clientDataJSON: bytes("client"),
-        authenticatorData: bytes("auth"),
-        signature: bytes("sig"),
-        userHandle: bytes("2"),
-      },
-      getClientExtensionResults: () => ({}),
-    });
+    const get = answeringKey();
     stubWebAuthn({ get });
     server.use(
       http.get(api(BASE), () => HttpResponse.json(status([PASSKEY], confirmed))),
@@ -175,9 +188,10 @@ describe("confirming who is there", () => {
         return HttpResponse.json({ elevated_until: SOON() });
       }),
     );
-    const { user } = renderRoute("/kompass/security");
-    await user.click(await screen.findByRole("button", { name: "Mit Sicherheitsschlüssel bestätigen" }));
+    // A key comes first and is asked at once, without a click.
+    renderRoute("/kompass/security");
     expect(await screen.findByText("YubiKey")).toBeInTheDocument();
+    expect(get).toHaveBeenCalledTimes(1);
     const publicKey = get.mock.calls[0][0].publicKey;
     expect(new TextDecoder().decode(publicKey.challenge)).toBe("challenge");
     expect(new TextDecoder().decode(publicKey.allowCredentials[0].id)).toBe("key");
@@ -198,17 +212,54 @@ describe("confirming who is there", () => {
     });
   });
 
-  it("says so when the key does not answer", async () => {
-    stubWebAuthn({ get: vi.fn().mockResolvedValue(null) });
-    statusReturns([PASSKEY], false);
+  it("offers a retry and the other methods when the key does not answer, without asking again", async () => {
+    const get = vi.fn().mockResolvedValue(null);
+    stubWebAuthn({ get });
+    statusReturns([APP, PASSKEY], false);
     server.use(
       http.post(api(`${BASE}/confirm/options`), () =>
         HttpResponse.json({ options: { challenge: "Y2hhbGxlbmdl" }, state: "s" }),
       ),
     );
     const { user } = renderRoute("/kompass/security");
-    await user.click(await screen.findByRole("button", { name: "Mit Sicherheitsschlüssel bestätigen" }));
     expect(await screen.findByText("Der Sicherheitsschlüssel hat nicht geantwortet.")).toBeInTheDocument();
+    const retry = await screen.findByRole("button", { name: "Erneut versuchen" });
+    expect(screen.getByText("Andere Methode verwenden").closest("details")).toHaveProperty("open", true);
+    expect(screen.getByLabelText(/Code aus deiner Authenticator-App/)).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(get).toHaveBeenCalledTimes(1);
+    await user.click(retry);
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+  });
+
+  it("asks the default key alone, with the others below", async () => {
+    const get = answeringKey();
+    stubWebAuthn({ get });
+    const queries: string[] = [];
+    statusReturns([PASSKEY], false, { preferred_key_id: 4 });
+    server.use(
+      http.post(api(`${BASE}/confirm/options`), ({ request }) => {
+        queries.push(new URL(request.url).search);
+        return HttpResponse.json({ options: { challenge: "Y2hhbGxlbmdl" }, state: "s" });
+      }),
+      http.post(api(`${BASE}/confirm`), () => refused("__all__", "Das hat nicht geklappt.")),
+    );
+    const { user } = renderRoute("/kompass/security");
+    await waitFor(() => expect(queries).toEqual(["?key_id=4"]));
+    await user.click(screen.getByText("Andere Methode verwenden"));
+    await user.click(screen.getByRole("button", { name: "Anderen Sicherheitsschlüssel verwenden" }));
+    await waitFor(() => expect(queries).toEqual(["?key_id=4", ""]));
+  });
+
+  it("puts the app first where it is the default", async () => {
+    const get = answeringKey();
+    stubWebAuthn({ get });
+    statusReturns([APP, PASSKEY], false, { preferred_method: "totp" });
+    renderRoute("/kompass/security");
+    const field = await screen.findByLabelText(/Code aus deiner Authenticator-App/);
+    expect(field).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Mit Sicherheitsschlüssel bestätigen" })).toBeInTheDocument();
+    expect(get).not.toHaveBeenCalled();
   });
 
   it("asks again once the confirmation ran out", async () => {
@@ -418,9 +469,10 @@ describe("managing factors once confirmed", () => {
     );
     const { user } = renderRoute("/kompass/security");
     expect(await screen.findByText("YubiKey")).toBeInTheDocument();
-    expect(screen.getByText("Passkey")).toBeInTheDocument();
-    expect(screen.getByText("Authenticator-App")).toBeInTheDocument();
-    expect(screen.getByText("nie")).toBeInTheDocument();
+    const table = within(screen.getByRole("table"));
+    expect(table.getByText("Passkey")).toBeInTheDocument();
+    expect(table.getByText("Authenticator-App")).toBeInTheDocument();
+    expect(table.getByText("nie")).toBeInTheDocument();
 
     const keyRow = within(screen.getByText("YubiKey").closest("tr") as HTMLElement);
     await user.click(keyRow.getByRole("button", { name: "Umbenennen" }));
@@ -438,6 +490,72 @@ describe("managing factors once confirmed", () => {
     await user.click(confirm.getByRole("button", { name: "Entfernen" }));
     await waitFor(() => expect(removed).toBe(true));
     expect(await screen.findByText("Entfernt.")).toBeInTheDocument();
+  });
+
+  it("chooses the default factor", async () => {
+    const bodies: unknown[] = [];
+    statusReturns([APP, { ...PASSKEY, default: true }], true, {
+      default_method: "webauthn",
+      default_key_id: 4,
+    });
+    server.use(
+      http.put(api(`${BASE}/default`), async ({ request }) => {
+        bodies.push(await request.json());
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const { user } = renderRoute("/kompass/security");
+    const keyRow = within((await screen.findByText("YubiKey")).closest("tr") as HTMLElement);
+    expect(keyRow.getByText("Standard")).toBeInTheDocument();
+    expect(keyRow.queryByRole("button", { name: "Als Standard festlegen" })).toBeNull();
+    const appRow = within(screen.getByText("Handy").closest("tr") as HTMLElement);
+    expect(appRow.queryByText("Standard")).toBeNull();
+    await user.click(appRow.getByRole("button", { name: "Als Standard festlegen" }));
+    await waitFor(() => expect(bodies).toEqual([{ method: "totp" }]));
+    const choice = screen.getByLabelText("Bei der Anmeldung zuerst");
+    expect(choice).toHaveValue("webauthn:4");
+    await user.selectOptions(choice, "webauthn");
+    await user.selectOptions(choice, "");
+    await waitFor(() =>
+      expect(bodies).toEqual([
+        { method: "totp" },
+        { method: "webauthn", key_id: null },
+        { method: null },
+      ]),
+    );
+  });
+
+  it("says when a key was added without passkey support", async () => {
+    statusReturns([APP]);
+    stubWebAuthn({
+      create: vi.fn().mockResolvedValue({
+        id: "a2V5",
+        rawId: bytes("key"),
+        type: "public-key",
+        response: { clientDataJSON: bytes("c"), attestationObject: bytes("a") },
+        getClientExtensionResults: () => ({}),
+      }),
+    });
+    server.use(
+      http.post(api(`${BASE}/webauthn/setup`), () =>
+        HttpResponse.json({ options: { user: { id: "Mg" }, challenge: "Y2hhbGxlbmdl" }, state: "s" }),
+      ),
+      http.post(api(`${BASE}/webauthn`), () =>
+        HttpResponse.json(
+          { factor: { ...PASSKEY, passwordless: false }, recovery_codes: CODES },
+          { status: 201 },
+        ),
+      ),
+    );
+    const { user } = renderRoute("/kompass/security");
+    await chooseFactor(user, "Sicherheitsschlüssel");
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByText(/auch ganz ohne Passwort/)).toBeInTheDocument();
+    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
+    const notice = within(await screen.findByRole("dialog", { name: "Ohne Passkey eingerichtet" }));
+    await user.click(notice.getByRole("button", { name: "Verstanden" }));
+    // The first factor's recovery codes follow.
+    expect(await screen.findByRole("dialog", { name: "Deine Wiederherstellungscodes" })).toBeInTheDocument();
   });
 
   it("shows a rename that was refused", async () => {

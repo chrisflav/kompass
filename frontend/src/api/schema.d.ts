@@ -4541,7 +4541,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm Options
-         * @description Request options for confirming with one of the user's security keys.
+         * @description Request options for confirming with one of the user's security keys, or with ``key_id``.
          */
         post: operations["logindata_api_two_factor_router_confirm_options"];
         delete?: never;
@@ -4665,6 +4665,26 @@ export interface paths {
         head?: never;
         /** Rename Factor */
         patch: operations["logindata_api_two_factor_router_rename_factor"];
+        trace?: never;
+    };
+    "/api/logindata/two-factor/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Default
+         * @description Choose the factor the login offers first, or none.
+         */
+        put: operations["logindata_api_two_factor_router_set_default"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/logindata/two-factor/{kind}/{factor_id}/remove": {
@@ -10095,6 +10115,8 @@ export interface components {
             last_used: string | null;
             /** Passwordless */
             passwordless: boolean;
+            /** Default */
+            default: boolean;
         };
         /** TwoFactorStatus */
         TwoFactorStatus: {
@@ -10108,10 +10130,18 @@ export interface components {
             has_webauthn: boolean;
             /** Elevated Until */
             elevated_until: string | null;
+            /** Preferred Method */
+            preferred_method: ("totp" | "webauthn") | null;
+            /** Preferred Key Id */
+            preferred_key_id: number | null;
             /** Factors */
             factors: components["schemas"]["FactorOut"][];
             /** Recovery Codes Remaining */
             recovery_codes_remaining: number;
+            /** Default Method */
+            default_method: ("totp" | "webauthn") | null;
+            /** Default Key Id */
+            default_key_id: number | null;
         };
         /**
          * ConfirmOptions
@@ -10208,6 +10238,16 @@ export interface components {
         RenameIn: {
             /** Name */
             name: string;
+        };
+        /**
+         * DefaultIn
+         * @description The default factor: ``null`` for none; for a security key, one or (``null``) any.
+         */
+        DefaultIn: {
+            /** Method */
+            method?: ("totp" | "webauthn") | null;
+            /** Key Id */
+            key_id?: number | null;
         };
         /** RecoveryCodesOut */
         RecoveryCodesOut: {
@@ -17581,7 +17621,9 @@ export interface operations {
     };
     logindata_api_two_factor_router_confirm_options: {
         parameters: {
-            query?: never;
+            query?: {
+                key_id?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -17735,6 +17777,28 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FactorOut"];
                 };
+            };
+        };
+    };
+    logindata_api_two_factor_router_set_default: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DefaultIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

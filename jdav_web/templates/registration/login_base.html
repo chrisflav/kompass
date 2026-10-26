@@ -35,12 +35,14 @@
     .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid #ddd8cf; }
     details { margin-top: 1.25rem; font-size: .85rem; }
     summary { cursor: pointer; color: #5d6460; margin-bottom: 1rem; }
+    .hint { margin: .5rem 0 0; color: #5d6460; font-size: .8rem; }
+    details form + form { margin-top: 1.25rem; }
     [hidden] { display: none !important; }
     @media (prefers-color-scheme: dark) {
       body { background: #151a17; color: #e8e6e1; }
       .card { background: #1d2320; border-color: #333c37; }
       input { background: #151a17; border-color: #3f4a44; color: inherit; }
-      p.sub, .divider, summary { color: #9aa39d; }
+      p.sub, .divider, summary, .hint { color: #9aa39d; }
       .divider::before, .divider::after { border-color: #333c37; }
       button.secondary { color: #9fc4ae; border-color: #9fc4ae; }
       .errors { background: #3b1f1c; color: #f3b5ab; }
