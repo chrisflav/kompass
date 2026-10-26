@@ -975,7 +975,7 @@ class Statement(CommonModel):
 
         And **once here** is the honest scope: the row this writes is the
         live one, and a re-freeze writes a *new* row from outside this method.
-        :func:`finance.engine.statements._materialise_constraints` supersedes
+        :func:`finance.engine.statements.materialise` supersedes
         the rows it finds and carries their decision — this column and the
         three ``overridden_*`` fields — onto the row that takes over, so what
         a row says stays true of the row for as long as it was live. It used
@@ -1703,14 +1703,16 @@ class Bill(CommonModel):
         super().save(*args, **kwargs)
         self._refresh_statement()
 
-    def delete(self, *args, **kwargs):
-        statement = self.statement
-        deleted = super().delete(*args, **kwargs)
-        self.statement = statement
-        self._refresh_statement()
-        return deleted
-
     def _refresh_statement(self):
+        """Re-resolve the statement this bill is on, after the bill moved.
+
+        Called on a save, and on a deletion by :mod:`finance.signals` — on
+        *every* deletion, not only one that goes through this instance's
+        ``delete``. A queryset delete never calls ``Model.delete``, and a
+        statement whose rows a receipt had retired stayed without them once
+        the receipt was gone that way: no live approval row, nobody able to
+        sign, and nothing wrong with the statement to say why.
+        """
         statement = self.statement
         if statement.confirmed:
             return

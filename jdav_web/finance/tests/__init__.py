@@ -15,6 +15,7 @@ from .migrations import *
 from .models import *
 from .parity import *
 from .payout import *
+from .refreeze import *
 from .rules import *
 from .store import *
 from .visibility import *

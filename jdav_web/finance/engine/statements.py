@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
+from django.db import transaction
 from django.utils import timezone
 from finance.parties import MEMBER
 from finance.parties import PARTICIPANTS
@@ -342,8 +343,9 @@ def materialise(statement: Any, *, freeze: bool = False) -> tuple[Obligation, ..
         # falls back to resolving it live, where the problem is still visible.
         # Writing rows here would hide a payerless receipt behind a payout that
         # looks complete.
-        _retire_rows(statement)
-        _retire_constraint_rows(statement)
+        with transaction.atomic():
+            _retire_rows(statement)
+            _retire_constraint_rows(statement)
         return ()
     members = MemberModel.objects.in_bulk([party.id for party in result.members()])
     names = {pk: member.name for pk, member in members.items()}
@@ -377,9 +379,18 @@ def materialise(statement: Any, *, freeze: bool = False) -> tuple[Obligation, ..
         )
         for position, transfer in enumerate(result.transfers)
     ]
-    _retire_rows(statement)
-    Obligation.objects.bulk_create(rows)
-    _materialise_constraints(statement, result, version=version, frozen=frozen)
+    # Everything the new generation says is worked out *before* the old one is
+    # retired, and the two happen together or not at all. The constraints are
+    # the part that reaches back into the section's rules, and resolving them
+    # used to happen between the two halves: anything that failed there left
+    # the obligations rewritten and every approval row retired with nothing in
+    # its place — a statement that reads as valid and that nobody can sign.
+    constraints = _constraint_rows(statement, result, version=version, frozen=frozen)
+    with transaction.atomic():
+        _retire_rows(statement)
+        Obligation.objects.bulk_create(rows)
+        _retire_constraint_rows(statement)
+        ApprovalConstraint.objects.bulk_create(constraints)
     return tuple(live_rows(statement))
 
 
@@ -639,7 +650,7 @@ def resolve_constraints(statement: Any, result: Result) -> list[dict[str, Any]]:
     Returns one mapping per constraint in the shape
     :meth:`~finance.store.ApprovalConstraint.as_row` produces, which is what
     :mod:`finance.engine.approval` evaluates. Two callers:
-    :func:`_materialise_constraints`, which writes these down at submission,
+    :func:`_constraint_rows`, which works out what is written down at submission,
     and :func:`current_constraint_rows`, which asks the same question again at
     the moment somebody tries to sign.
 
@@ -721,14 +732,20 @@ def resolve_constraints(statement: Any, result: Result) -> list[dict[str, Any]]:
     return rows
 
 
-def _materialise_constraints(statement: Any, result: Result, *, version: str, frozen: Any) -> None:
-    """Freeze the signatures the rules ask for, with the forbids applied.
+def _constraint_rows(
+    statement: Any, result: Result, *, version: str, frozen: Any
+) -> list[ApprovalConstraint]:
+    """The signatures the rules ask for, with the forbids applied, as unsaved rows.
 
     The forbids and the permission re-check are applied *here*, so the stored
     eligible set is the set that may sign: a predicate cannot be persisted, and
     an audit two years later must not depend on re-running a section's Python.
     Who may sign *now* is a different question, asked by
     :func:`current_constraint_rows` — see its docstring for why the two differ.
+
+    Nothing is written here: :func:`materialise` retires the rows it finds and
+    writes these in one transaction, after they have been worked out, so that
+    a failure in the rules on the way leaves the old generation standing.
 
     Called again for a statement that is already submitted — the finance
     officer covering a receipt, which is the one edit that stays open — the
@@ -741,26 +758,23 @@ def _materialise_constraints(statement: Any, result: Result, *, version: str, fr
     back to the board that had already waived it.
     """
     decisions = _decisions_so_far(statement)
-    _retire_constraint_rows(statement)
-    ApprovalConstraint.objects.bulk_create(
-        [
-            ApprovalConstraint(
-                statement=statement,
-                position=position,
-                name=row["name"],
-                description=row["description"],
-                applicable=row["applicable"],
-                required=row["required"],
-                eligible_member_ids=row["eligible"],
-                excluded=row["excluded"],
-                error=row["error"],
-                rule_version=version,
-                frozen_at=frozen,
-                **_carried_decision(decisions.get(row["name"]), row),
-            )
-            for position, row in enumerate(resolve_constraints(statement, result))
-        ]
-    )
+    return [
+        ApprovalConstraint(
+            statement=statement,
+            position=position,
+            name=row["name"],
+            description=row["description"],
+            applicable=row["applicable"],
+            required=row["required"],
+            eligible_member_ids=row["eligible"],
+            excluded=row["excluded"],
+            error=row["error"],
+            rule_version=version,
+            frozen_at=frozen,
+            **_carried_decision(decisions.get(row["name"]), row),
+        )
+        for position, row in enumerate(resolve_constraints(statement, result))
+    ]
 
 
 #: What a fallback row says instead of a resolution, because there was none.

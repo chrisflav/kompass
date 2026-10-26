@@ -46,11 +46,15 @@ exists to remove.
 import logging
 from typing import Any
 
+from django.db.models import QuerySet
 from django.db.models.signals import post_delete
 from members.models import Member
 from members.models import MemberUnconfirmedProxy
 
 from .inputs import party_answers
+from .models import Bill
+from .models import BillOnExcursionProxy
+from .models import BillOnStatementProxy
 from .models import Statement
 
 logger = logging.getLogger(__name__)
@@ -223,4 +227,55 @@ for _sender in (Member, MemberUnconfirmedProxy):
         _forget_deleted_member,
         sender=_sender,
         dispatch_uid="finance.forget_deleted_member",
+    )
+
+
+def _deleting_bills(origin: Any) -> bool:
+    """Whether the deletion ``origin`` started was a deletion *of bills*.
+
+    The other way a bill goes is in a cascade — its statement being deleted —
+    and that one must not be re-resolved: the statement is going too, the
+    collector has already listed the rows it will delete, and a generation
+    written now would be a row it never listed, refused by the foreign key on
+    its way out.
+    """
+    if isinstance(origin, Bill):
+        return True
+    return isinstance(origin, QuerySet) and issubclass(origin.model, Bill)
+
+
+def _refresh_after_bill_deleted(
+    sender: Any, instance: Any, origin: Any = None, **kwargs: Any
+) -> None:
+    """Re-resolve the statement a deleted bill was on, however it was deleted.
+
+    This was ``Bill.delete``, and ``Model.delete`` is the one route a
+    *queryset* delete never takes. On a submitted statement that is the route
+    back from a retired record: a receipt the rules cannot resolve retires
+    the frozen approval rows and writes none (:func:`finance.engine.statements.
+    materialise`), and only the next re-freeze writes them again. Deleted
+    through a queryset, the receipt took its error with it and left no
+    re-freeze behind — rules that resolve cleanly, a statement that reads as
+    valid, and not one live row, so nobody could sign it, ever.
+
+    Once per statement per deletion: a queryset delete sends this for every
+    bill it removed, after removing all of them, so every call would resolve
+    the same state and write the same generation again.
+    """
+    if not _deleting_bills(origin):
+        return
+    done = origin.__dict__.setdefault("_refreshed_statements", set())
+    if instance.statement_id in done:
+        return
+    done.add(instance.statement_id)
+    instance._refresh_statement()
+
+
+# For each proxy as well, for the reason the receiver above gives: the
+# collector sends `post_delete` with the class of the objects it deleted.
+for _sender in (Bill, BillOnExcursionProxy, BillOnStatementProxy):
+    post_delete.connect(
+        _refresh_after_bill_deleted,
+        sender=_sender,
+        dispatch_uid="finance.refresh_after_bill_deleted",
     )
