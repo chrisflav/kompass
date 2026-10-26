@@ -1094,6 +1094,55 @@ draft, it never applies, and the previous version goes on being in force.
 ``manage.py checkruleset`` says so before the import ever happens.
 
 
+.. _development_manual/finance_rules/signer_sight:
+
+What a signer your rules name may read
+======================================
+
+A :class:`~kompass.rules.Constraint` can name anybody — that is the point of
+naming them by role rather than by capability. Ludwigsburg's rules name a
+Ressortleitung, who is not finance staff and holds no permission over the
+finance app beyond being able to act on a submitted statement. So the question
+"what may she see of the statement she is being asked to sign" has to be
+answered by the rules naming her, and not by a permission somebody remembers
+to grant.
+
+Being named a signer of a statement confers **the sight of that statement**,
+and everything a reviewer reads of it follows from that one right:
+
+* the statement and its receipts;
+* its **bookings, with the account each is charged to** — the account rides on
+  the booking, so reading it needs no right over the section's chart of
+  accounts. ``finance.view_ledger`` is the right to read and choose out of the
+  *catalogue*, which is a treasurer's business; a signer reads the account her
+  own statement's bookings sit on and nothing else;
+* its **answers** — the questions your rules ask, their labels, their grouping
+  into :ref:`steps <development_manual/finance_rules/steps>` and what was
+  answered, read-only, exactly as the person filling them in saw them. Under a
+  ruleset that asks for most of the statement in answers, this *is* the
+  statement: the payout is a consequence of it, and a signature given over the
+  arithmetic alone is a signature given over nothing.
+
+Nothing here is a permission to grant. It is bounded by the statement, by the
+steps your rules are actually *asking for*, and by the statement having been
+handed in — a draft names nobody, and one handed back for rework stops naming
+anybody again.
+
+.. important::
+   **Signing is not paying.** Whether every booking has an account yet is
+   bookkeeping; a signature is the signer's own act about the statement's
+   facts. So a booking with no account **locks the payout and not the
+   signature**: Kompass records the signature, declines the payout, says why,
+   and releases the statement on the signature already given once the account
+   is set.
+
+   This matters to a ruleset that names a signer who is not the person doing
+   the bookkeeping, which is every ruleset that names one by role. If your
+   rules name somebody who *cannot* fix a missing account, they have to be able
+   to sign in spite of one, or the section's own routing deadlocks on a
+   treasurer's unfinished work.
+
+
 The section's numbers
 =====================
 

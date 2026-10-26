@@ -1128,6 +1128,50 @@ twice.</p>
 draft, it never applies, and the previous version goes on being in force.
 <code class="docutils literal notranslate"><span class="pre">manage.py</span> <span class="pre">checkruleset</span></code> says so before the import ever happens.</p>
 </section>
+<section id="what-a-signer-your-rules-name-may-read">
+<span id="development-manual-finance-rules-signer-sight"></span><h2>What a signer your rules name may read<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#what-a-signer-your-rules-name-may-read" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#what-a-signer-your-rules-name-may-read'">¶</a></h2>
+<p>A <a class="reference internal" href="#kompass.rules.Constraint" title="kompass.rules.Constraint"><code class="xref py py-class docutils literal notranslate"><span class="pre">Constraint</span></code></a> can name anybody — that is the point of
+naming them by role rather than by capability. Ludwigsburg’s rules name a
+Ressortleitung, who is not finance staff and holds no permission over the
+finance app beyond being able to act on a submitted statement. So the question
+„what may she see of the statement she is being asked to sign“ has to be
+answered by the rules naming her, and not by a permission somebody remembers
+to grant.</p>
+<p>Being named a signer of a statement confers <strong>the sight of that statement</strong>,
+and everything a reviewer reads of it follows from that one right:</p>
+<ul class="simple">
+<li><p>the statement and its receipts;</p></li>
+<li><p>its <strong>bookings, with the account each is charged to</strong> — the account rides on
+the booking, so reading it needs no right over the section’s chart of
+accounts. <code class="docutils literal notranslate"><span class="pre">finance.view_ledger</span></code> is the right to read and choose out of the
+<em>catalogue</em>, which is a treasurer’s business; a signer reads the account her
+own statement’s bookings sit on and nothing else;</p></li>
+<li><p>its <strong>answers</strong> — the questions your rules ask, their labels, their grouping
+into <a class="reference internal" href="#development-manual-finance-rules-steps"><span class="std std-ref">steps</span></a> and what was
+answered, read-only, exactly as the person filling them in saw them. Under a
+ruleset that asks for most of the statement in answers, this <em>is</em> the
+statement: the payout is a consequence of it, and a signature given over the
+arithmetic alone is a signature given over nothing.</p></li>
+</ul>
+<p>Nothing here is a permission to grant. It is bounded by the statement, by the
+steps your rules are actually <em>asking for</em>, and by the statement having been
+handed in — a draft names nobody, and one handed back for rework stops naming
+anybody again.</p>
+<div class="admonition important">
+<p class="admonition-title">Wichtig</p>
+<p><strong>Signing is not paying.</strong> Whether every booking has an account yet is
+bookkeeping; a signature is the signer’s own act about the statement’s
+facts. So a booking with no account <strong>locks the payout and not the
+signature</strong>: Kompass records the signature, declines the payout, says why,
+and releases the statement on the signature already given once the account
+is set.</p>
+<p>This matters to a ruleset that names a signer who is not the person doing
+the bookkeeping, which is every ruleset that names one by role. If your
+rules name somebody who <em>cannot</em> fix a missing account, they have to be able
+to sign in spite of one, or the section’s own routing deadlocks on a
+treasurer’s unfinished work.</p>
+</div>
+</section>
 <section id="the-section-s-numbers">
 <h2>The section’s numbers<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#the-section-s-numbers" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#the-section-s-numbers'">¶</a></h2>
 <p>A figure that the section votes on rather than a rule that it writes — the
@@ -2573,6 +2617,7 @@ rather than a value cut to fit; see
 </li>
 <li><a :data-current="activeSection === '#which-amounts-may-not-share-a-bank-transfer'" class="reference internal" href="#which-amounts-may-not-share-a-bank-transfer">Which amounts may not share a bank transfer</a></li>
 <li><a :data-current="activeSection === '#who-makes-the-transfers'" class="reference internal" href="#who-makes-the-transfers">Who makes the transfers</a></li>
+<li><a :data-current="activeSection === '#what-a-signer-your-rules-name-may-read'" class="reference internal" href="#what-a-signer-your-rules-name-may-read">What a signer your rules name may read</a></li>
 <li><a :data-current="activeSection === '#the-section-s-numbers'" class="reference internal" href="#the-section-s-numbers">The section’s numbers</a></li>
 <li><a :data-current="activeSection === '#cases-a-ruleset-s-own-tests'" class="reference internal" href="#cases-a-ruleset-s-own-tests">Cases: a ruleset’s own tests</a><ul>
 <li><a :data-current="activeSection === '#what-a-case-cannot-prove-about-a-derived-input'" class="reference internal" href="#what-a-case-cannot-prove-about-a-derived-input">What a case cannot prove about a derived input</a></li>
