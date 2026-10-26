@@ -1,13 +1,14 @@
 import { screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { Route, Routes } from "react-router-dom";
 
 import { api, http, HttpResponse, server, useSite } from "../test/server";
-import { renderWithApp } from "../test/utils";
+import { captureNavigations, renderWithApp, restoreNavigations } from "../test/utils";
 import { ContourField, contourSeed, KompassMark } from "./Contour";
 import { AppLayout, ProtectedRoute, PublicLayout } from "./Layout";
 import { NotFound, Placeholder } from "./Placeholder";
 import { SiteHeader } from "./SiteHeader";
+import { useUnloadWarning } from "./unsavedChanges";
 
 const NAV = {
   root_section: { id: 1, title: "Verein", urlname: "verein" },
@@ -24,6 +25,9 @@ const NAV = {
 function navReturns(data: Record<string, unknown> = NAV) {
   server.use(http.get(api("/api/startpage/public/navigation"), () => HttpResponse.json(data)));
 }
+
+// Signing out leaves the page; the tests that do so capture where it went.
+afterEach(restoreNavigations);
 
 describe("Contour", () => {
   it("draws one decorative contour ring per requested level", () => {
@@ -209,6 +213,7 @@ describe("SiteHeader — admin variant", () => {
   });
 
   it("offers the profile and logout under the user's name", async () => {
+    const assigned = captureNavigations();
     const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
 
     const menu = await screen.findByRole("button", { name: /Hannah Beckers/ });
@@ -219,7 +224,49 @@ describe("SiteHeader — admin variant", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Abmelden" }));
+    await waitFor(() => expect(assigned).toEqual(["/"]));
     expect(localStorage.getItem("kompass_token")).toBeNull();
+  });
+
+  it("asks before signing out over unsaved input, and only then revokes", async () => {
+    const assigned = captureNavigations();
+    let logouts = 0;
+    server.use(
+      http.post(api("/api/logindata/logout"), () => {
+        logouts += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    function Draft() {
+      useUnloadWarning(true);
+      return null;
+    }
+    const { user } = renderWithApp(
+      <>
+        <SiteHeader variant="app" />
+        <Draft />
+      </>,
+      { route: "/kompass" },
+    );
+    const openMenu = async () =>
+      user.click(await screen.findByRole("button", { name: /Hannah Beckers/ }));
+
+    await openMenu();
+    await user.click(screen.getByRole("button", { name: "Abmelden" }));
+    expect(await screen.findByText("Änderungen verwerfen?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Abbrechen" }));
+    expect(logouts).toBe(0);
+    expect(localStorage.getItem("kompass_token")).not.toBeNull();
+
+    await openMenu();
+    await user.click(screen.getByRole("button", { name: "Abmelden" }));
+    await user.click(await screen.findByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(assigned).toEqual(["/"]));
+    expect(logouts).toBe(1);
+    // Already asked: the browser's own prompt stays quiet on the way out.
+    const unload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(false);
   });
 
   it("says so when the account has no member profile", async () => {
@@ -356,6 +403,7 @@ describe("SiteHeader — public variant", () => {
 
 describe("SiteHeader — mobile drawer", () => {
   it("expands the whole navigation and the account actions", async () => {
+    const assigned = captureNavigations();
     const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
     await user.click(screen.getByRole("button", { name: "Menü" }));
 
@@ -372,6 +420,7 @@ describe("SiteHeader — mobile drawer", () => {
       ),
     );
     await user.click(inDrawer.getByRole("button", { name: "Abmelden" }));
+    await waitFor(() => expect(assigned).toEqual(["/"]));
     expect(localStorage.getItem("kompass_token")).toBeNull();
   });
 

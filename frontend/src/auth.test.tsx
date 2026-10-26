@@ -1,10 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthProvider, getToken, redirectUri, useAuth } from "./auth";
 import { API_BASE } from "./api/client";
+import { client, unwrap } from "./api/http";
 import { api, http, HttpResponse, server } from "./test/server";
 import { captureNavigations, renderRoute, restoreNavigations } from "./test/utils";
 
@@ -178,15 +179,107 @@ describe("completeLogin — the exchange leg", () => {
 });
 
 describe("AuthProvider logout", () => {
-  it("clears the stored token", async () => {
+  /** Records the headers of every sign-out request, answering with `status`. */
+  function recordLogouts(status = 204) {
+    const sent: { auth: string | null; csrf: string | null }[] = [];
+    server.use(
+      http.post(api("/api/logindata/logout"), ({ request }) => {
+        sent.push({
+          auth: request.headers.get("Authorization"),
+          csrf: request.headers.get("X-CSRFToken"),
+        });
+        return new HttpResponse(null, { status });
+      }),
+    );
+    return sent;
+  }
+
+  it("ends the sign-in at the backend and leaves for the start page", async () => {
     localStorage.setItem("kompass_token", "abc123");
+    const sent = recordLogouts();
     const user = userEvent.setup();
+    renderAuth();
+
+    await user.click(screen.getByRole("button", { name: "Abmelden" }));
+    await waitFor(() => expect(assigned).toEqual(["/"]));
+    // The token is revoked and the provider's session ended in one request,
+    // carrying the CSRF token in case the session has to sign it.
+    expect(sent).toEqual([{ auth: "Bearer abc123", csrf: "csrf-token" }]);
+    expect(getToken()).toBeNull();
+    // So /login does not sign the user straight back in.
+    expect(sessionStorage.getItem("kompass_logged_out")).toBe("1");
+  });
+
+  it("still signs out when the backend refuses the expired token", async () => {
+    localStorage.setItem("kompass_token", "abgelaufen");
+    const sent = recordLogouts(401);
+    const user = userEvent.setup();
+    renderAuth();
+
+    await user.click(screen.getByRole("button", { name: "Abmelden" }));
+    await waitFor(() => expect(assigned).toEqual(["/"]));
+    expect(sent).toHaveLength(1);
+    expect(getToken()).toBeNull();
+    expect(sessionStorage.getItem("kompass_logged_out")).toBe("1");
+  });
+
+  it("ends the session even when another tab already dropped the token", async () => {
+    localStorage.setItem("kompass_token", "abc123");
+    const sent = recordLogouts();
+    const user = userEvent.setup();
+    renderAuth();
+    // Removed without the storage event reaching this tab.
+    localStorage.removeItem("kompass_token");
+
+    await user.click(screen.getByRole("button", { name: "Abmelden" }));
+    await waitFor(() => expect(assigned).toEqual(["/"]));
+    expect(sent).toEqual([{ auth: null, csrf: "csrf-token" }]);
+  });
+
+  it("still signs out when the backend cannot be reached", async () => {
+    localStorage.setItem("kompass_token", "abc123");
+    server.use(http.get(api("/api/logindata/csrf"), () => HttpResponse.error()));
+    const user = userEvent.setup();
+    renderAuth();
+
+    await user.click(screen.getByRole("button", { name: "Abmelden" }));
+    await waitFor(() => expect(assigned).toEqual(["/"]));
+    expect(getToken()).toBeNull();
+  });
+});
+
+describe("another tab", () => {
+  it("follows a sign-out and a sign-in made there", () => {
+    localStorage.setItem("kompass_token", "abc123");
     renderAuth();
     expect(screen.getByTestId("token")).toHaveTextContent("abc123");
 
-    await user.click(screen.getByRole("button", { name: "Abmelden" }));
+    localStorage.removeItem("kompass_token");
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: "kompass_token" }));
+    });
     expect(screen.getByTestId("token")).toHaveTextContent("none");
-    expect(getToken()).toBeNull();
+
+    localStorage.setItem("kompass_token", "neu");
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: "kompass_token" }));
+    });
+    expect(screen.getByTestId("token")).toHaveTextContent("neu");
+  });
+
+  it("leaves this tab signed out on a 401 when the token is already gone", async () => {
+    localStorage.setItem("kompass_token", "abc123");
+    server.use(
+      http.get(api("/api/members/groups"), () =>
+        HttpResponse.json({ detail: "Unauthorized" }, { status: 401 }),
+      ),
+    );
+    renderAuth();
+    // The other tab's sign-out, with its storage event missed.
+    localStorage.removeItem("kompass_token");
+
+    await expect(unwrap(client.GET("/api/members/groups"))).rejects.toThrow();
+    await waitFor(() => expect(screen.getByTestId("token")).toHaveTextContent("none"));
   });
 });
 
@@ -200,9 +293,12 @@ describe("central 401 handling", () => {
     renderRoute("/kompass/groups");
 
     // The expired token is dropped once, centrally, and the route guard takes
-    // over — rather than every page rendering its own "not authorised" state.
+    // over — rather than every page rendering its own "not authorised" state —
+    // sending the user straight back to the provider to sign in again.
     await waitFor(() => expect(localStorage.getItem("kompass_token")).toBeNull());
-    expect(await screen.findByRole("heading", { name: "Kompass" })).toBeInTheDocument();
+    await waitFor(() => expect(assigned).toHaveLength(1));
+    expect(new URL(assigned[0]).pathname).toBe("/o/authorize/");
+    expect(sessionStorage.getItem("kompass_pkce_return")).toBe("/kompass/groups");
   });
 
   it("does not try to log out again when there is no token left", async () => {

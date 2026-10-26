@@ -26,7 +26,9 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from logindata.models import AuthGroup
 from logindata.models import RegistrationPassword
+from logindata.rights import MEMBER_RIGHTS
 from members.models import DIVERSE
+from members.models import Group as MemberGroup
 from members.models import Member
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
@@ -495,6 +497,41 @@ class LogindataAdminApiTestCase(TestCase):
         self.assertAccountRefused(
             self.subject, self.as_admin("auth.change_user", "auth.delete_user")
         )
+
+    def lead_a_group(self, user):
+        member = Member.objects.create(
+            prename="Jule", lastname="Leiter", gender=DIVERSE, email="j@example.org"
+        )
+        member.user = user
+        member.save()
+        MemberGroup.objects.create(name="Gemsen").leiters.add(member)
+
+    def set_password(self, user, headers):
+        return self.post(
+            self.user_url(user, "/set-password"),
+            {"new_password1": "noch-ein-langes-pw-7", "new_password2": "noch-ein-langes-pw-7"},
+            **headers,
+        )
+
+    def test_the_password_of_an_account_with_member_rights_is_left_to_superusers(self):
+        # Changing such an account is fine; setting its password hands it over.
+        self.lead_a_group(self.subject)
+        headers = self.as_admin("auth.change_user")
+        self.assertRefused(
+            self.set_password(self.subject, headers),
+            MEMBER_RIGHTS,
+        )
+        self.subject.refresh_from_db()
+        self.assertTrue(self.subject.check_password("secret"))
+        r = self.patch(self.user_url(self.subject), {"username": "umbenannt"}, **headers)
+        self.assertEqual(r.status_code, 200, r.content)
+        r = self.set_password(self.subject, self.auth(self.superuser))
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_ones_own_password_may_be_set_despite_member_rights(self):
+        self.lead_a_group(self.admin_user)
+        r = self.set_password(self.admin_user, self.as_admin("auth.change_user"))
+        self.assertEqual(r.status_code, 200, r.content)
 
     def test_an_account_whose_permissions_the_caller_holds_may_be_changed(self):
         perm = self._some_permission()

@@ -1,5 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { API_BASE } from "../api/client";
@@ -51,12 +52,167 @@ describe("Login", () => {
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
   });
 
-  it("remembers the page the guard turned the user away from", async () => {
-    const { user } = renderRoute("/kompass/members", { authenticated: false });
-    await user.click(await screen.findByRole("button", { name: "Anmelden" }));
+  it("goes straight to the provider from a protected page, back to that page", async () => {
+    renderRoute("/kompass/members", { authenticated: false });
+
+    expect(await screen.findByText("Weiterleitung zur Anmeldung …")).toBeInTheDocument();
+    // No card flashes up on the way out.
+    expect(screen.queryByRole("button", { name: "Anmelden" })).not.toBeInTheDocument();
+    await waitFor(() => expect(assigned).toHaveLength(1));
+    expect(new URL(assigned[0]).pathname).toBe("/o/authorize/");
+    expect(sessionStorage.getItem("kompass_pkce_return")).toBe("/kompass/members");
+    expect(Number(sessionStorage.getItem("kompass_login_autostart"))).toBeGreaterThan(0);
+  });
+
+  it("goes straight to the provider from the header's login link", async () => {
+    const { user } = renderRoute("/", { authenticated: false });
+    await user.click(await screen.findByRole("link", { name: "Anmelden" }));
 
     await waitFor(() => expect(assigned).toHaveLength(1));
+    expect(sessionStorage.getItem("kompass_pkce_return")).toBe("/kompass");
+  });
+
+  it("leaves for the provider once under StrictMode", async () => {
+    renderWithApp(
+      <StrictMode>
+        <Routes>
+          <Route path="/" element={<Navigate to="/login" state={{ from: "/kompass/groups" }} />} />
+          <Route path="/login" element={<Login />} />
+        </Routes>
+      </StrictMode>,
+      { authenticated: false },
+    );
+
+    await waitFor(() => expect(assigned).toHaveLength(1));
+    // Give a replayed effect the chance to start a second time.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(assigned).toHaveLength(1);
+  });
+
+  it("waits for a click when it was just sent off automatically", async () => {
+    // A token rejected right after the login lands back here within seconds;
+    // a second automatic start would loop forever with nothing on screen.
+    sessionStorage.setItem("kompass_login_autostart", String(Date.now() - 5_000));
+    const { user } = renderRoute("/kompass/members", { authenticated: false });
+
+    expect(await screen.findByText(/Anmeldung hat nicht geklappt/)).toBeInTheDocument();
+    expect(assigned).toEqual([]);
+    await user.click(screen.getByRole("button", { name: "Anmelden" }));
+    await waitFor(() => expect(assigned).toHaveLength(1));
     expect(sessionStorage.getItem("kompass_pkce_return")).toBe("/kompass/members");
+  });
+
+  it("starts automatically again once the last start is long past", async () => {
+    sessionStorage.setItem("kompass_login_autostart", String(Date.now() - 120_000));
+    renderRoute("/kompass/members", { authenticated: false });
+    await waitFor(() => expect(assigned).toHaveLength(1));
+  });
+
+  it("waits for a click after the callback reported a failure", async () => {
+    sessionStorage.setItem("kompass_login_failed", "1");
+    renderRoute("/kompass/members", { authenticated: false });
+
+    expect(await screen.findByText(/Anmeldung hat nicht geklappt/)).toBeInTheDocument();
+    expect(assigned).toEqual([]);
+  });
+
+  it("falls back to the button when sessionStorage is unavailable", async () => {
+    // What a browser blocking site data does: touching the storage throws.
+    const blocked = vi.spyOn(window, "sessionStorage", "get").mockImplementation(() => {
+      throw new DOMException("blocked", "SecurityError");
+    });
+    renderRoute("/kompass/members", { authenticated: false });
+
+    expect(await screen.findByRole("button", { name: "Anmelden" })).toBeInTheDocument();
+    // Not a failed login, so no claim that one failed.
+    expect(screen.queryByText(/Anmeldung hat nicht geklappt/)).not.toBeInTheDocument();
+    expect(assigned).toEqual([]);
+    // Before the shared teardown clears the storage.
+    blocked.mockRestore();
+  });
+
+  it("falls back to the button when the start cannot be recorded", async () => {
+    // Spied on the prototype: an own property on a Storage would just be
+    // stored as an item. localStorage, holding no token here, writes nothing.
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("full", "QuotaExceededError");
+    });
+    renderRoute("/kompass/members", { authenticated: false });
+
+    expect(await screen.findByRole("button", { name: "Anmelden" })).toBeInTheDocument();
+    expect(assigned).toEqual([]);
+  });
+
+  it("stops at the button when the fresh token is rejected straight away", async () => {
+    // The loop the guard exists for, driven end to end: an automatic start, a
+    // token issued by the provider, a 401 on its first use, and back to
+    // /login, where starting again would come straight back here forever.
+    const first = renderRoute("/kompass/members", { authenticated: false });
+    await waitFor(() => expect(assigned).toHaveLength(1));
+    const state = new URL(assigned[0]).searchParams.get("state");
+    first.unmount();
+
+    server.use(
+      http.post(api("/o/token/"), () => HttpResponse.json({ access_token: "abgelehnt" })),
+      http.get(api("/api/members/me"), () =>
+        HttpResponse.json({ detail: "Unauthorized" }, { status: 401 }),
+      ),
+      http.get(api("/api/members"), () =>
+        HttpResponse.json({ detail: "Unauthorized" }, { status: 401 }),
+      ),
+    );
+    renderRoute(`/callback?code=CODE&state=${state}`, { authenticated: false });
+
+    expect(await screen.findByText(/Anmeldung hat nicht geklappt/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Anmelden" })).toBeInTheDocument();
+    expect(localStorage.getItem("kompass_token")).toBeNull();
+    expect(assigned).toHaveLength(1);
+  });
+
+  it("starts on its own again once a signed-in request went through", async () => {
+    const first = renderRoute("/kompass", { authenticated: false });
+    await waitFor(() => expect(assigned).toHaveLength(1));
+    const state = new URL(assigned[0]).searchParams.get("state");
+    first.unmount();
+
+    server.use(
+      http.post(api("/o/token/"), () => HttpResponse.json({ access_token: "gut" })),
+      http.get(api("/api/members/groups"), () => HttpResponse.json([])),
+      http.get(api("/api/members/excursions"), () => HttpResponse.json([])),
+      http.get(api("/api/finance/statements"), () => HttpResponse.json([])),
+      http.get(api("/api/startpage/links"), () => HttpResponse.json([])),
+    );
+    const second = renderRoute(`/callback?code=CODE&state=${state}`, { authenticated: false });
+    expect(await screen.findByText(/Kompass · Verwaltung der JDAV Ludwigsburg/)).toBeInTheDocument();
+    await waitFor(() => expect(sessionStorage.getItem("kompass_login_autostart")).toBeNull());
+    second.unmount();
+
+    // The session expires later on: straight back to the provider.
+    localStorage.clear();
+    renderRoute("/kompass/members", { authenticated: false });
+    await waitFor(() => expect(assigned).toHaveLength(2));
+  });
+
+  it("waits for a click after signing out", async () => {
+    sessionStorage.setItem("kompass_logged_out", "1");
+    const { user } = renderRoute("/kompass/members", { authenticated: false });
+
+    expect(await screen.findByRole("button", { name: "Anmelden" })).toBeInTheDocument();
+    expect(screen.queryByText(/Anmeldung hat nicht geklappt/)).not.toBeInTheDocument();
+    expect(assigned).toEqual([]);
+    // The click is the user asking to sign in again; the marker has done its job.
+    await user.click(screen.getByRole("button", { name: "Anmelden" }));
+    await waitFor(() => expect(assigned).toHaveLength(1));
+    expect(sessionStorage.getItem("kompass_logged_out")).toBeNull();
+  });
+
+  it("says so, with the button, when an automatic start cannot build the challenge", async () => {
+    vi.spyOn(crypto.subtle, "digest").mockRejectedValue(new Error("insecure context"));
+    renderRoute("/kompass/members", { authenticated: false });
+
+    expect(await screen.findByText(/Administration/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Anmelden" })).toBeEnabled();
+    expect(assigned).toEqual([]);
   });
 
   it("stays put and says so when the challenge cannot be built", async () => {
@@ -82,6 +238,7 @@ describe("AuthCallback", () => {
 
   /** Puts the tab in the state `beginLogin` leaves behind. */
   function startedFlow(returnTo = "/kompass") {
+    sessionStorage.setItem("kompass_login_autostart", String(Date.now()));
     sessionStorage.setItem("kompass_pkce_verifier", "verifier-xyz");
     sessionStorage.setItem("kompass_pkce_state", "state-abc");
     sessionStorage.setItem("kompass_pkce_return", returnTo);
@@ -100,6 +257,9 @@ describe("AuthCallback", () => {
 
     expect(await screen.findByText(/Kompass · Verwaltung der JDAV Ludwigsburg/)).toBeInTheDocument();
     expect(localStorage.getItem("kompass_token")).toBe("neues-token");
+    // The dashboard's `/members/me` went through, which proves the token: the
+    // next expired session may start the login on its own again.
+    await waitFor(() => expect(sessionStorage.getItem("kompass_login_autostart")).toBeNull());
   });
 
   it("says so when the user turned the authorisation down", async () => {
@@ -109,6 +269,8 @@ describe("AuthCallback", () => {
     });
     expect(await screen.findByText("Die Anmeldung wurde abgebrochen.")).toBeInTheDocument();
     expect(localStorage.getItem("kompass_token")).toBeNull();
+    // So the login page waits for a click instead of starting over.
+    expect(sessionStorage.getItem("kompass_login_failed")).toBe("1");
   });
 
   it("says so when the provider came back without a code", async () => {
@@ -154,6 +316,13 @@ describe("AuthCallback", () => {
     expect(await screen.findByText("Die Anmeldung wurde abgebrochen.")).toBeInTheDocument();
   });
 
+  it("records no failure for a signed-in user replaying an old callback", async () => {
+    // The back button lands on the spent callback; the login itself is fine.
+    renderRoute("/callback?error=access_denied", { authenticated: true });
+    expect(await screen.findByText("Die Anmeldung wurde abgebrochen.")).toBeInTheDocument();
+    expect(sessionStorage.getItem("kompass_login_failed")).toBeNull();
+  });
+
   it("reports a refused exchange and offers the way back to the login", async () => {
     startedFlow();
     server.use(
@@ -167,6 +336,7 @@ describe("AuthCallback", () => {
     });
 
     expect(await screen.findByText(/Administration/)).toBeInTheDocument();
+    expect(sessionStorage.getItem("kompass_login_failed")).toBe("1");
     await user.click(screen.getByRole("button", { name: "Zurück zur Anmeldung" }));
     expect(assigned).toEqual(["/login"]);
   });

@@ -2,11 +2,102 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 import { API_BASE } from "./api/client";
 import { setUnauthorizedHandler } from "./api/http";
+import { leavePage } from "./components/unsavedChanges";
 
 const TOKEN_KEY = "kompass_token";
 const VERIFIER_KEY = "kompass_pkce_verifier";
 const STATE_KEY = "kompass_pkce_state";
 const RETURN_KEY = "kompass_pkce_return";
+
+/* --- the automatic login's loop guard ------------------------------------
+ *
+ * /login leaves for the provider on its own when a page needs a login. A token
+ * the API rejects straight after it was issued would then bounce login →
+ * provider → callback → login forever, as the provider's session lets the user
+ * through without a form. So every start is recorded, and only a request that
+ * went through signed in (`/members/me`) clears the record; until then, and
+ * after a refused callback or a sign-out, /login waits for a click.
+ */
+const AUTOSTART_KEY = "kompass_login_autostart";
+const FAILED_KEY = "kompass_login_failed";
+const LOGGED_OUT_KEY = "kompass_logged_out";
+const AUTOSTART_WINDOW_MS = 60_000;
+
+/** Whether /login may leave for the provider without a click: "held" after a
+ *  recent unconfirmed start or a refused callback, "loggedOut" after signing
+ *  out, "unknown" when storage cannot be read. Only "go" starts on its own. */
+export function autostartVerdict(): "go" | "held" | "loggedOut" | "unknown" {
+  try {
+    if (sessionStorage.getItem(LOGGED_OUT_KEY)) return "loggedOut";
+    if (sessionStorage.getItem(FAILED_KEY)) return "held";
+    const last = Number(sessionStorage.getItem(AUTOSTART_KEY));
+    return last && Date.now() - last < AUTOSTART_WINDOW_MS ? "held" : "go";
+  } catch {
+    return "unknown";
+  }
+}
+
+/** Records an attempt to leave for the provider; false if it cannot be
+ *  recorded, since an unrecorded start could not be told apart from a loop. */
+export function markLoginStart(): boolean {
+  try {
+    sessionStorage.setItem(AUTOSTART_KEY, String(Date.now()));
+    sessionStorage.removeItem(FAILED_KEY);
+    sessionStorage.removeItem(LOGGED_OUT_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeGuard(update: (storage: Storage) => void) {
+  try {
+    update(sessionStorage);
+  } catch {
+    // Without storage nothing is recorded, and /login falls back to its button.
+  }
+}
+
+/** The callback came back refusing. */
+export function markLoginFailed() {
+  writeGuard((storage) => storage.setItem(FAILED_KEY, "1"));
+}
+
+/** A request went through with the token: the login worked, so the next
+ *  expired session may start one on its own again. */
+export function markSignedIn() {
+  writeGuard((storage) => {
+    storage.removeItem(AUTOSTART_KEY);
+    storage.removeItem(FAILED_KEY);
+  });
+}
+
+function markLoggedOut() {
+  writeGuard((storage) => storage.setItem(LOGGED_OUT_KEY, "1"));
+}
+
+/** Ends the sign-in at the backend: the token is revoked with its refresh
+ *  token, and the provider's session, which would otherwise let the next login
+ *  through without asking, is ended with it. The session also signs the
+ *  request when the token no longer works, an expired one say, which takes the
+ *  CSRF token fetched first. The session cookie travels only to an API on the
+ *  same origin, as in production; a cross-origin development API still revokes
+ *  the token. Best effort: signing out must not hang on an unreachable server. */
+async function endSession(token: string | null) {
+  try {
+    const csrf = await fetch(`${API_BASE}/api/logindata/csrf`);
+    const { token: csrfToken } = (await csrf.json()) as { token: string };
+    await fetch(`${API_BASE}/api/logindata/logout`, {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        "X-CSRFToken": csrfToken,
+      },
+    });
+  } catch {
+    // The token is dropped here regardless.
+  }
+}
 
 // Registered with the project's OAuth2 provider as a *public* client (no
 // secret: a browser app cannot keep one). Set at build time so a deployment can
@@ -46,7 +137,8 @@ interface AuthContextValue {
   beginLogin: (returnTo?: string) => Promise<void>;
   /** Finishes the flow from the callback route; resolves to where to go next. */
   completeLogin: (code: string, state: string) => Promise<string>;
-  logout: () => void;
+  /** Signs out at the backend too, then leaves for the public start page. */
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -120,20 +212,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return returnTo;
   }
 
-  const logout = useCallback(() => {
+  const dropToken = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
   }, []);
 
+  async function logout() {
+    // Before anything else, so no page reached from here on starts a login.
+    markLoggedOut();
+    // Even without a token in storage, another tab having signed out already:
+    // the browser's session at the provider may still be open.
+    await endSession(getToken());
+    // A full page load rather than an in-app navigation: it also drops every
+    // answer cached for the user who just left. The token goes from storage
+    // only, so the page does not flash the login screen while it unloads.
+    // Unsaved input was asked about before signing out began.
+    localStorage.removeItem(TOKEN_KEY);
+    leavePage("/");
+  }
+
   // An expired token makes every request 401; drop it once, centrally, so the
   // route guard sends the user to the login screen instead of each page
-  // rendering its own "not authorised" state.
+  // rendering its own "not authorised" state. A token already gone from
+  // storage, removed by another tab, still has to leave this tab's state.
   useEffect(() => {
     setUnauthorizedHandler(() => {
-      if (getToken()) logout();
+      if (getToken()) dropToken();
+      else setToken(null);
     });
     return () => setUnauthorizedHandler(null);
-  }, [logout]);
+  }, [dropToken]);
+
+  // Signing in or out in another tab changes the token in storage; follow it,
+  // rather than keep sending requests without one that all come back 401.
+  useEffect(() => {
+    function follow(e: StorageEvent) {
+      if (e.key === TOKEN_KEY || e.key === null) setToken(getToken());
+    }
+    window.addEventListener("storage", follow);
+    return () => window.removeEventListener("storage", follow);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ token, beginLogin, completeLogin, logout }}>

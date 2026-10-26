@@ -12,6 +12,9 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 from logindata.models import AuthGroup
+from members.models import DIVERSE
+from members.models import Group as MemberGroup
+from members.models import Member
 
 # The session is opened through the model backend, so where OIDC is configured
 # `SessionRefresh` does not send these GETs to the provider.
@@ -129,6 +132,24 @@ class RightsAdminTestCase(TestCase):
         r = self.client.post(self.user_url("delete", other), {"post": "yes"})
         self.assertEqual(r.status_code, 302)
         self.assertFalse(User.objects.filter(pk=other.pk).exists())
+
+    def test_the_password_of_an_account_with_member_rights_is_left_to_superusers(self):
+        member = Member.objects.create(
+            prename="Jule", lastname="Leiter", gender=DIVERSE, email="j@example.org"
+        )
+        member.user = self.subject
+        member.save()
+        MemberGroup.objects.create(name="Gemsen").leiters.add(member)
+        password = {"password1": "noch-ein-langes-pw-7", "password2": "noch-ein-langes-pw-7"}
+
+        self.login(self.staff)
+        r = self.client.post(self.user_url("password_change", self.subject), password)
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(self.subject.check_password("secret"))
+
+        self.login(self.superuser)
+        r = self.client.post(self.user_url("password_change", self.subject), password)
+        self.assertEqual(r.status_code, 302)
 
     def test_a_weaker_account_may_be_changed_and_deleted(self):
         self.login(self.staff)

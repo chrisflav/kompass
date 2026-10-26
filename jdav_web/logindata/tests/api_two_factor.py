@@ -21,8 +21,10 @@ from logindata.models import TwoFactorDefault
 from logindata.models import TwoFactorElevation
 from logindata.models import TwoFactorSetup
 from logindata.models import WebAuthnCredential
+from logindata.rights import MEMBER_RIGHTS
 from members.models import MALE
 from members.models import Member
+from members.models import MemberGroup
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
 from oauth2_provider.models import get_refresh_token_model
@@ -597,6 +599,14 @@ class ResetTwoFactorTestCase(ApiTestCase):
     def test_without_the_permission_nothing_happens(self):
         other = User.objects.create_user("andere", password=PASSWORD)
         self.assertEqual(self.reset(self.user, other).status_code, 403)
+        self.assertTrue(two_factor.enabled_for(self.user))
+
+    def test_an_account_with_member_rights_is_reset_only_by_a_superuser(self):
+        member = add_member(self.user)
+        MemberGroup.objects.create(name="Gemsen").leiters.add(member)
+        r = self.reset(self.user, self.admin)
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(r.json()["detail"], str(MEMBER_RIGHTS))
         self.assertTrue(two_factor.enabled_for(self.user))
 
     def test_a_superuser_is_reset_only_by_a_superuser(self):

@@ -21,7 +21,7 @@ from django.http import Http404
 from django.utils.translation import gettext_lazy as _
 from logindata.models import initial_user_setup
 from logindata.models import RegistrationPassword
-from members.models import Member
+from logindata.rights import login_key_member
 from ninja import Router
 
 from .schemas import RegisterIn
@@ -32,17 +32,15 @@ router = Router()
 
 
 def _member_for_invite_key(key):
-    """Return the member for an ``invite_as_user_key`` or raise 404.
+    """Return the member for a valid ``invite_as_user_key`` or raise 404.
 
-    Mirrors the lookup in ``logindata.views.register``; an empty key never
-    resolves a member (the field default is ``""``).
+    See ``logindata.rights.login_key_member``, which ``logindata.views.register``
+    uses too.
     """
-    if not key:
+    member = login_key_member(key)
+    if member is None:
         raise Http404(_("Registration key is invalid or has expired."))
-    try:
-        return Member.objects.get(invite_as_user_key=key)
-    except (Member.DoesNotExist, Member.MultipleObjectsReturned):
-        raise Http404(_("Registration key is invalid or has expired."))
+    return member
 
 
 def _form_error_messages(form):
@@ -86,7 +84,7 @@ def set_password(request, payload: RegisterIn):
         if not form.is_valid():
             raise ValidationError(_form_error_messages(form))
         form.save()
-        member.invite_as_user_key = ""
+        member.clear_login_key()
         member.save()
     else:
         form = UserCreationForm(

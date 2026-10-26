@@ -37,6 +37,7 @@ from logindata.models import AuthGroup
 from logindata.models import LoginDatum
 from logindata.models import RegistrationPassword
 from logindata.rights import account_refusal
+from logindata.rights import credential_refusal
 from logindata.rights import MISSING_PERMISSIONS
 from logindata.rights import missing_permissions
 from ninja import Router
@@ -196,7 +197,9 @@ def set_user_password(request, user_id: int, payload: SetPasswordIn):
     """Set a user's password via ``SetPasswordForm`` (same validators as the admin)."""
     authorize(request, "auth.change_user")
     user = get_object_or_404(LoginDatum, pk=user_id)
-    _guard_account(request, user)
+    refusal = credential_refusal(request.user, user)
+    if refusal:
+        raise Forbidden(refusal)
     form = SetPasswordForm(
         user, {"new_password1": payload.new_password1, "new_password2": payload.new_password2}
     )
@@ -211,12 +214,15 @@ def reset_two_factor(request, user_id: int):
     """Remove every second factor of a user who lost theirs; they sign in with the password.
 
     The same permission and the same guard as setting their password, which is
-    what this is the counterpart of: no one weakens the login of an account
-    with rights they lack themselves, a superuser's included.
+    what this is the counterpart of (``credential_refusal``): no one weakens the
+    login of an account with rights they lack themselves, a superuser's or one
+    with rights through its member record included.
     """
     authorize(request, "auth.change_user")
     user = get_object_or_404(LoginDatum, pk=user_id)
-    _guard_account(request, user)
+    refusal = credential_refusal(request.user, user)
+    if refusal:
+        raise Forbidden(refusal)
     two_factor.remove_all(user)
     two_factor.notify(
         user,
