@@ -1,4 +1,5 @@
 # ruff: noqa F821
+import re
 
 # Authentication
 
@@ -18,6 +19,12 @@ OIDC_OP_JWKS_ENDPOINT = get_var("oidc", "op_jwks_endpoint", default="")
 
 OIDC_RP_SIGN_ALGO = get_var("oidc", "rp_sign_algo", default="RS256")
 OIDC_RP_SCOPES = get_var("oidc", "rp_scopes", default="openid email profile")
+
+# The REST API authenticates by bearer token, but the frontend's same-origin
+# requests carry the session cookie too. Left to `SessionRefresh`, a GET from a
+# browser whose OIDC id token went stale would be answered with a redirect to
+# the provider for a silent re-login, which a fetch cannot follow.
+OIDC_EXEMPT_URLS = [re.compile(r"^/api/")]
 
 OIDC_CLAIM_USERNAME = get_var("oidc", "claim_username", default="username")
 OIDC_GROUP_STAFF = get_var("oidc", "group_staff", default="staff")

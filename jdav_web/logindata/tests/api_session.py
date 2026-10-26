@@ -5,6 +5,7 @@ import datetime
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client
+from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
 from logindata.models import PersonalAccessToken
@@ -127,3 +128,38 @@ class LogoutApiTestCase(TestCase):
         r = self.logout(csrf=self.csrf())
         self.assertEqual(r.status_code, 401)
         self.assertTrue(AccessToken.objects.filter(pk=self.token.pk).exists())
+
+
+SESSION_REFRESH = "mozilla_django_oidc.middleware.SessionRefresh"
+
+
+@override_settings(
+    MIDDLEWARE=[m for m in settings.MIDDLEWARE if m != SESSION_REFRESH] + [SESSION_REFRESH],
+    ROOT_URLCONF="logindata.tests.oidc_urls",
+    OIDC_OP_AUTHORIZATION_ENDPOINT="https://idp.example.org/authorize",
+    OIDC_RP_CLIENT_ID="kompass",
+)
+class LogoutWithOidcSessionTestCase(TestCase):
+    """Signing out by session where the session came from an OIDC provider.
+
+    Its id token has gone stale, so `SessionRefresh` sends GETs off for a
+    silent re-login; a fetch cannot follow that, so the API must be spared.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("hannah", password="secret")
+        self.client = Client(enforce_csrf_checks=True)
+        self.client.force_login(self.user, backend="logindata.oidc.MyOIDCAB")
+
+    def test_the_rest_of_the_site_is_refreshed(self):
+        # Without this the test below would pass with the middleware asleep.
+        r = self.client.get("/de/")
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(r["Location"].startswith("https://idp.example.org/authorize"))
+
+    def test_signs_out_without_a_detour_to_the_provider(self):
+        r = self.client.get(CSRF)
+        self.assertEqual(r.status_code, 200)
+        r = self.client.post(LOGOUT, HTTP_X_CSRFTOKEN=r.json()["token"])
+        self.assertEqual(r.status_code, 204, r.content)
+        self.assertNotIn("_auth_user_id", self.client.session)
