@@ -37,7 +37,7 @@ einem Sicherheitsschlüssel. Die Einstellungen findest du im Menü unter deinem 
 
 Bevor die Seite deine Faktoren zeigt, bestätigst du, dass du es bist: solange du noch keinen
 zweiten Faktor hast, mit deinem Passwort, danach mit einem deiner Faktoren (Code aus der App,
-Sicherheitsschlüssel oder Wiederherstellungscode). Die Bestätigung gilt zehn Minuten, dann fragt
+Sicherheitsschlüssel oder Wiederherstellungscode), die Standardmethode zuerst. Die Bestätigung gilt zehn Minuten, dann fragt
 die Seite erneut.
 
 Über "Faktor hinzufügen" wählst du, was du einrichten willst:
@@ -48,10 +48,20 @@ die Seite erneut.
 - **Sicherheitsschlüssel oder Passkey** (z.B. ein YubiKey, dein Smartphone oder der
   Fingerabdrucksensor deines Laptops): Gib einen Namen ein und folge dann den Anweisungen deines
   Browsers. Kann der Schlüssel dich selbst prüfen (per PIN oder Fingerabdruck), wird er als
-  **Passkey** angezeigt. Mit einem Passkey kannst du dich auf der Anmeldeseite über "Mit
-  Sicherheitsschlüssel anmelden" auch ganz ohne Benutzername und Passwort anmelden.
+  **Passkey** eingerichtet und angezeigt. Mit einem Passkey kannst du dich auf der Anmeldeseite
+  über "Mit Passkey anmelden" auch ganz ohne Benutzername und Passwort anmelden. Ein Schlüssel
+  ohne diese Prüfung dient nur als zweiter Faktor nach dem Passwort; Kompass sagt dir das beim
+  Hinzufügen.
 
 Du kannst mehrere Apps und Schlüssel einrichten, sie umbenennen und wieder entfernen.
+
+**Standardmethode:** Über "Als Standard festlegen" oder die Auswahl "Bei der Anmeldung zuerst"
+legst du fest, was Kompass nach dem Passwort zuerst anbietet: einen bestimmten
+Sicherheitsschlüssel, einen beliebigen oder die Authenticator-App. Ein Sicherheitsschlüssel wird
+dann gleich abgefragt, für die App steht der Cursor im Codefeld; alle anderen Wege findest du
+unter "Andere Methode verwenden". Ohne Festlegung kommt ein Sicherheitsschlüssel vor der App.
+Klappt die Abfrage des Schlüssels nicht, fragt Kompass nicht von selbst erneut, sondern bietet
+"Erneut versuchen" und die anderen Wege an. Dasselbe gilt für die Bestätigung vor dieser Seite.
 
 **Wiederherstellungscodes:** Wenn du deinen ersten zweiten Faktor einrichtest, zeigt Kompass dir
 zehn Wiederherstellungscodes an — nur dieses eine Mal. Bewahre sie sicher auf, etwa ausgedruckt
