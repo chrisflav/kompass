@@ -15,9 +15,11 @@ from functools import reduce
 from operator import or_
 
 from django.contrib.auth.models import Permission
+from django.contrib.auth.models import User
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from members.models import Freizeit
+from members.models import Member
 from members.models import PermissionGroup
 from members.models import PermissionMember
 
@@ -119,13 +121,35 @@ def login_refusal(actor, member):
     return None
 
 
+def login_key_member(key):
+    """The member a login key is valid for, or ``None``.
+
+    On top of :meth:`Member.for_login_key`, whoever sent the key must still be
+    an active account that may decide who signs in as the member: the member may
+    have gained rights since (access lists, leading groups or excursions), and
+    that never touches the key.
+    """
+    member = Member.for_login_key(key)
+    if member is None:
+        return None
+    issuer = User.objects.filter(pk=member.invite_as_user_key_issuer_id, is_active=True).first()
+    if issuer is None or login_refusal(issuer, member):
+        return None
+    return member
+
+
+# The addresses that member mails go to.
+_EMAIL_FIELDS = ("email", "alternative_email")
+
+
 def member_change_refusal(actor, member, changes):
     """Why ``actor`` may not apply ``changes`` to ``member``, or ``None`` if they may.
 
     ``changes`` maps field names to new values; ``user`` is a ``User`` or
     ``None``. Unlinking frees the record for an invitation, linking hands the
     account the member's rights and its login mails, and the primary ``email``
-    is where those mails go.
+    is where those mails go. ``alternative_email`` gets the member's other
+    mails, such as the echo link to the member's data.
     """
     if actor.is_superuser:
         return None
@@ -141,6 +165,7 @@ def member_change_refusal(actor, member, changes):
                     return refusal
                 if member_has_rights(member):
                     return MEMBER_RIGHTS
-    if changes.get("email", member.email) != member.email:
-        return login_refusal(actor, member)
+    for field in _EMAIL_FIELDS:
+        if field in changes and (changes[field] or None) != (getattr(member, field) or None):
+            return login_refusal(actor, member)
     return None

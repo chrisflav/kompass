@@ -4,10 +4,10 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from members.models import Member
 
 from .models import initial_user_setup
 from .models import RegistrationPassword
+from .rights import login_key_member
 
 
 def render_register_password(request, key, member, is_reset_mode=False, error_message=""):
@@ -57,7 +57,7 @@ def register(request):
         return HttpResponseRedirect(reverse("startpage:index"))
 
     key = request.GET["key"] if request.method == "GET" else request.POST["key"]
-    member = Member.for_login_key(key)
+    member = login_key_member(key)
     if member is None:
         return render_register_failed(request)
 

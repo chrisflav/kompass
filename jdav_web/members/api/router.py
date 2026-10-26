@@ -11,7 +11,6 @@ from django.core.exceptions import ValidationError
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
-from logindata.rights import account_refusal
 from logindata.rights import login_refusal
 from logindata.rights import member_change_refusal
 from members.models import ActivityCategory
@@ -118,7 +117,7 @@ def _apply_member_update(request, member, payload):
         authorize(request, "members.may_set_auth_user")
     if any(field in data for field in MEMBER_ORGANIZATIONAL_FIELDS):
         authorize(request, "members.may_change_organizationals")
-    changes = {key: data[key] for key in ("email",) if key in data}
+    changes = {key: data[key] for key in ("email", "alternative_email") if key in data}
     if data.get("user_id") is not None:
         # An unknown id is left to ``partial_clean`` below (422).
         user = User.objects.filter(pk=data["user_id"]).first()
@@ -821,7 +820,7 @@ def invite_as_user(request, member_id: int):
     refusal = login_refusal(request.user, member)
     if refusal:
         raise Forbidden(refusal)
-    if not member.invite_as_user():
+    if not member.invite_as_user(request.user):
         raise ValidationError(_("Member has no internal email address or is already registered."))
     return member
 
@@ -831,11 +830,12 @@ def request_password_reset(request, member_id: int):
     """Send a password-reset mail to a member who already has login data."""
     authorize(request, "members.may_invite_as_user")
     member = get_object_or_404(Member, pk=member_id)
-    # The mail goes to the account's owner, but it still resets their password.
-    refusal = member.user and account_refusal(request.user, member.user)
+    # The mail goes to the account's owner, but whoever controls the member's
+    # addresses could have redirected it, so this is a takeover check.
+    refusal = member.user and login_refusal(request.user, member)
     if refusal:
         raise Forbidden(refusal)
-    if not member.request_password_reset():
+    if not member.request_password_reset(request.user):
         raise ValidationError(_("Member has no linked account or no internal email address."))
     return member
 

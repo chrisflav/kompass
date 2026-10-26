@@ -151,6 +151,17 @@ class Member(Person):
         db_constraint=False,
         related_name="+",
     )
+    # Who sent the key. Their rights are checked again when it is used, as the
+    # member may have gained rights since; see ``logindata.rights``.
+    invite_as_user_key_issuer = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        editable=False,
+        on_delete=models.DO_NOTHING,
+        db_constraint=False,
+        related_name="+",
+    )
     waitinglist_application_date = models.DateTimeField(
         verbose_name=_("waitinglist application date"),
         null=True,
@@ -665,16 +676,18 @@ class Member(Person):
             or "*" in settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER
         )
 
-    def _issue_login_key(self, validity):
+    def _issue_login_key(self, validity, issuer):
         self.invite_as_user_key = uuid.uuid4().hex
         self.invite_as_user_key_expire = timezone.now() + validity
         self.invite_as_user_key_user = self.user
+        self.invite_as_user_key_issuer = issuer
         self.save()
 
     def clear_login_key(self):
         self.invite_as_user_key = ""
         self.invite_as_user_key_expire = None
         self.invite_as_user_key_user = None
+        self.invite_as_user_key_issuer = None
 
     @classmethod
     def for_login_key(cls, key):
@@ -710,6 +723,7 @@ class Member(Person):
                         "invite_as_user_key",
                         "invite_as_user_key_expire",
                         "invite_as_user_key_user",
+                        "invite_as_user_key_issuer",
                     }
         super().save(*args, **kwargs)
 
@@ -727,25 +741,25 @@ class Member(Person):
             [self.email],
         )
 
-    def invite_as_user(self):
-        """Invites the member to join Kompass as a user."""
+    def invite_as_user(self, issuer):
+        """Invites the member to join Kompass as a user, on behalf of ``issuer``."""
         if not self.has_internal_email():
             # dont invite if the email address is not an internal one
             return False
         if self.user:
             # don't reinvite if there is already userdata attached
             return False
-        self._issue_login_key(self.INVITE_KEY_VALIDITY)
+        self._issue_login_key(self.INVITE_KEY_VALIDITY, issuer)
         self._send_login_link(_("Set login data for Kompass"), settings.INVITE_AS_USER_TEXT)
         return True
 
-    def request_password_reset(self):
-        """Sends a password reset email to the member."""
+    def request_password_reset(self, issuer):
+        """Sends a password reset email to the member, on behalf of ``issuer``."""
         if not self.user:
             return False
         if not self.has_internal_email():
             return False
-        self._issue_login_key(self.RESET_KEY_VALIDITY)
+        self._issue_login_key(self.RESET_KEY_VALIDITY, issuer)
         self._send_login_link(_("Reset your Kompass password"), settings.PASSWORD_RESET_TEXT)
         return True
 

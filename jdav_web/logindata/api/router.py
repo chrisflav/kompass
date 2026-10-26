@@ -21,7 +21,7 @@ from django.http import Http404
 from django.utils.translation import gettext_lazy as _
 from logindata.models import initial_user_setup
 from logindata.models import RegistrationPassword
-from members.models import Member
+from logindata.rights import login_key_member
 from ninja import Router
 
 from .schemas import RegisterIn
@@ -34,9 +34,10 @@ router = Router()
 def _member_for_invite_key(key):
     """Return the member for a valid ``invite_as_user_key`` or raise 404.
 
-    See ``Member.for_login_key``, which ``logindata.views.register`` uses too.
+    See ``logindata.rights.login_key_member``, which ``logindata.views.register``
+    uses too.
     """
-    member = Member.for_login_key(key)
+    member = login_key_member(key)
     if member is None:
         raise Http404(_("Registration key is invalid or has expired."))
     return member

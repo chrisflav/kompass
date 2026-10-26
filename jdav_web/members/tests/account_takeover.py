@@ -28,6 +28,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from logindata.rights import login_key_member
 from logindata.rights import member_has_rights
 from logindata.rights import MEMBER_RIGHTS
 from logindata.rights import SUPERUSER_ACCOUNT
@@ -45,6 +46,8 @@ from oauth2_provider.models import get_access_token_model
 from .api import Application
 from .api import grant
 from .api import make_member_user
+from .basic import EMERGENCY_CONTACT_DATA
+from .utils import ECHO_DATA
 
 AccessToken = get_access_token_model()
 
@@ -223,6 +226,47 @@ class AccountTakeoverApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(mail.outbox[0].to, ["ohne@{}".format(DOMAIN)])
+        self.target.refresh_from_db()
+        self.assertEqual(self.target.invite_as_user_key_issuer, self.actor)
+
+    def test_a_reset_for_an_account_with_member_rights_is_refused(self):
+        # Whoever controls the member's addresses could have redirected it.
+        Group.objects.create(name="Gemsen").leiters.add(self.plain_member)
+        mail.outbox = []
+        self.assertRefused(self.reset(self.plain_member, self.actor), MEMBER_RIGHTS)
+        self.assertEqual(mail.outbox, [])
+
+    def test_a_reset_records_who_asked(self):
+        self.assertEqual(self.reset(self.plain_member, self.actor).status_code, 200)
+        self.plain_member.refresh_from_db()
+        self.assertEqual(self.plain_member.invite_as_user_key_issuer, self.actor)
+
+    # --- the alternative email -------------------------------------------
+
+    def test_the_alternative_email_of_a_stronger_account_cannot_be_changed(self):
+        r = self.patch(self.chef_member, {"alternative_email": "mine@else.example"}, self.actor)
+        self.assertRefused(r, SUPERUSER_ACCOUNT)
+        self.chef_member.refresh_from_db()
+        self.assertEqual(self.chef_member.alternative_email, "chef@elsewhere.example")
+
+    def test_the_alternative_email_of_an_account_with_member_rights_cannot_be_changed(self):
+        Group.objects.create(name="Gemsen").leiters.add(self.plain_member)
+        r = self.patch(self.plain_member, {"alternative_email": "mine@else.example"}, self.actor)
+        self.assertRefused(r, MEMBER_RIGHTS)
+
+    def test_the_alternative_email_of_an_unlinked_record_with_rights_cannot_be_changed(self):
+        Group.objects.create(name="Gemsen").leiters.add(self.target)
+        r = self.patch(self.target, {"alternative_email": "mine@else.example"}, self.actor)
+        self.assertRefused(r, MEMBER_RIGHTS)
+
+    def test_the_alternative_email_of_a_weaker_account_may_be_changed(self):
+        r = self.patch(self.plain_member, {"alternative_email": "neu@else.example"}, self.actor)
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_an_empty_alternative_email_is_no_change(self):
+        Group.objects.create(name="Gemsen").leiters.add(self.target)
+        r = self.patch(self.target, {"alternative_email": ""}, self.actor)
+        self.assertNotEqual(r.status_code, 403, r.content)
 
     # --- freeing a record with rights for an invitation ----------------------
 
@@ -374,17 +418,29 @@ class AccountTakeoverAdminTestCase(TestCase):
         with self.assertRaisesMessage(ValidationError, str(SUPERUSER_ACCOUNT)):
             self.clean(Member, self.chef_member, self.actor, {"email": "mine@{}".format(DOMAIN)})
 
+    def test_the_alternative_email_of_a_stronger_account_cannot_be_changed(self):
+        with self.assertRaisesMessage(ValidationError, str(SUPERUSER_ACCOUNT)):
+            self.clean(
+                Member, self.chef_member, self.actor, {"alternative_email": "mine@else.example"}
+            )
+
+    def test_an_unset_alternative_email_is_no_change(self):
+        Group.objects.create(name="Gemsen").leiters.add(self.target)
+        changes = {"alternative_email": None}
+        self.assertEqual(self.clean(Member, self.target, self.actor, changes), changes)
+
     def test_harmless_changes_pass(self):
         changes = {"user": None, "email": "neu@{}".format(DOMAIN)}
         self.assertEqual(self.clean(Member, self.target, self.actor, changes), changes)
         self.assertEqual(self.clean(Member, self.chef_member, self.superuser, changes), changes)
 
-    def reset(self, user):
+    def reset(self, user, member=None):
         """Press the change page's reset button; return the messages it leaves."""
+        member = member or self.chef_member
         self.client.force_login(user, backend="django.contrib.auth.backends.ModelBackend")
         mail.outbox = []
         response = self.client.post(
-            reverse("admin:members_member_inviteasuser", args=(self.chef_member.pk,)),
+            reverse("admin:members_member_inviteasuser", args=(member.pk,)),
             {"apply": ""},
         )
         self.assertEqual(response.status_code, 302)
@@ -392,6 +448,12 @@ class AccountTakeoverAdminTestCase(TestCase):
 
     def test_the_reset_button_refuses_a_stronger_account(self):
         self.assertIn(str(SUPERUSER_ACCOUNT), self.reset(self.actor))
+        self.assertEqual(mail.outbox, [])
+
+    def test_the_reset_button_refuses_an_account_with_member_rights(self):
+        _, leader = linked_member("leiterin")
+        Group.objects.create(name="Gemsen").leiters.add(leader)
+        self.assertIn(str(MEMBER_RIGHTS), self.reset(self.actor, leader))
         self.assertEqual(mail.outbox, [])
 
     def test_the_reset_button_works_for_a_superuser(self):
@@ -429,6 +491,8 @@ class AccountTakeoverAdminTestCase(TestCase):
         messages = self.invite_action(self.actor, self.target, plain)
         self.assertIn("{}: {}".format(self.target.name, MEMBER_RIGHTS), messages)
         self.assertEqual([m.to for m in mail.outbox], [["neu@{}".format(DOMAIN)]])
+        plain.refresh_from_db()
+        self.assertEqual(plain.invite_as_user_key_issuer, self.actor)
 
     def test_the_invite_button_refuses_a_record_with_rights(self):
         Group.objects.create(name="Gemsen").leiters.add(self.target)
@@ -460,16 +524,17 @@ class LoginKeyTestCase(TestCase):
             prename="Neu", lastname="Ling", gender=DIVERSE, email="neu@{}".format(DOMAIN)
         )
         self.account, self.linked = linked_member("konto")
+        self.issuer = User.objects.create_user("verwalter", password="secret")
 
     def test_an_invitation_lasts_a_week_and_a_reset_a_day(self):
         now = timezone.now()
-        self.assertTrue(self.member.invite_as_user())
+        self.assertTrue(self.member.invite_as_user(self.issuer))
         self.assertAlmostEqual(
             self.member.invite_as_user_key_expire,
             now + Member.INVITE_KEY_VALIDITY,
             delta=datetime.timedelta(minutes=1),
         )
-        self.assertTrue(self.linked.request_password_reset())
+        self.assertTrue(self.linked.request_password_reset(self.issuer))
         self.assertAlmostEqual(
             self.linked.invite_as_user_key_expire,
             now + Member.RESET_KEY_VALIDITY,
@@ -480,7 +545,7 @@ class LoginKeyTestCase(TestCase):
         self.assertEqual(Member.for_login_key(self.linked.invite_as_user_key), self.linked)
 
     def test_an_expired_key_is_refused(self):
-        self.member.invite_as_user()
+        self.member.invite_as_user(self.issuer)
         Member.objects.filter(pk=self.member.pk).update(
             invite_as_user_key_expire=timezone.now() - datetime.timedelta(seconds=1)
         )
@@ -499,7 +564,7 @@ class LoginKeyTestCase(TestCase):
 
     def test_an_invitation_does_not_become_a_reset(self):
         # Linked behind `save`'s back: the key is still bound to no account.
-        self.member.invite_as_user()
+        self.member.invite_as_user(self.issuer)
         other = User.objects.create_user("spaeter", password="secret")
         Member.objects.filter(pk=self.member.pk).update(user=other)
         self.assertIsNone(Member.for_login_key(self.member.invite_as_user_key))
@@ -513,7 +578,7 @@ class LoginKeyTestCase(TestCase):
         ):
             with self.subTest(change=sorted(change)):
                 member = Member.objects.get(pk=self.member.pk)
-                member.invite_as_user()
+                member.invite_as_user(self.issuer)
                 for field, value in change.items():
                     setattr(member, field, value)
                 member.save()
@@ -525,7 +590,7 @@ class LoginKeyTestCase(TestCase):
                 member.save()
 
     def test_unlinking_clears_a_reset_key(self):
-        self.linked.request_password_reset()
+        self.linked.request_password_reset(self.issuer)
         self.linked.user = None
         self.linked.save()
         self.linked.refresh_from_db()
@@ -534,23 +599,125 @@ class LoginKeyTestCase(TestCase):
     def test_a_reset_key_does_not_outlive_its_account(self):
         # Deleting the account unlinks it without `save`; the key must not
         # turn into an invitation for a new account.
-        self.linked.request_password_reset()
+        self.linked.request_password_reset(self.issuer)
         key = self.linked.invite_as_user_key
         self.account.delete()
         self.linked.refresh_from_db()
         self.assertIsNone(self.linked.user)
         self.assertIsNone(Member.for_login_key(key))
 
+    def test_a_key_dies_when_the_member_gains_rights(self):
+        # Rights come through M2M changes, which never run `Member.save`.
+        group = Group.objects.create(name="Gemsen")
+        gains = (
+            lambda: group.leiters.add(self.member),
+            lambda: PermissionMember.objects.create(member=self.member).view_members.add(
+                self.linked
+            ),
+        )
+        for gain in gains:
+            with self.subTest(gain=gains.index(gain)):
+                group.leiters.clear()
+                PermissionMember.objects.filter(member=self.member).delete()
+                self.member.invite_as_user(self.issuer)
+                key = self.member.invite_as_user_key
+                self.assertEqual(login_key_member(key), self.member)
+                gain()
+                self.assertIsNone(login_key_member(key))
+                # The structural checks alone still pass; only the issuer fails.
+                self.assertEqual(Member.for_login_key(key), self.member)
+
+    def test_a_superusers_key_survives_new_rights(self):
+        superuser = User.objects.create_superuser("root", password="secret")
+        self.member.invite_as_user(superuser)
+        Group.objects.create(name="Gemsen").leiters.add(self.member)
+        self.assertEqual(login_key_member(self.member.invite_as_user_key), self.member)
+
+    def test_a_reset_on_ones_own_behalf_survives_ones_rights(self):
+        Group.objects.create(name="Gemsen").leiters.add(self.linked)
+        self.linked.request_password_reset(self.account)
+        self.assertEqual(login_key_member(self.linked.invite_as_user_key), self.linked)
+
+    def test_a_key_needs_an_active_issuer(self):
+        for issuer in (None, User.objects.create_user("weg", password="secret", is_active=False)):
+            with self.subTest(issuer=issuer):
+                self.member.invite_as_user(issuer)
+                self.assertIsNone(login_key_member(self.member.invite_as_user_key))
+
+    def test_a_key_dies_with_its_issuer(self):
+        self.member.invite_as_user(self.issuer)
+        self.issuer.delete()
+        self.member.refresh_from_db()
+        self.assertIsNone(login_key_member(self.member.invite_as_user_key))
+
+    def test_the_register_endpoint_refuses_a_key_after_new_rights(self):
+        self.member.invite_as_user(self.issuer)
+        Group.objects.create(name="Gemsen").leiters.add(self.member)
+        r = self.client.get(self.REGISTER, {"key": self.member.invite_as_user_key})
+        self.assertEqual(r.status_code, 404)
+        r = self.client.get(reverse("logindata:register"), {"key": self.member.invite_as_user_key})
+        self.assertTemplateUsed(r, "logindata/register_failed.html")
+
     def test_a_partial_save_of_the_email_clears_the_key_too(self):
-        self.member.invite_as_user()
+        self.member.invite_as_user(self.issuer)
         self.member.email = "anders@{}".format(DOMAIN)
         self.member.save(update_fields=["email"])
         self.member.refresh_from_db()
         self.assertEqual(self.member.invite_as_user_key, "")
 
     def test_other_changes_keep_the_key(self):
-        self.member.invite_as_user()
+        self.member.invite_as_user(self.issuer)
         key = self.member.invite_as_user_key
         self.member.prename = "Anders"
         self.member.save()
         self.assertEqual(Member.for_login_key(key), self.member)
+
+
+class EchoTestCase(TestCase):
+    """The echo flows never touch the addresses that login and echo mails go to."""
+
+    def setUp(self):
+        self.account, self.member = linked_member("leiterin")
+        Group.objects.create(name="Gemsen").leiters.add(self.member)
+        self.member.birth_date = datetime.date(2005, 4, 3)
+        self.member.save()
+        self.key = self.member.generate_echo_key()
+
+    def assertAddressesKept(self):
+        self.member.refresh_from_db()
+        self.assertEqual(self.member.email, "leiterin@{}".format(DOMAIN))
+        self.assertEqual(self.member.alternative_email, "leiterin@elsewhere.example")
+
+    def test_the_echo_form_keeps_the_addresses(self):
+        data = dict(
+            ECHO_DATA,
+            email="mine@{}".format(DOMAIN),
+            alternative_email="mine@else.example",
+            key=self.key,
+            password=self.member.echo_password,
+            save="",
+        )
+        data.update(EMERGENCY_CONTACT_DATA)
+        self.client.post(reverse("members:echo"), data=data)
+        self.member.refresh_from_db()
+        self.assertTrue(self.member.echoed)
+        self.assertAddressesKept()
+
+    def test_the_echo_api_keeps_the_addresses(self):
+        r = self.client.post(
+            "/api/members/public/echo/{}".format(self.key),
+            data={
+                "password": self.member.echo_password,
+                "prename": "Leiterin",
+                "lastname": "Konto",
+                "gender": DIVERSE,
+                "email": "mine@{}".format(DOMAIN),
+                "alternative_email": "mine@else.example",
+                "emergency_contacts": [
+                    {"prename": "Anna", "lastname": "Contact", "phone_number": "+49 1", "email": ""}
+                ],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertAddressesKept()
