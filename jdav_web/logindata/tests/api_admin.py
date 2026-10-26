@@ -10,6 +10,10 @@ The two places with behaviour rather than plumbing get their own cases: user
 creation and password changes go through Django's own auth forms, so their
 validators must surface as 422, and deleting a user must refuse to delete the
 caller's own account.
+
+None of it may raise the caller's own rights: a superuser's account and the
+superuser flag are left to superusers, and a permission (directly or through a
+rights group) can only be handed out by someone who holds it.
 """
 
 import datetime
@@ -19,9 +23,12 @@ from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from logindata.models import AuthGroup
 from logindata.models import RegistrationPassword
+from logindata.rights import MEMBER_RIGHTS
 from members.models import DIVERSE
+from members.models import Group as MemberGroup
 from members.models import Member
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
@@ -48,7 +55,11 @@ class LogindataAdminApiTestCase(TestCase):
             authorization_grant_type=Application.GRANT_PASSWORD,
             client_secret="test-secret",
         )
-        self.admin_user = User.objects.create_user("logindataadmin", password="secret")
+        self.admin_user = User.objects.create_user(
+            "logindataadmin", password="secret", is_staff=True
+        )
+        self.superuser = User.objects.create_superuser("logindatasuper", password="secret")
+        self.target_superuser = User.objects.create_superuser("chef", password="secret")
         self.plain_user = User.objects.create_user("logindataplain", password="secret")
         self.subject = User.objects.create_user("subject", password="secret")
         self.group = AuthGroup.objects.create(name="Jugendleiter")
@@ -224,6 +235,7 @@ class LogindataAdminApiTestCase(TestCase):
 
     def test_create_permission_group(self):
         perm = self._some_permission()
+        self.admin_user.user_permissions.add(perm)
         r = self.post(
             "/api/logindata/permission-groups",
             {"name": "Kassenwart", "permission_ids": [perm.pk]},
@@ -253,6 +265,7 @@ class LogindataAdminApiTestCase(TestCase):
 
     def test_update_permission_group(self):
         perm = self._some_permission()
+        self.admin_user.user_permissions.add(perm)
         r = self.patch(
             "/api/logindata/permission-groups/{}".format(self.group.pk),
             {"name": "Betreuer", "permission_ids": [perm.pk]},
@@ -356,3 +369,275 @@ class LogindataAdminApiTestCase(TestCase):
             ).status_code,
             403,
         )
+
+    # --- escalation guards ------------------------------------------------
+
+    def assertRefused(self, response, message):
+        # The refusal is shown to the user, so it is compared translated.
+        self.assertEqual(response.status_code, 403, response.content)
+        self.assertEqual(response.json()["detail"], str(message))
+        self.assertTrue(response.json()["displayable"])
+
+    def missing_permission(self, perm):
+        return _("You cannot grant permissions you do not hold yourself: %(permissions)s") % {
+            "permissions": "{}.{}".format(perm.content_type.app_label, perm.codename)
+        }
+
+    def user_url(self, user, suffix=""):
+        return "/api/logindata/users/{}{}".format(user.pk, suffix)
+
+    def test_promoting_anyone_to_superuser_is_refused(self):
+        headers = self.as_admin("auth.change_user")
+        for user in (self.admin_user, self.subject):
+            with self.subTest(user=user.username):
+                r = self.patch(self.user_url(user), {"is_superuser": True}, **headers)
+                self.assertRefused(r, _("Only a superuser may grant or revoke superuser status."))
+                user.refresh_from_db()
+                self.assertFalse(user.is_superuser)
+
+    def test_an_unchanged_superuser_flag_is_accepted(self):
+        # The SPA sends every field back, including a flag it did not change.
+        r = self.patch(
+            self.user_url(self.subject),
+            {"username": "umbenannt", "is_superuser": False},
+            **self.as_admin("auth.change_user"),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_a_superuser_may_promote(self):
+        r = self.patch(
+            self.user_url(self.subject), {"is_superuser": True}, **self.auth(self.superuser)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.subject.refresh_from_db()
+        self.assertTrue(self.subject.is_superuser)
+
+    def test_a_superuser_account_is_left_to_superusers(self):
+        headers = self.as_admin("auth.change_user", "auth.delete_user")
+        message = _("Only a superuser may change a superuser account.")
+        for payload in ({"is_superuser": False}, {"is_active": False}, {"username": "x"}):
+            with self.subTest(payload=payload):
+                self.assertRefused(
+                    self.patch(self.user_url(self.target_superuser), payload, **headers), message
+                )
+        self.assertRefused(
+            self.post(
+                self.user_url(self.target_superuser, "/set-password"),
+                {"new_password1": "noch-ein-langes-pw-7", "new_password2": "noch-ein-langes-pw-7"},
+                **headers,
+            ),
+            message,
+        )
+        self.assertRefused(
+            self.client.delete(self.user_url(self.target_superuser), **headers), message
+        )
+
+        self.target_superuser.refresh_from_db()
+        self.assertTrue(self.target_superuser.is_superuser)
+        self.assertTrue(self.target_superuser.is_active)
+        self.assertEqual(self.target_superuser.username, "chef")
+        self.assertTrue(self.target_superuser.check_password("secret"))
+
+    def test_a_superuser_may_change_a_superuser_account(self):
+        headers = self.auth(self.superuser)
+        r = self.patch(self.user_url(self.target_superuser), {"is_active": False}, **headers)
+        self.assertEqual(r.status_code, 200, r.content)
+        r = self.post(
+            self.user_url(self.target_superuser, "/set-password"),
+            {"new_password1": "noch-ein-langes-pw-7", "new_password2": "noch-ein-langes-pw-7"},
+            **headers,
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        r = self.client.delete(self.user_url(self.target_superuser), **headers)
+        self.assertEqual(r.status_code, 204, r.content)
+
+    def assertAccountRefused(self, user, headers):
+        message = _("You cannot change an account that has rights you do not hold yourself.")
+        self.assertRefused(self.patch(self.user_url(user), {"username": "x"}, **headers), message)
+        self.assertRefused(
+            self.post(
+                self.user_url(user, "/set-password"),
+                {"new_password1": "noch-ein-langes-pw-7", "new_password2": "noch-ein-langes-pw-7"},
+                **headers,
+            ),
+            message,
+        )
+        self.assertRefused(self.client.delete(self.user_url(user), **headers), message)
+        user.refresh_from_db()
+        self.assertNotEqual(user.username, "x")
+        self.assertTrue(user.check_password("secret"))
+
+    def test_an_account_with_a_permission_the_caller_lacks_is_refused(self):
+        self.subject.user_permissions.add(self._some_permission())
+        self.assertAccountRefused(
+            self.subject, self.as_admin("auth.change_user", "auth.delete_user")
+        )
+
+    def test_an_account_with_a_group_permission_the_caller_lacks_is_refused(self):
+        self.group.permissions.add(self._some_permission())
+        self.subject.groups.add(self.group)
+        self.assertAccountRefused(
+            self.subject, self.as_admin("auth.change_user", "auth.delete_user")
+        )
+
+    def test_an_inactive_account_still_counts_its_permissions(self):
+        # Setting its password and reactivating it would otherwise be a way in.
+        self.subject.user_permissions.add(self._some_permission())
+        self.subject.is_active = False
+        self.subject.save()
+        self.assertAccountRefused(
+            self.subject, self.as_admin("auth.change_user", "auth.delete_user")
+        )
+
+    def test_a_staff_account_is_refused_to_a_caller_without_kompass_access(self):
+        self.admin_user.is_staff = False
+        self.admin_user.save()
+        self.subject.is_staff = True
+        self.subject.save()
+        self.assertAccountRefused(
+            self.subject, self.as_admin("auth.change_user", "auth.delete_user")
+        )
+
+    def lead_a_group(self, user):
+        member = Member.objects.create(
+            prename="Jule", lastname="Leiter", gender=DIVERSE, email="j@example.org"
+        )
+        member.user = user
+        member.save()
+        MemberGroup.objects.create(name="Gemsen").leiters.add(member)
+
+    def set_password(self, user, headers):
+        return self.post(
+            self.user_url(user, "/set-password"),
+            {"new_password1": "noch-ein-langes-pw-7", "new_password2": "noch-ein-langes-pw-7"},
+            **headers,
+        )
+
+    def test_the_password_of_an_account_with_member_rights_is_left_to_superusers(self):
+        # Changing such an account is fine; setting its password hands it over.
+        self.lead_a_group(self.subject)
+        headers = self.as_admin("auth.change_user")
+        self.assertRefused(
+            self.set_password(self.subject, headers),
+            MEMBER_RIGHTS,
+        )
+        self.subject.refresh_from_db()
+        self.assertTrue(self.subject.check_password("secret"))
+        r = self.patch(self.user_url(self.subject), {"username": "umbenannt"}, **headers)
+        self.assertEqual(r.status_code, 200, r.content)
+        r = self.set_password(self.subject, self.auth(self.superuser))
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_ones_own_password_may_be_set_despite_member_rights(self):
+        self.lead_a_group(self.admin_user)
+        r = self.set_password(self.admin_user, self.as_admin("auth.change_user"))
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_an_account_whose_permissions_the_caller_holds_may_be_changed(self):
+        perm = self._some_permission()
+        self.subject.user_permissions.add(perm)
+        self.subject.is_staff = True
+        self.subject.save()
+        self.admin_user.user_permissions.add(perm)
+        headers = self.as_admin("auth.change_user", "auth.delete_user")
+        r = self.patch(self.user_url(self.subject), {"username": "umbenannt"}, **headers)
+        self.assertEqual(r.status_code, 200, r.content)
+        r = self.client.delete(self.user_url(self.subject), **headers)
+        self.assertEqual(r.status_code, 204, r.content)
+
+    def test_a_superuser_may_change_a_stronger_account(self):
+        self.subject.user_permissions.add(self._some_permission())
+        r = self.patch(
+            self.user_url(self.subject), {"username": "umbenannt"}, **self.auth(self.superuser)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_kompass_access_is_granted_only_by_who_has_it(self):
+        self.admin_user.is_staff = False
+        self.admin_user.save()
+        r = self.patch(
+            self.user_url(self.subject), {"is_staff": True}, **self.as_admin("auth.change_user")
+        )
+        self.assertRefused(r, _("You cannot grant Kompass access without having it yourself."))
+        self.subject.refresh_from_db()
+        self.assertFalse(self.subject.is_staff)
+
+    def test_adding_a_group_with_permissions_the_caller_lacks_is_refused(self):
+        perm = self._some_permission()
+        self.group.permissions.add(perm)
+        r = self.patch(
+            self.user_url(self.admin_user),
+            {"group_ids": [self.group.pk]},
+            **self.as_admin("auth.change_user"),
+        )
+        self.assertRefused(r, self.missing_permission(perm))
+        self.assertFalse(self.admin_user.groups.exists())
+
+    def test_adding_a_group_with_held_permissions_is_accepted(self):
+        perm = self._some_permission()
+        self.group.permissions.add(perm)
+        self.admin_user.user_permissions.add(perm)
+        r = self.patch(
+            self.user_url(self.subject),
+            {"group_ids": [self.group.pk]},
+            **self.as_admin("auth.change_user"),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(list(self.subject.groups.all()), [self.group])
+
+    def test_a_superuser_may_add_any_group(self):
+        self.group.permissions.add(self._some_permission())
+        r = self.patch(
+            self.user_url(self.subject), {"group_ids": [self.group.pk]}, **self.auth(self.superuser)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(list(self.subject.groups.all()), [self.group])
+
+    def test_a_group_cannot_be_given_permissions_the_caller_lacks(self):
+        perm = self._some_permission()
+        headers = self.as_admin("auth.add_group", "auth.change_group")
+        message = self.missing_permission(perm)
+        r = self.post(
+            "/api/logindata/permission-groups",
+            {"name": "Kassenwart", "permission_ids": [perm.pk]},
+            **headers,
+        )
+        self.assertRefused(r, message)
+        self.assertFalse(AuthGroup.objects.filter(name="Kassenwart").exists())
+
+        r = self.patch(
+            "/api/logindata/permission-groups/{}".format(self.group.pk),
+            {"name": "Jugendleiter", "permission_ids": [perm.pk]},
+            **headers,
+        )
+        self.assertRefused(r, message)
+        self.assertFalse(self.group.permissions.exists())
+
+    def test_a_group_keeps_permissions_the_caller_lacks_on_rename(self):
+        perm = self._some_permission()
+        self.group.permissions.add(perm)
+        r = self.patch(
+            "/api/logindata/permission-groups/{}".format(self.group.pk),
+            {"name": "Betreuer", "permission_ids": [perm.pk]},
+            **self.as_admin("auth.change_group"),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.name, "Betreuer")
+
+    def test_a_superuser_may_give_a_group_any_permission(self):
+        perm = self._some_permission()
+        headers = self.auth(self.superuser)
+        r = self.post(
+            "/api/logindata/permission-groups",
+            {"name": "Kassenwart", "permission_ids": [perm.pk]},
+            **headers,
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        r = self.patch(
+            "/api/logindata/permission-groups/{}".format(self.group.pk),
+            {"name": "Jugendleiter", "permission_ids": [perm.pk]},
+            **headers,
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(list(self.group.permissions.all()), [perm])

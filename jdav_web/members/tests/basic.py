@@ -406,23 +406,24 @@ class MemberTestCase(BasicMemberTestCase):
         # sucess
         self.assertTrue(self.lara.has_internal_email())
         self.lara.user = None
-        self.assertTrue(self.lara.invite_as_user())
+        u = User.objects.create_user(username="user", password="secret", is_staff=True)
+        self.assertTrue(self.lara.invite_as_user(u))
+        self.assertEqual(self.lara.invite_as_user_key_issuer, u)
 
         # failure: already has user data
-        u = User.objects.create_user(username="user", password="secret", is_staff=True)
         self.lara.user = u
-        self.assertFalse(self.lara.invite_as_user())
+        self.assertFalse(self.lara.invite_as_user(u))
 
         # failure: no internal email
         self.peter.email = "foobar"
-        self.assertFalse(self.peter.invite_as_user())
+        self.assertFalse(self.peter.invite_as_user(u))
 
     def test_request_password_reset(self):
         u = User.objects.create_user(username="user", password="secret", is_staff=True)
         self.peter.user = u
         # failure: no internal email
         self.peter.email = "foobar"
-        self.assertFalse(self.peter.request_password_reset())
+        self.assertFalse(self.peter.request_password_reset(u))
 
     def test_birth_date_str(self):
         self.fritz.birth_date = None
@@ -1046,6 +1047,7 @@ class MemberAdminTestCase(AdminTestCase):
     def test_request_password_reset_no_user(self):
         self.assertIsNone(self.peter.user)
         request = self.factory.get("/")
+        request.user = User.objects.create_user(username="verwalter", password="secret")
         self._add_session_to_request(request)
         self.admin.request_password_reset(request, self.peter)
         expected_text = str(_("Could not send password reset email."))

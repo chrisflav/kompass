@@ -1,3 +1,4 @@
+from datetime import timedelta
 from http import HTTPStatus
 
 from django.contrib.auth.models import Group
@@ -23,6 +24,7 @@ class RegistrationPasswordTestCase(TestCase):
 class RegisterViewTestCase(TestCase):
     def setUp(self):
         self.client = Client()
+        self.issuer = User.objects.create_user(username="issuer", password="secret")
 
         # Create a test member with invite key
         self.member = Member.objects.create(
@@ -32,6 +34,8 @@ class RegisterViewTestCase(TestCase):
             email="test@example.com",
             gender=DIVERSE,
             invite_as_user_key="test_key_123",
+            invite_as_user_key_expire=timezone.now() + timedelta(days=1),
+            invite_as_user_key_issuer=self.issuer,
         )
         self.member_with_user = Member.objects.create(
             prename="Test",
@@ -39,10 +43,15 @@ class RegisterViewTestCase(TestCase):
             birth_date=timezone.now().date(),
             email="test@example.com",
             gender=DIVERSE,
-            invite_as_user_key="test_key_with_user_123",
         )
         u = User.objects.create_user(username="test_user", password="secret")
         self.member_with_user.user = u
+        self.member_with_user.save()
+        # Issued for the account now linked, as `request_password_reset` does.
+        self.member_with_user.invite_as_user_key = "test_key_with_user_123"
+        self.member_with_user.invite_as_user_key_expire = timezone.now() + timedelta(days=1)
+        self.member_with_user.invite_as_user_key_user = u
+        self.member_with_user.invite_as_user_key_issuer = u
         self.member_with_user.save()
 
         # Create a registration password
@@ -77,6 +86,37 @@ class RegisterViewTestCase(TestCase):
         url = reverse("logindata:register")
         response = self.client.get(url, {"key": "invalid_key"})
         self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(
+            response, _("Something went wrong. The registration key is invalid or has expired.")
+        )
+
+    def test_register_with_expired_key_shows_failed(self):
+        Member.objects.filter(pk=self.member.pk).update(
+            invite_as_user_key_expire=timezone.now() - timedelta(seconds=1)
+        )
+        url = reverse("logindata:register")
+        response = self.client.post(
+            url, {"key": self.member.invite_as_user_key, "password": "test_password"}
+        )
+        self.assertContains(
+            response, _("Something went wrong. The registration key is invalid or has expired.")
+        )
+
+    def test_register_with_key_for_another_account_shows_failed(self):
+        # An invitation key does not become a reset for an account linked later.
+        later = User.objects.create_user(username="later_user", password="secret")
+        Member.objects.filter(pk=self.member.pk).update(user=later)
+        url = reverse("logindata:register")
+        response = self.client.get(url, {"key": self.member.invite_as_user_key})
+        self.assertContains(
+            response, _("Something went wrong. The registration key is invalid or has expired.")
+        )
+
+    def test_register_with_key_for_member_who_gained_rights_shows_failed(self):
+        # The issuer may no longer invite the member, so neither may the key.
+        self.member.leited_groups.create(name="Gemsen")
+        url = reverse("logindata:register")
+        response = self.client.get(url, {"key": self.member.invite_as_user_key})
         self.assertContains(
             response, _("Something went wrong. The registration key is invalid or has expired.")
         )
