@@ -274,6 +274,7 @@ const APPROVAL = {
       excluded: [],
       overridden_by: null,
       override_reason: "",
+      may_override: true,
     },
   ],
   signatures: [],
@@ -2661,7 +2662,7 @@ describe("review pipeline", () => {
 
     expect(await screen.findByText("Mila Nowak")).toBeInTheDocument();
     await user.click(screen.getByLabelText(/Ich habe die aufgeführten Überweisungen ausgeführt/));
-    await user.click(screen.getByRole("button", { name: "Nur bestätigen" }));
+    await user.click(screen.getByRole("button", { name: "Freigeben ohne Beleg" }));
 
     await waitFor(() => expect(sendQuery).toBe(null));
     expect(await screen.findByText("Abrechnung bestätigt.")).toBeInTheDocument();
@@ -2679,9 +2680,9 @@ describe("review pipeline", () => {
 
     await screen.findByText("Mila Nowak");
     await user.click(screen.getByLabelText(/Ich habe die aufgeführten Überweisungen ausgeführt/));
-    await user.click(screen.getByRole("button", { name: "Bestätigen & Beleg senden" }));
+    await user.click(screen.getByRole("button", { name: "Freigeben & Beleg senden" }));
     const dialog = within(await screen.findByRole("dialog"));
-    await user.click(dialog.getByRole("button", { name: "Bestätigen & senden" }));
+    await user.click(dialog.getByRole("button", { name: "Freigeben & senden" }));
 
     await waitFor(() => expect(sendQuery).toBe("true"));
   });
@@ -2714,11 +2715,11 @@ describe("review pipeline", () => {
     const { user } = openStage("payout", {}, [TRANSACTION]);
     await screen.findByText("Mila Nowak");
 
-    expect(screen.getByRole("button", { name: "Nur bestätigen" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Bestätigen & Beleg senden" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Freigeben ohne Beleg" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Freigeben & Beleg senden" })).toBeDisabled();
 
     await user.click(screen.getByLabelText(/Ich habe die aufgeführten Überweisungen ausgeführt/));
-    expect(screen.getByRole("button", { name: "Nur bestätigen" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Freigeben ohne Beleg" })).toBeEnabled();
   });
 
   it("reports a refused confirmation", async () => {
@@ -2730,7 +2731,7 @@ describe("review pipeline", () => {
     const { user } = openStage("payout", {}, [TRANSACTION]);
     await screen.findByText("Mila Nowak");
     await user.click(screen.getByLabelText(/Ich habe die aufgeführten Überweisungen ausgeführt/));
-    await user.click(screen.getByRole("button", { name: "Nur bestätigen" }));
+    await user.click(screen.getByRole("button", { name: "Freigeben ohne Beleg" }));
     expect(await screen.findByText("Noch nicht bereit.")).toBeInTheDocument();
   });
 
@@ -2847,7 +2848,7 @@ describe("statement review — the office makes the transfers", () => {
     expect(
       screen.queryByLabelText(/Ich habe die aufgeführten Überweisungen ausgeführt/),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Zur Auszahlung übergeben" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Freigeben und zur Auszahlung übergeben" })).toBeEnabled();
     expect(screen.queryByRole("heading", { name: "Auszahlung" })).not.toBeInTheDocument();
   });
 
@@ -2856,9 +2857,9 @@ describe("statement review — the office makes the transfers", () => {
     await screen.findByText("Mila Nowak");
     // "Release without mailing" would be a status claiming a handoff with
     // nothing handed over, so the mode does not offer it.
-    expect(screen.queryByRole("button", { name: "Nur bestätigen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Freigeben ohne Beleg" })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Bestätigen & Beleg senden" }),
+      screen.queryByRole("button", { name: "Freigeben & Beleg senden" }),
     ).not.toBeInTheDocument();
   });
 
@@ -2890,17 +2891,17 @@ describe("statement review — the office makes the transfers", () => {
     const { user } = openStage("payout");
     await screen.findByText("Mila Nowak");
 
-    await user.click(screen.getByRole("button", { name: "Zur Auszahlung übergeben" }));
+    await user.click(screen.getByRole("button", { name: "Freigeben und zur Auszahlung übergeben" }));
     const dialog = within(await screen.findByRole("dialog"));
     expect(dialog.getByText(/Der Beleg mit allen Überweisungsaufträgen geht an die/)).toBeInTheDocument();
-    await user.click(dialog.getByRole("button", { name: "Übergeben" }));
+    await user.click(dialog.getByRole("button", { name: "Freigeben & übergeben" }));
 
     await waitFor(() => expect(posted).toBe(true));
     // No `send` flag: the mail *is* the handoff, so the server sends it and
     // asking for it here as well would be a second mail for one act.
     expect(sendQuery).toBe(null);
     expect(
-      await screen.findByText("Abrechnung zur Auszahlung übergeben."),
+      await screen.findByText("Freigegeben und zur Auszahlung übergeben."),
     ).toBeInTheDocument();
   });
 
@@ -3032,9 +3033,9 @@ describe("statement detail — submitted and confirmed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Es fehlt noch eine Unterschrift.")).toBeInTheDocument();
     // No signing and no override here: this is the record, not the act.
-    expect(screen.queryByRole("button", { name: "Jetzt freigeben" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Freigabe erteilen" })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Ohne Unterschrift freigeben" }),
+      screen.queryByRole("button", { name: "Ohne Unterschrift übergehen …" }),
     ).not.toBeInTheDocument();
     // And there is one door into the room, not two.
     expect(screen.queryByRole("button", { name: "Freigabe" })).not.toBeInTheDocument();

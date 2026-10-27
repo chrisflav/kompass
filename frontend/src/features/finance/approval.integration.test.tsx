@@ -90,6 +90,8 @@ function constraint(overrides: Record<string, unknown> = {}) {
     excluded: [],
     overridden_by: null,
     override_reason: "",
+    // The default policy: whoever could sign the step may waive it.
+    may_override: true,
     ...overrides,
   };
 }
@@ -265,7 +267,7 @@ describe("Freigabe — the record on the review's last leg", () => {
     ).toBeInTheDocument();
     // And the payout is still offered: a ruleset that asks for no signature is
     // one that is happy with the capability check.
-    expect(screen.getByRole("button", { name: "Nur bestätigen" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Freigeben ohne Beleg" })).toBeInTheDocument();
   });
 
   it("names an unattributable signature rather than dropping it", async () => {
@@ -305,11 +307,11 @@ describe("Freigabe — the act, whichever one is left", () => {
 
     // The payout's acknowledgement is not asked for an act that pays nothing
     // out, and neither confirm button is on offer.
-    expect(await screen.findByRole("button", { name: "Jetzt freigeben" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Freigabe erteilen" })).toBeInTheDocument();
     expect(screen.queryByLabelText(/Überweisungen ausgeführt/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Nur bestätigen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Freigeben ohne Beleg" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Jetzt freigeben" }));
+    await user.click(screen.getByRole("button", { name: "Freigabe erteilen" }));
 
     await waitFor(() => expect(posted).toEqual(["approve"]));
     expect(
@@ -340,7 +342,7 @@ describe("Freigabe — the act, whichever one is left", () => {
     expect(
       await screen.findByText("Es fehlen noch 3 Unterschriften: Kasse, Vorstand."),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Jetzt freigeben" }));
+    await user.click(screen.getByRole("button", { name: "Freigabe erteilen" }));
     expect(
       await screen.findByText("Freigabe vermerkt. Es fehlen noch 3 Unterschriften: Kasse, Vorstand."),
     ).toBeInTheDocument();
@@ -350,9 +352,9 @@ describe("Freigabe — the act, whichever one is left", () => {
     const { user, answers } = openFreigabe(
       approval({ completes_approval: false, may_approve: true }),
     );
-    await screen.findByRole("button", { name: "Jetzt freigeben" });
+    await screen.findByRole("button", { name: "Freigabe erteilen" });
     answers(approval({ approved: true, constraints: [constraint({ satisfied: true, open: false, missing: 0 })] }));
-    await user.click(screen.getByRole("button", { name: "Jetzt freigeben" }));
+    await user.click(screen.getByRole("button", { name: "Freigabe erteilen" }));
     expect(
       await screen.findByText("Freigabe vermerkt. Alle Freigaben liegen jetzt vor."),
     ).toBeInTheDocument();
@@ -372,7 +374,7 @@ describe("Freigabe — the act, whichever one is left", () => {
     );
     const { user } = renderRoute(REVIEW);
 
-    await user.click(await screen.findByRole("button", { name: "Jetzt freigeben" }));
+    await user.click(await screen.findByRole("button", { name: "Freigabe erteilen" }));
     expect(await screen.findByText("Du hast hier schon unterschrieben.")).toBeInTheDocument();
   });
 
@@ -382,15 +384,15 @@ describe("Freigabe — the act, whichever one is left", () => {
     expect(
       await screen.findByText(/Für dich ist hier nichts mehr zu tun/),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Jetzt freigeben" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Nur bestätigen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Freigabe erteilen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Freigeben ohne Beleg" })).not.toBeInTheDocument();
   });
 
   it("pays out through confirm when the signature is the last one", async () => {
     const { user, posted } = openFreigabe();
 
     await user.click(await screen.findByLabelText(/Ich habe die aufgeführten Überweisungen/));
-    await user.click(screen.getByRole("button", { name: "Nur bestätigen" }));
+    await user.click(screen.getByRole("button", { name: "Freigeben ohne Beleg" }));
 
     await waitFor(() => expect(posted).toEqual(["confirm"]));
     expect(await screen.findByText("Abrechnung bestätigt.")).toBeInTheDocument();
@@ -411,7 +413,7 @@ describe("Freigabe — the act, whichever one is left", () => {
     renderRoute(REVIEW);
 
     expect(await screen.findByText("Nicht gefunden.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Nur bestätigen" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Freigeben ohne Beleg" })).toBeInTheDocument();
   });
 });
 
@@ -426,7 +428,7 @@ describe("Freigabe — going ahead without a signature", () => {
     );
     const { user } = openFreigabe();
 
-    await user.click(await screen.findByRole("button", { name: "Ohne Unterschrift freigeben" }));
+    await user.click(await screen.findByRole("button", { name: "Ohne Unterschrift übergehen …" }));
     const dialog = within(await screen.findByRole("dialog"));
     await user.type(dialog.getByRole("textbox"), "Vorstand per Mail zugestimmt");
     await user.click(dialog.getByRole("button", { name: "Übergehen" }));
@@ -444,7 +446,7 @@ describe("Freigabe — going ahead without a signature", () => {
     );
     const { user } = openFreigabe();
 
-    await user.click(await screen.findByRole("button", { name: "Ohne Unterschrift freigeben" }));
+    await user.click(await screen.findByRole("button", { name: "Ohne Unterschrift übergehen …" }));
     const dialog = within(await screen.findByRole("dialog"));
     await user.type(dialog.getByRole("textbox"), "weil");
     await user.click(dialog.getByRole("button", { name: "Übergehen" }));
@@ -464,7 +466,7 @@ describe("Freigabe — going ahead without a signature", () => {
     );
     const { user } = openFreigabe();
 
-    await user.click(await screen.findByRole("button", { name: "Ohne Unterschrift freigeben" }));
+    await user.click(await screen.findByRole("button", { name: "Ohne Unterschrift übergehen …" }));
     const dialog = within(await screen.findByRole("dialog"));
     await user.type(dialog.getByRole("textbox"), "weil");
     await user.click(dialog.getByRole("button", { name: "Übergehen" }));
@@ -475,7 +477,7 @@ describe("Freigabe — going ahead without a signature", () => {
   it("closes the override dialog on Abbrechen", async () => {
     const { user } = openFreigabe();
 
-    await user.click(await screen.findByRole("button", { name: "Ohne Unterschrift freigeben" }));
+    await user.click(await screen.findByRole("button", { name: "Ohne Unterschrift übergehen …" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Abbrechen" }),
     );
@@ -493,7 +495,74 @@ describe("Freigabe — going ahead without a signature", () => {
 
     await screen.findByText("Offen");
     expect(
-      screen.queryByRole("button", { name: "Ohne Unterschrift freigeben" }),
+      screen.queryByRole("button", { name: "Ohne Unterschrift übergehen …" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("Freigabe — the act is named, and the exception is quiet", () => {
+  /** The buttons in the leg's own button area, by name. */
+  function acts(): string[] {
+    const nav = document.querySelector(".flow-nav-fwd") as HTMLElement;
+    return within(nav)
+      .queryAllByRole("button")
+      .map((button) => button.textContent?.trim() ?? "");
+  }
+
+  it("names the approval on the button that completes it, and the payout after it", async () => {
+    // Heidelberg's case: one signature is the whole approval, and the reviewer
+    // makes the transfers. Both buttons are an approval first.
+    openFreigabe();
+    await screen.findByRole("button", { name: "Freigeben & Beleg senden" });
+    expect(acts()).toEqual(["Freigeben ohne Beleg", "Freigeben & Beleg senden"]);
+  });
+
+  it("names the approval where the office pays, too", async () => {
+    openFreigabe(approval(), { payout_mode: "office" });
+    await screen.findByRole("button", { name: "Freigeben und zur Auszahlung übergeben" });
+    expect(acts()).toEqual(["Freigeben und zur Auszahlung übergeben"]);
+  });
+
+  it("names a signature short of the quorum for what it is", async () => {
+    openFreigabe(
+      approval({ completes_approval: false, may_approve: true }),
+    );
+    await screen.findByRole("button", { name: "Freigabe erteilen" });
+    expect(acts()).toEqual(["Freigabe erteilen"]);
+  });
+
+  it("offers the override as quiet text under its step, not as a button beside the act", async () => {
+    openFreigabe();
+    const override = await screen.findByRole("button", { name: "Ohne Unterschrift übergehen …" });
+    expect(override).toHaveClass("link-button");
+    expect(override).not.toHaveClass("btn");
+    // Under the step it would waive, and nowhere near the acts.
+    expect(override.closest(".summary-card")).not.toBeNull();
+    expect(acts()).not.toContain("Ohne Unterschrift übergehen …");
+  });
+
+  it("offers an override only on a step the server says it would be taken on", async () => {
+    openFreigabe(
+      approval({
+        constraints: [
+          constraint({ name: "leitung", description: "Die Leitung", may_override: true }),
+          constraint({ name: "kasse", description: "Die Kasse", may_override: false }),
+        ],
+      }),
+    );
+    const leitung = (await screen.findByText("Die Leitung")).closest(".summary-card") as HTMLElement;
+    const kasse = screen.getByText("Die Kasse").closest(".summary-card") as HTMLElement;
+    expect(
+      within(leitung).getByRole("button", { name: "Ohne Unterschrift übergehen …" }),
+    ).toBeInTheDocument();
+    expect(within(kasse).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("offers no override at all under rules that allow none", async () => {
+    openFreigabe(approval({ constraints: [constraint({ may_override: false })] }));
+    await screen.findByText("Offen");
+    expect(
+      screen.queryByRole("button", { name: "Ohne Unterschrift übergehen …" }),
     ).not.toBeInTheDocument();
   });
 });

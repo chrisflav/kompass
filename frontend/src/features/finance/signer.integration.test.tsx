@@ -110,6 +110,8 @@ function approval(overrides: Record<string, unknown> = {}) {
         excluded: [],
         overridden_by: null,
         override_reason: "",
+        // A section like Ludwigsburg, whose rules allow no override at all.
+        may_override: false,
       },
     ],
     signatures: [],
@@ -440,7 +442,7 @@ describe("the named signer — the statement, not only its arithmetic", () => {
     expect(
       screen.getByRole("heading", { name: "Übergabe an die Geschäftsstelle" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Zur Auszahlung übergeben" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Freigeben und zur Auszahlung übergeben" })).toBeEnabled();
   });
 });
 
@@ -450,11 +452,11 @@ describe("the named signer — signing is not paying", () => {
     // not, and it was the only act she could not reach.
     const { user, posted } = openAsSigner("payout", LOCKED);
 
-    const sign = await screen.findByRole("button", { name: "Jetzt freigeben" });
+    const sign = await screen.findByRole("button", { name: "Freigabe erteilen" });
     expect(sign).toBeEnabled();
     // The payout is not offered, because `/confirm` would refuse it...
     expect(
-      screen.queryByRole("button", { name: "Zur Auszahlung übergeben" }),
+      screen.queryByRole("button", { name: "Freigeben und zur Auszahlung übergeben" }),
     ).not.toBeInTheDocument();
     // ...and the leg says why the money is not moving with the signature.
     expect(
@@ -475,11 +477,11 @@ describe("the named signer — signing is not paying", () => {
     // signature and has always read as a single act.
     const { user, posted } = openAsSigner("payout");
 
-    const release = await screen.findByRole("button", { name: "Zur Auszahlung übergeben" });
-    expect(screen.queryByRole("button", { name: "Jetzt freigeben" })).not.toBeInTheDocument();
+    const release = await screen.findByRole("button", { name: "Freigeben und zur Auszahlung übergeben" });
+    expect(screen.queryByRole("button", { name: "Freigabe erteilen" })).not.toBeInTheDocument();
     expect(screen.queryByText(/ist gesperrt/)).not.toBeInTheDocument();
     await user.click(release);
-    await user.click(await screen.findByRole("button", { name: "Übergeben" }));
+    await user.click(await screen.findByRole("button", { name: "Freigeben & übergeben" }));
     await waitFor(() => expect(posted).toEqual(["confirm"]));
   });
 
@@ -494,7 +496,7 @@ describe("the named signer — signing is not paying", () => {
       statement: { ...LOCKED.statement, payout_mode: "self" },
     });
 
-    expect(await screen.findByRole("button", { name: "Jetzt freigeben" })).toBeEnabled();
+    expect(await screen.findByRole("button", { name: "Freigabe erteilen" })).toBeEnabled();
     expect(
       screen.queryByText("Ich habe die aufgeführten Überweisungen ausgeführt."),
     ).not.toBeInTheDocument();
@@ -512,7 +514,7 @@ describe("the named signer — signing is not paying", () => {
     expect(
       await screen.findByText("Ich habe die aufgeführten Überweisungen ausgeführt."),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Bestätigen & Beleg senden" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Freigeben & Beleg senden" })).toBeDisabled();
   });
 
   it("lets her reach the leg at all while the payout is locked", async () => {
@@ -553,9 +555,9 @@ describe("the named signer — and somebody the rules did not name", () => {
     expect(screen.queryByText("Seil und Haken")).not.toBeInTheDocument();
     expect(screen.queryByText("Topf")).not.toBeInTheDocument();
     expect(screen.queryByText("Übungsleiterpauschale")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Jetzt freigeben" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Freigabe erteilen" })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Zur Auszahlung übergeben" }),
+      screen.queryByRole("button", { name: "Freigeben und zur Auszahlung übergeben" }),
     ).not.toBeInTheDocument();
   });
 });

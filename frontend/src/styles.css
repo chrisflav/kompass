@@ -4289,6 +4289,24 @@ a.tab {
   cursor: pointer;
 }
 
+/* The override, under the step it would waive: quieter than every button on
+   the leg, because it is the exception to the act the leg is for. */
+.override-door {
+  margin-top: 0.5rem;
+}
+
+.override-link {
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.override-link:hover,
+.override-link:focus-visible {
+  color: var(--warning);
+}
+
 /* A question read rather than answered: the field's own frame, with the
    answer where the control would be. */
 .field-readonly .field-value {

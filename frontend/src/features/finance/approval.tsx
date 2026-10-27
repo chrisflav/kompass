@@ -1,4 +1,4 @@
-import { Badge, Button } from "../../components/ui";
+import { Badge } from "../../components/ui";
 import type { components } from "../../api/schema";
 
 export type StatementApprovalOut = components["schemas"]["StatementApprovalOut"];
@@ -25,7 +25,11 @@ export function ApprovalRecord({
   onOverride,
 }: {
   approval: StatementApprovalOut;
-  /** When given, each open step offers an override; the caller owns the dialog. */
+  /**
+   * When given, a step the asking person may override offers to; the caller
+   * owns the dialog. Which steps those are is the server's answer
+   * (`may_override`), not this component's guess.
+   */
   onOverride?: (constraint: ApprovalConstraintOut) => void;
 }) {
   if (approval.constraints.length === 0) {
@@ -46,11 +50,23 @@ export function ApprovalRecord({
             <Badge tone={tone(constraint)}>{constraint.state_display}</Badge>
           </div>
           <ConstraintDetail constraint={constraint} />
-          {onOverride && constraint.open && (
-            <div className="row-actions">
-              <Button variant="ghost" onClick={() => onOverride(constraint)}>
-                Ohne Unterschrift freigeben
-              </Button>
+          {/* The exceptional act, and it reads as one: a line of quiet text
+              under the step it is about rather than a button beside the
+              signature. It used to be a peer button labelled "Ohne
+              Unterschrift freigeben" — the only label on the page with
+              "freigeben" in it, so the waiver read like the ordinary act and
+              the ordinary act read like a payment. Offered only where the
+              server says it would be taken: under rules that allow none, to
+              somebody who could not have signed the step, never. */}
+          {onOverride && constraint.may_override && (
+            <div className="override-door">
+              <button
+                type="button"
+                className="link-button override-link"
+                onClick={() => onOverride(constraint)}
+              >
+                Ohne Unterschrift übergehen …
+              </button>
             </div>
           )}
         </div>

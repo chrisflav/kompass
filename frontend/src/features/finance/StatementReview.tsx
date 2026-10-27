@@ -445,7 +445,7 @@ function StatementReview({ statement }: { statement: StatementOut }) {
             ) : (
               signable && (
                 <Button busy={signM.isPending} onClick={() => signM.mutate(undefined)}>
-                  Jetzt freigeben
+                  Freigabe erteilen
                 </Button>
               )
             )
@@ -1185,11 +1185,16 @@ function Freigaben({
       )}
 
       {overriding && (
-        <Modal title="Ohne Unterschrift freigeben" size="sm" onClose={() => setOverriding(null)}>
+        <Modal
+          title="Schritt ohne Unterschrift übergehen"
+          size="sm"
+          onClose={() => setOverriding(null)}
+        >
           <div className="stack">
             <p className="muted small">
-              „{overriding.description || overriding.name}" wird ohne die verlangten Unterschriften
-              freigegeben. Wer das tut und warum, bleibt dauerhaft vermerkt.
+              „{overriding.description || overriding.name}" wird übergangen, ohne dass die
+              verlangten Unterschriften vorliegen. Das ist die Ausnahme, nicht die Freigabe: wer
+              das tut und warum, bleibt dauerhaft vermerkt.
             </p>
             <Field label="Begründung">
               <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
@@ -1197,6 +1202,7 @@ function Freigaben({
             </Field>
             <div className="row-actions">
               <Button
+                variant="danger"
                 busy={overrideM.isPending}
                 onClick={() => overrideM.mutate({ name: overriding.name, reason })}
               >

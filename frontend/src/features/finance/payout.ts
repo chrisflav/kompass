@@ -65,7 +65,15 @@ export interface PayoutWords {
   acknowledgement: string | null;
   /** Whether a QR code is worth drawing: only a mode that pays from here. */
   codes: boolean;
-  /** The act, as a button. */
+  /**
+   * The act, as a button — the signature that completes the approval.
+   *
+   * Named after the act, with the consequence after it. The button used to be
+   * named after the consequence alone ("Zur Auszahlung übergeben", "Bestätigen
+   * & Beleg senden"), so somebody asked to *approve* a statement was shown a
+   * button about money and no button about approving — while the one label on
+   * the page with "freigeben" in it was the override.
+   */
   release: string;
   /**
    * Whether `/confirm` mails the office's copy by itself.
@@ -111,16 +119,16 @@ export const PAYOUT_WORDS: Record<PayoutMode, PayoutWords> = {
       `${names.length} Buchung(en) ohne QR-Code: ${names.join(", ")}. Ohne gültige IBAN muss die Überweisung von Hand erfasst werden.`,
     acknowledgement: "Ich habe die aufgeführten Überweisungen ausgeführt.",
     codes: true,
-    release: "Bestätigen & Beleg senden",
+    release: "Freigeben & Beleg senden",
     mailsItself: false,
     dialog: {
-      title: "Auszahlung bestätigen?",
+      title: "Freigeben und Beleg senden?",
       message: (total, payees) =>
         `${total} an ${payees} Empfänger*innen. Der Zuschussbeleg geht an die Geschäftsstelle.`,
-      confirm: "Bestätigen & senden",
+      confirm: "Freigeben & senden",
     },
-    done: "Abrechnung bestätigt und Beleg versendet.",
-    releaseOnly: "Nur bestätigen",
+    done: "Freigegeben. Abrechnung bestätigt und Beleg versendet.",
+    releaseOnly: "Freigeben ohne Beleg",
   },
   office: {
     door: "Prüfen & übergeben",
@@ -144,15 +152,15 @@ export const PAYOUT_WORDS: Record<PayoutMode, PayoutWords> = {
     // stop instead, and it is not optional.
     acknowledgement: null,
     codes: false,
-    release: "Zur Auszahlung übergeben",
+    release: "Freigeben und zur Auszahlung übergeben",
     mailsItself: true,
     dialog: {
-      title: "Zur Auszahlung übergeben?",
+      title: "Freigeben und zur Auszahlung übergeben?",
       message: (total, payees) =>
         `${total} an ${payees} Empfänger*innen. Der Beleg mit allen Überweisungsaufträgen geht an die Geschäftsstelle; sie führt die Überweisungen aus.`,
-      confirm: "Übergeben",
+      confirm: "Freigeben & übergeben",
     },
-    done: "Abrechnung zur Auszahlung übergeben.",
+    done: "Freigegeben und zur Auszahlung übergeben.",
     releaseOnly: null,
   },
 };
