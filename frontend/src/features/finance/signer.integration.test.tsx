@@ -165,7 +165,15 @@ const DECLARATIONS = [
     derived: true,
     source: "excursion.kilometers",
   }),
-  declaration({ key: "naechte", label: "Übernachtungen", type: "int", step: "Angaben" }),
+  declaration({
+    key: "naechte",
+    label: "Übernachtungen",
+    type: "int",
+    step: "Angaben",
+    // A hint, so that a reading which dropped the declaration's own help is a
+    // reading of a different form.
+    help: "Je Nacht 10 € pro Person.",
+  }),
   declaration({ key: "stunden", label: "Betreuungsstunden", type: "int", step: "Angaben" }),
   declaration({
     key: "tagegeld_an",
@@ -182,7 +190,7 @@ const DECLARATIONS = [
     options: [MILA, MELISSA],
     fields: [
       cell({ key: "person", label: "Person", type: "member" }),
-      cell({ key: "kilometers", label: "Kilometer", type: "int" }),
+      cell({ key: "kilometers", label: "Kilometer", type: "int", help: "Hin und zurück" }),
       cell({ key: "anreise", label: "Anreise", type: "text" }),
     ],
   }),
@@ -599,7 +607,9 @@ describe("the named signer — the statement in the shape it was filled in", () 
     await screen.findByText("Übernachtungen");
     const asFilledIn = skeleton(editable.container);
     expect(asFilledIn).toContain("Grundlage");
-    expect(asFilledIn).toContain("Kilometer");
+    expect(asFilledIn).toContain("Je Nacht 10 € pro Person.");
+    // A column heading carries its own hint inside it.
+    expect(asFilledIn).toContain("KilometerHin und zurück");
     // There is something to type into on this one, so the comparison below is
     // between a form and its reading rather than between two readings.
     expect(editable.container.querySelectorAll(".answer-group input").length).toBeGreaterThan(0);
