@@ -1160,7 +1160,10 @@ class Statement(CommonModel):
                     )
                 if barred is not None:
                     return _("The section's rules exclude you from this approval step.")
-        elif member is not None and member.pk not in state.eligible:
+        elif member.pk not in state.eligible if member is not None else not state.eligible:
+            # An account with no member record counts only where the group is
+            # not empty, so a step whose every named person a forbid excluded
+            # is one its signature would not have counted on either.
             return _("You may only override an approval step you could sign yourself.")
         if policy.roles:
             holders = RoleAssignment.roles_at()

@@ -248,6 +248,20 @@ class OnlyAStepYouCouldSignTestCase(OverrideTestCase):
         self.assertIsNone(self.refusal("Schatzmeister", None))
         self.assertIsNone(self.refusal("Jugendleitung", None))
 
+    def test_an_account_without_a_member_record_cannot_waive_a_step_all_were_kept_from(self):
+        """Named, and every one of them excluded: not vacant, and nobody's to sign.
+
+        Such an account's signature counts only where the group is not empty,
+        so a step whose every named person a forbid excluded is one it could
+        not have signed — and not the vacant office the exception is for,
+        because the rules did name somebody.
+        """
+        RoleAssignment.objects.create(role="jugendleitung", member=self.payee)
+        state = {s.name: s for s in self.fresh().live_approval_states}["Jugendleitung"]
+        self.assertEqual(state.eligible, (), "the only holder is the one being paid")
+        self.assertTrue(state.excluded, "and the forbid recorded it")
+        self.assertEqual(self.refusal("Jugendleitung", None), _(COULD_NOT_SIGN))
+
     def test_the_payload_offers_exactly_the_steps_that_would_be_taken(self):
         self.assertEqual(self.offered(self.lead), ["Jugendleitung", "Leitung"])
         self.assertEqual(self.offered(self.treasurer), ["Jugendleitung", "Schatzmeister"])
