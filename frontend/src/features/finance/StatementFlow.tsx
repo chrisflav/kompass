@@ -16,7 +16,7 @@ import {
   useToast,
   euro,
 } from "../../components/ui";
-import { AnswerField, DerivedFacts, TYPED_INTO, type Answers } from "./answers";
+import { AnswerSteps, opensWithOneStep, TYPED_INTO, type Answers } from "./answers";
 import { postMultipart } from "./Bills";
 import { Check, EtappenRail, Preflight, type Etappe } from "./stages";
 import type { components } from "../../api/schema";
@@ -24,7 +24,6 @@ import type { components } from "../../api/schema";
 type StatementOut = components["schemas"]["StatementOut"];
 type StatementFormOut = components["schemas"]["StatementFormOut"];
 type InputDeclarationOut = components["schemas"]["InputDeclarationOut"];
-type FormStepOut = components["schemas"]["FormStepOut"];
 type TransferPartyOut = components["schemas"]["TransferPartyOut"];
 type ExcursionBrief = components["schemas"]["ExcursionBrief"];
 type ExcursionOut = components["schemas"]["ExcursionOut"];
@@ -398,13 +397,21 @@ function stepReadout(
     return `${bills.length} · ${euro(billTotal)}`;
   }
   if (s === "reimbursement") {
-    if (!statement) return "—";
-    // What the leg settles, from the resolved transfers rather than from a
-    // count of allowance recipients — which only one section's rules have.
-    const people = statement.transfers.filter((t) => t.destination.kind === "member");
-    return `${people.length} × Erstattung`;
+    return statement ? reimbursementReadout(statement) : "—";
   }
   return statement ? euro(statement.total) : "—";
+}
+
+/**
+ * What the Erstattung leg settles, for the rail — the submitter's and the
+ * review's, which show the same leg.
+ *
+ * From the resolved transfers rather than from a count of allowance
+ * recipients, which only one section's rules have.
+ */
+export function reimbursementReadout(statement: StatementOut): string {
+  const people = statement.transfers.filter((t) => t.destination.kind === "member");
+  return `${people.length} × Erstattung`;
 }
 
 /* --- step 1: what is this for -------------------------------------------- */
@@ -851,7 +858,19 @@ function BillForm({
  * for again after every save, because a ruleset may retire a question once an
  * earlier answer makes it moot (`relevant_inputs`).
  */
-function ErstattungStep({ statement }: { statement: StatementOut }) {
+export function ErstattungStep({
+  statement,
+  readOnly = false,
+}: {
+  statement: StatementOut;
+  /**
+   * The leg as the person signing reads it: the same heading, groups, fields,
+   * tables and payout, with the answers where the controls were. It is this
+   * component and not a rendering of its own, so that the only difference
+   * between the two surfaces is that one of them can be typed into.
+   */
+  readOnly?: boolean;
+}) {
   const formQ = useStatementForm(statement);
   // Whether the rules are, for now, asking only the form's opening step.
   //
@@ -868,7 +887,13 @@ function ErstattungStep({ statement }: { statement: StatementOut }) {
           : "Diese Fragen stellt die Finanzordnung der Sektion. Die Beträge rechnet Kompass daraus selbst aus."}
       </p>
       <QueryBoundary query={formQ}>
-        {(form) => <AnswerForm statement={statement} form={form} />}
+        {(form) =>
+          readOnly ? (
+            <AnswerSteps form={form} answers={form.answers} readOnly />
+          ) : (
+            <AnswerForm statement={statement} form={form} />
+          )
+        }
       </QueryBoundary>
       {/* No preview while the rules have not been told which rules. Every
           figure is a reading of an answer nobody has given yet, so "Noch
@@ -877,33 +902,6 @@ function ErstattungStep({ statement }: { statement: StatementOut }) {
       {!opening && <PayoutPreview statement={statement} />}
     </section>
   );
-}
-
-/**
- * Whether `form` is the **opening step** of a longer form rather than all of it.
- *
- * A ruleset may narrow its own form down to the one question that decides what
- * else is worth asking: Ludwigsburg settles under one of two travel-cost
- * policies, and until that is answered a night is neither a receipt nor a
- * Pauschale and a kilometre has no rate — so `relevant_inputs` asks that and
- * nothing else. The backend needs nothing extra to say so and this needs
- * nothing extra to read it: `steps` already partitions the whole form into the
- * groups the rules named, so **one named step is a form that has more groups
- * than it is currently showing**.
- *
- * The label is what carries it. A ruleset that names no steps comes back as a
- * single step labelled `""` (Heidelberg, and every form that was a flat list
- * before there were steps), and that is emphatically *not* an opening step —
- * it is the whole form, and it is laid out exactly as it always was. So the
- * degenerate case needs no branch of its own: it simply never matches.
- *
- * What this is not: a second wizard. It changes the wording and takes away a
- * preview of figures that cannot exist yet. Weiter still goes where it went,
- * because what may be handed in is `/preflight`'s answer and not this
- * client's — the rules already refuse a statement with no Regelwerk, by name.
- */
-function opensWithOneStep(form: StatementFormOut): boolean {
-  return form.steps.length === 1 && form.steps[0].label !== "";
 }
 
 /** How long a typed-into field waits before it becomes a request. */
@@ -1061,99 +1059,7 @@ function AnswerForm({ statement, form }: { statement: StatementOut; form: Statem
     }
   }
 
-  if (form.inputs.length === 0) {
-    return <p className="muted">Für diese Abrechnung fragen die Regeln nichts ab.</p>;
-  }
-  const opening = opensWithOneStep(form);
-  return (
-    <>
-      {form.steps.map((step) => (
-        <AnswerGroup
-          key={step.label}
-          step={step}
-          opening={opening}
-          form={form}
-          answers={answers}
-          errors={errors}
-          onChange={change}
-        />
-      ))}
-    </>
-  );
-}
-
-/**
- * One group of questions, as the ruleset grouped them.
- *
- * `steps` always partitions the whole form, so this is the only way the form is
- * laid out — including the degenerate case, a ruleset that named no steps,
- * which comes back as a single group with an empty label and reads as the flat
- * list it was before there were steps.
- *
- * Sections and not pages, deliberately. This form is already one leg of a
- * wizard (`EtappenRail`), and a second wizard inside it would make "Weiter"
- * mean two different things on one screen — and hide questions behind a step
- * the person cannot see they still have to answer. The backend is of the same
- * mind: `steps` carries a label and its keys and nothing else, no page state
- * and no notion of a step being finished.
- *
- * The readings come first within a group: what the trip says, then what it
- * leaves to be answered.
- *
- * `opening` says this group is the form's first step and the rest is waiting on
- * it (`opensWithOneStep`). It is still a section and still not a page — what it
- * adds is a frame and one sentence, because a form showing a single question
- * with nothing under it reads as a page that failed to load rather than as a
- * question that decides the others.
- */
-function AnswerGroup({
-  step,
-  opening,
-  form,
-  answers,
-  errors,
-  onChange,
-}: {
-  step: FormStepOut;
-  opening: boolean;
-  form: StatementFormOut;
-  answers: Answers;
-  errors: Record<string, string[]>;
-  onChange: (declaration: InputDeclarationOut, value: unknown) => void;
-}) {
-  const declared = step.keys
-    .map((key) => form.inputs.find((declaration) => declaration.key === key))
-    .filter((declaration): declaration is InputDeclarationOut => declaration !== undefined);
-  const derived = declared.filter((declaration) => declaration.derived);
-  const asked = declared.filter((declaration) => !declaration.derived);
-  return (
-    <section className={opening ? "answer-group answer-opening" : "answer-group"}>
-      {step.label && <h3 className="answer-group-title">{step.label}</h3>}
-      {derived.length > 0 && (
-        // Read from `form.answers` rather than from the draft: a derived figure
-        // is resolved again on every request and nothing stores it, so the form
-        // as served is the only place it is current.
-        <DerivedFacts declarations={derived} answers={form.answers} />
-      )}
-      {asked.map((declaration) => (
-        <AnswerField
-          key={declaration.key}
-          declaration={declaration}
-          value={answers[declaration.key]}
-          // The whole map, not this key's messages: a table's refusals are
-          // keyed by a path into it (`"reisen[1].kilometers"`), so where a
-          // message lands is the renderer's business and not the form's.
-          errors={errors}
-          onChange={(value) => onChange(declaration, value)}
-        />
-      ))}
-      {opening && (
-        <p className="answer-opening-note">
-          Die weiteren Fragen erscheinen, sobald dieser Schritt beantwortet ist.
-        </p>
-      )}
-    </section>
-  );
+  return <AnswerSteps form={form} answers={answers} errors={errors} onChange={change} />;
 }
 
 /** Who the section is paying, as the engine resolved it. */
@@ -1273,7 +1179,7 @@ function AbschlussStep({ statement }: { statement: StatementOut }) {
  * a statement whose rules ask nothing has no Erstattung leg. One key, so the
  * two are never out of step and only one request goes out.
  */
-function useStatementForm(statement: StatementOut | null) {
+export function useStatementForm(statement: StatementOut | null) {
   return useApiQuery(
     ["finance", "statements", statement?.id ?? 0, "form"],
     () =>

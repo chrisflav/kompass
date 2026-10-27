@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import { Button, decimal, euro, Field, MultiSelect, Select } from "../../components/ui";
 import type { components } from "../../api/schema";
@@ -8,6 +8,7 @@ type InputFieldOut = components["schemas"]["InputFieldOut"];
 type InputOptionOut = components["schemas"]["InputOptionOut"];
 type InputChoiceOut = components["schemas"]["InputChoiceOut"];
 type StatementFormOut = components["schemas"]["StatementFormOut"];
+type FormStepOut = components["schemas"]["FormStepOut"];
 
 // The widget vocabulary, as a renderer.
 //
@@ -39,6 +40,16 @@ type StatementFormOut = components["schemas"]["StatementFormOut"];
 // mode of travel — so the mode and the distance belong together, per
 // traveller, in a row. `RowsField` lays the table out and every cell goes
 // through the same `control` a question of that type would have.
+//
+// And **one rendering for the person answering and the person signing.** The
+// signer used to read the answers through a layout of their own — a list of
+// terms appended under the approval record — while the submitter answered them
+// in groups, fields and tables. The same content in two shapes is two things
+// to keep in step with the rules, and it asks the signer to recognise a
+// statement they have never seen laid out that way. So the form is rendered
+// once, by `AnswerSteps`, and `readOnly` is the whole of the difference: every
+// group, label, hint, derived reading and table column is where the submitter
+// had it, and each control is replaced by what was answered in it.
 
 /** The answers a statement carries, as `GET …/form` hands them over. */
 export type Answers = Record<string, unknown>;
@@ -202,122 +213,6 @@ export function DerivedFacts({
 }
 
 /**
- * The whole form as a reading: the questions, the answers, nothing to change.
- *
- * A signer is asked to approve a payout, and under a ruleset like
- * Ludwigsburg's the payout is almost entirely a *consequence* of the answers —
- * the Regelwerk the trip was run under, the journeys, the nights, the hours.
- * The approval surface showed the bills and the bookings and none of that, so
- * the question it asked was "do you accept this arithmetic" when the question
- * it meant was "do you accept the statement".
- *
- * It renders `GET …/form` and not a payload of its own, which is the point:
- * the signer reads the questions, the labels and the grouping into steps
- * exactly as the person filling them in saw them, because it is the same
- * declarations through the same `answerText`. A section that starts asking
- * something else is read here without a line changing, for the same reason the
- * form is.
- *
- * A `derived` answer gets no special frame here. On the form it does
- * ({@link DerivedFacts}), because there the distinction is "you may type this"
- * against "you may not"; to a reader there is no such distinction — the
- * kilometres are the kilometres — and inventing one would say that half the
- * statement is of a different kind.
- */
-export function AnsweredForm({ form }: { form: StatementFormOut }) {
-  if (form.inputs.length === 0) {
-    return <p className="muted">Für diese Abrechnung fragen die Regeln nichts ab.</p>;
-  }
-  return (
-    <>
-      {form.steps.map((step) => {
-        // `steps` partitions the whole form, so this is the only layout there
-        // is — including the unnamed single step a ruleset without steps comes
-        // back as, which reads as the flat list it is.
-        const declared = step.keys
-          .map((key) => form.inputs.find((declaration) => declaration.key === key))
-          .filter((declaration): declaration is InputDeclarationOut => declaration !== undefined);
-        // A table is a block and not a cell: the readout's columns are a few
-        // characters wide, which is right for a figure and unreadable for five
-        // journeys. The same split the editable form makes, for the same
-        // reason — `RowsField` is its own block there too.
-        const tables = declared.filter((declaration) => declaration.type === "rows");
-        const figures = declared.filter((declaration) => declaration.type !== "rows");
-        return (
-          <section className="answer-group" key={step.label}>
-            {step.label && <h4 className="answer-group-title">{step.label}</h4>}
-            {figures.length > 0 && (
-              <div className="readout">
-                <dl>
-                  {figures.map((declaration) => (
-                    <div key={declaration.key}>
-                      <dt>{declaration.label}</dt>
-                      <dd>{answerText(declaration, form.answers[declaration.key])}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            )}
-            {tables.map((declaration) => (
-              <div className="field rows-field" key={declaration.key}>
-                <span className="field-label">{declaration.label}</span>
-                <AnsweredRows declaration={declaration} value={form.answers[declaration.key]} />
-              </div>
-            ))}
-          </section>
-        );
-      })}
-    </>
-  );
-}
-
-/**
- * A table's answer as a reading: one line per row, the cells in their columns.
- *
- * Every cell goes through the same `answerText` the question of that type does,
- * via the same `cellOf` the editable table uses — so a travel row reads the way
- * it was entered rather than as the JSON it is stored as.
- */
-function AnsweredRows({
-  declaration,
-  value,
-}: {
-  declaration: InputDeclarationOut;
-  value: unknown;
-}) {
-  const rows = rowsOf(value);
-  if (rows.length === 0) {
-    return <span className="muted">keine Zeile</span>;
-  }
-  return (
-    <div className="table-wrap rows-wrap">
-      <table className="rows-table">
-        <thead>
-          <tr>
-            {declaration.fields.map((field) => (
-              <th scope="col" key={field.key}>
-                {field.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index}>
-              {declaration.fields.map((field) => (
-                <td key={field.key} data-label={field.label} className="rows-cell">
-                  {answerText(cellOf(declaration, field), row[field.key])}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/**
  * One question, as the control its declaration asks for.
  *
  * `errors` is the whole map the `422` carries rather than this question's own
@@ -331,6 +226,7 @@ export function AnswerField({
   value,
   onChange,
   errors,
+  readOnly = false,
 }: {
   declaration: InputDeclarationOut;
   value: unknown;
@@ -338,6 +234,8 @@ export function AnswerField({
   onChange: (next: unknown) => void;
   /** The `422`'s own map, keyed by path. */
   errors?: Record<string, string[]>;
+  /** Show what was answered where the control would be, and change nothing. */
+  readOnly?: boolean;
 }) {
   if (declaration.type === "rows") {
     return (
@@ -346,7 +244,15 @@ export function AnswerField({
         value={value}
         onChange={onChange}
         errors={errors ?? {}}
+        readOnly={readOnly}
       />
+    );
+  }
+  if (readOnly) {
+    return (
+      <ReadOnlyField label={declaration.label} hint={declaration.help || undefined}>
+        {answerText(declaration, value)}
+      </ReadOnlyField>
     );
   }
   const own = errors?.[declaration.key];
@@ -355,6 +261,32 @@ export function AnswerField({
       {control(declaration, value, onChange)}
       {own && <div className="field-error">{own.join(" ")}</div>}
     </Field>
+  );
+}
+
+/**
+ * `Field`, with the answer where its control would be.
+ *
+ * The same frame and the same three parts in the same order — label, value,
+ * hint — so a question reads in the place and the voice the person answering
+ * it saw. Not a `<label>`, which is what `Field` is: there is no control here
+ * for it to name.
+ */
+function ReadOnlyField({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="field field-readonly">
+      <span className="field-label">{label}</span>
+      <span className="field-value">{children}</span>
+      {hint && <span className="field-hint">{hint}</span>}
+    </div>
   );
 }
 
@@ -382,11 +314,14 @@ function RowsField({
   value,
   onChange,
   errors,
+  readOnly,
 }: {
   declaration: InputDeclarationOut;
   value: unknown;
   onChange: (next: unknown) => void;
   errors: Record<string, string[]>;
+  /** The same grid with every cell read out, and nothing to add or remove. */
+  readOnly: boolean;
 }) {
   const rows = rowsOf(value);
   // `max` on a table is the number of rows. A cell's own ceiling is on the
@@ -417,8 +352,11 @@ function RowsField({
       {declaration.help && <span className="field-hint">{declaration.help}</span>}
       {rows.length === 0 ? (
         // An empty table is an unanswered question and never an error, so this
-        // says what to do rather than what is missing.
-        <p className="rows-empty">Noch keine Zeile — unten die erste anlegen.</p>
+        // says what to do rather than what is missing — and to a reader, who
+        // has nothing to do, only that there is none.
+        <p className="rows-empty">
+          {readOnly ? "Keine Zeile." : "Noch keine Zeile — unten die erste anlegen."}
+        </p>
       ) : (
         <div className="table-wrap rows-wrap">
           <table className="rows-table">
@@ -433,7 +371,7 @@ function RowsField({
                     {field.help && <span className="rows-th-help">{field.help}</span>}
                   </th>
                 ))}
-                <th scope="col" className="rows-drop" />
+                {!readOnly && <th scope="col" className="rows-drop" />}
               </tr>
             </thead>
             <tbody>
@@ -457,16 +395,19 @@ function RowsField({
                             data-label={field.label}
                             className={problem ? "rows-cell has-error" : "rows-cell"}
                           >
-                            {control(
-                              cell,
-                              row[field.key],
-                              (next) => edit(index, field.key, next),
-                              `${field.label}, Zeile ${index + 1}`,
-                            )}
+                            {readOnly
+                              ? answerText(cell, row[field.key])
+                              : control(
+                                  cell,
+                                  row[field.key],
+                                  (next) => edit(index, field.key, next),
+                                  `${field.label}, Zeile ${index + 1}`,
+                                )}
                             {problem && <div className="field-error">{problem.join(" ")}</div>}
                           </td>
                         );
                       })}
+                      {!readOnly && (
                       <td className="rows-drop">
                         <button
                           type="button"
@@ -477,10 +418,11 @@ function RowsField({
                           ×
                         </button>
                       </td>
+                      )}
                     </tr>
                     {rowErrors && (
                       <tr className="rows-row-error">
-                        <td colSpan={declaration.fields.length + 2}>
+                        <td colSpan={declaration.fields.length + (readOnly ? 1 : 2)}>
                           <div className="field-error">{rowErrors.join(" ")}</div>
                         </td>
                       </tr>
@@ -492,12 +434,14 @@ function RowsField({
           </table>
         </div>
       )}
-      <div className="rows-actions">
-        <Button variant="ghost" onClick={add} disabled={full}>
-          + Zeile hinzufügen
-        </Button>
-        {full && <span className="field-hint">Höchstens {limit} Zeilen.</span>}
-      </div>
+      {!readOnly && (
+        <div className="rows-actions">
+          <Button variant="ghost" onClick={add} disabled={full}>
+            + Zeile hinzufügen
+          </Button>
+          {full && <span className="field-hint">Höchstens {limit} Zeilen.</span>}
+        </div>
+      )}
       {own && <div className="field-error">{own.join(" ")}</div>}
     </div>
   );
@@ -593,5 +537,152 @@ function control(
       value={blank(value) ? "" : String(value)}
       onChange={(e) => onChange(e.target.value)}
     />
+  );
+}
+
+/**
+ * Whether `form` is the **opening step** of a longer form rather than all of it.
+ *
+ * A ruleset may narrow its own form down to the one question that decides what
+ * else is worth asking: Ludwigsburg settles under one of two travel-cost
+ * policies, and until that is answered a night is neither a receipt nor a
+ * Pauschale and a kilometre has no rate — so `relevant_inputs` asks that and
+ * nothing else. The backend needs nothing extra to say so and this needs
+ * nothing extra to read it: `steps` already partitions the whole form into the
+ * groups the rules named, so **one named step is a form that has more groups
+ * than it is currently showing**.
+ *
+ * The label is what carries it. A ruleset that names no steps comes back as a
+ * single step labelled `""` (Heidelberg, and every form that was a flat list
+ * before there were steps), and that is emphatically *not* an opening step —
+ * it is the whole form, and it is laid out exactly as it always was. So the
+ * degenerate case needs no branch of its own: it simply never matches.
+ *
+ * What this is not: a second wizard. It changes the wording and takes away a
+ * preview of figures that cannot exist yet. Weiter still goes where it went,
+ * because what may be handed in is `/preflight`'s answer and not this
+ * client's — the rules already refuse a statement with no Regelwerk, by name.
+ */
+export function opensWithOneStep(form: StatementFormOut): boolean {
+  return form.steps.length === 1 && form.steps[0].label !== "";
+}
+
+/**
+ * The section's questions, in the groups its rules put them in.
+ *
+ * The one rendering of the form, for both of the people who read it: the
+ * person answering, who gets the controls, and the person signing, who gets
+ * `readOnly` and the same groups, labels and tables with the answers in them.
+ * See the note at the top of this file for why there are not two.
+ */
+export function AnswerSteps({
+  form,
+  answers,
+  errors = {},
+  onChange = () => {},
+  readOnly = false,
+}: {
+  form: StatementFormOut;
+  answers: Answers;
+  errors?: Record<string, string[]>;
+  onChange?: (declaration: InputDeclarationOut, value: unknown) => void;
+  readOnly?: boolean;
+}) {
+  if (form.inputs.length === 0) {
+    return <p className="muted">Für diese Abrechnung fragen die Regeln nichts ab.</p>;
+  }
+  const opening = opensWithOneStep(form);
+  return (
+    <>
+      {form.steps.map((step) => (
+        <AnswerGroup
+          key={step.label}
+          step={step}
+          opening={opening}
+          form={form}
+          answers={answers}
+          errors={errors}
+          onChange={onChange}
+          readOnly={readOnly}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
+ * One group of questions, as the ruleset grouped them.
+ *
+ * `steps` always partitions the whole form, so this is the only way the form is
+ * laid out — including the degenerate case, a ruleset that named no steps,
+ * which comes back as a single group with an empty label and reads as the flat
+ * list it was before there were steps.
+ *
+ * Sections and not pages, deliberately. This form is already one leg of a
+ * wizard (`EtappenRail`), and a second wizard inside it would make "Weiter"
+ * mean two different things on one screen — and hide questions behind a step
+ * the person cannot see they still have to answer. The backend is of the same
+ * mind: `steps` carries a label and its keys and nothing else, no page state
+ * and no notion of a step being finished.
+ *
+ * The readings come first within a group: what the trip says, then what it
+ * leaves to be answered.
+ *
+ * `opening` says this group is the form's first step and the rest is waiting on
+ * it (`opensWithOneStep`). It is still a section and still not a page — what it
+ * adds is a frame and one sentence, because a form showing a single question
+ * with nothing under it reads as a page that failed to load rather than as a
+ * question that decides the others.
+ */
+function AnswerGroup({
+  step,
+  opening,
+  form,
+  answers,
+  errors,
+  onChange,
+  readOnly,
+}: {
+  step: FormStepOut;
+  opening: boolean;
+  form: StatementFormOut;
+  answers: Answers;
+  errors: Record<string, string[]>;
+  onChange: (declaration: InputDeclarationOut, value: unknown) => void;
+  readOnly: boolean;
+}) {
+  const declared = step.keys
+    .map((key) => form.inputs.find((declaration) => declaration.key === key))
+    .filter((declaration): declaration is InputDeclarationOut => declaration !== undefined);
+  const derived = declared.filter((declaration) => declaration.derived);
+  const asked = declared.filter((declaration) => !declaration.derived);
+  return (
+    <section className={opening ? "answer-group answer-opening" : "answer-group"}>
+      {step.label && <h3 className="answer-group-title">{step.label}</h3>}
+      {derived.length > 0 && (
+        // Read from `form.answers` rather than from the draft: a derived figure
+        // is resolved again on every request and nothing stores it, so the form
+        // as served is the only place it is current.
+        <DerivedFacts declarations={derived} answers={form.answers} />
+      )}
+      {asked.map((declaration) => (
+        <AnswerField
+          key={declaration.key}
+          declaration={declaration}
+          value={answers[declaration.key]}
+          // The whole map, not this key's messages: a table's refusals are
+          // keyed by a path into it (`"reisen[1].kilometers"`), so where a
+          // message lands is the renderer's business and not the form's.
+          errors={errors}
+          onChange={(value) => onChange(declaration, value)}
+          readOnly={readOnly}
+        />
+      ))}
+      {opening && !readOnly && (
+        <p className="answer-opening-note">
+          Die weiteren Fragen erscheinen, sobald dieser Schritt beantwortet ist.
+        </p>
+      )}
+    </section>
   );
 }

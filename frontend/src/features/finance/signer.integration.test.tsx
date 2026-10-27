@@ -2,7 +2,9 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { api, http, HttpResponse, server, useMe } from "../../test/server";
-import { renderRoute } from "../../test/utils";
+import { renderRoute, renderWithApp } from "../../test/utils";
+import { ErstattungStep } from "./StatementFlow";
+import type { components } from "../../api/schema";
 
 /**
  * The review pipeline as the person the rules named sees it.
@@ -66,6 +68,8 @@ function statement(overrides: Record<string, unknown> = {}) {
     validity: 0,
     validity_display: "Alles korrekt.",
     transaction_issues: [],
+    // The rail reads them for the Erstattung leg, which the review shows now.
+    transfers: [],
     excursion: null,
     created_by: MILA,
     submitted_by: MILA,
@@ -283,14 +287,20 @@ async function kontoCell(): Promise<HTMLElement> {
 /**
  * Every question on screen against its answer, as the signer reads them.
  *
- * Scoped to the answer groups, because the approval record above them states
- * its own facts the same way — who may sign, who has, what is still verlangt —
- * and the two are different surfaces about different things.
+ * Read off the submitter's own rendering, because that is what she is shown:
+ * a reading of the trip as the `DerivedFacts` the form states it in, and a
+ * question as its field, with the answer where the control was. Scoped to the
+ * answer groups, so nothing else that states facts as terms is mistaken for an
+ * answer.
  */
 function readings(): Record<string, string> {
   const pairs: Record<string, string> = {};
   for (const term of document.querySelectorAll(".answer-group dt")) {
     pairs[term.textContent ?? ""] = term.nextElementSibling?.textContent ?? "";
+  }
+  for (const field of document.querySelectorAll(".answer-group .field-readonly")) {
+    const label = field.querySelector(".field-label")?.textContent ?? "";
+    pairs[label] = field.querySelector(".field-value")?.textContent ?? "";
   }
   return pairs;
 }
@@ -359,7 +369,7 @@ describe("the named signer — the account on the booking", () => {
 
 describe("the named signer — the statement, not only its arithmetic", () => {
   it("shows the questions and the answers the payout was computed from", async () => {
-    openAsSigner("payout");
+    openAsSigner("reimbursement");
 
     // The grouping is the ruleset's own, so she reads the questions as the
     // person filling them in saw them.
@@ -383,7 +393,7 @@ describe("the named signer — the statement, not only its arithmetic", () => {
   });
 
   it("reads a travel table as rows rather than as the JSON it is stored as", async () => {
-    openAsSigner("payout");
+    openAsSigner("reimbursement");
 
     const table = (await screen.findByText("Fahrten")).closest("div")
       ?.querySelector("table.rows-table") as HTMLElement;
@@ -397,11 +407,25 @@ describe("the named signer — the statement, not only its arithmetic", () => {
   });
 
   it("asks nothing of a ruleset that asks nothing, and says so", async () => {
-    openAsSigner("payout", {
+    openAsSigner("reimbursement", {
       form: () => HttpResponse.json({ statement_id: 39, inputs: [], steps: [], answers: {} }),
     });
     expect(
       await screen.findByText("Für diese Abrechnung fragen die Regeln nichts ab."),
+    ).toBeInTheDocument();
+  });
+
+  it("says the answers are missing when they cannot be loaded", async () => {
+    openAsSigner("reimbursement", {
+      form: () =>
+        HttpResponse.json({ detail: "Die Angaben sind nicht lesbar." }, { status: 500 }),
+    });
+    // The leg says it is missing, in the voice the API's refusals are reported
+    // in, rather than rendering an empty frame.
+    expect(
+      await screen.findByText(
+        "Serverfehler — die Aktion konnte nicht ausgeführt werden. Bitte versuche es erneut.",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -410,16 +434,9 @@ describe("the named signer — the statement, not only its arithmetic", () => {
       form: () =>
         HttpResponse.json({ detail: "Die Angaben sind nicht lesbar." }, { status: 500 }),
     });
-    // The section says it is missing, in the voice the API's refusals are
-    // reported in, rather than rendering an empty frame.
-    expect(
-      await screen.findByText(
-        "Serverfehler — die Aktion konnte nicht ausgeführt werden. Bitte versuche es erneut.",
-      ),
-    ).toBeInTheDocument();
-    // And the leg is everything it always was: the record above and the
-    // transfers below do not depend on this.
-    expect(screen.getByText("Die zuständige Ressortleitung")).toBeInTheDocument();
+    // The Freigabe leg is everything it always was: the record and the
+    // transfers do not depend on the answers, and the answers are not on it.
+    expect(await screen.findByText("Die zuständige Ressortleitung")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Übergabe an die Geschäftsstelle" }),
     ).toBeInTheDocument();
@@ -540,5 +557,92 @@ describe("the named signer — and somebody the rules did not name", () => {
     expect(
       screen.queryByRole("button", { name: "Zur Auszahlung übergeben" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("the named signer — the statement in the shape it was filled in", () => {
+  /**
+   * What gives the leg its shape, in document order: the heading, the groups,
+   * every label and hint, the readings of the trip and the table's columns.
+   * Everything but the controls, which is the one thing that may differ.
+   */
+  function skeleton(root: HTMLElement): string[] {
+    const shape =
+      "h2, .answer-group-title, .field-label, .field-hint, .readout-caption, .readout dt, .rows-table th";
+    return [...root.querySelectorAll(shape)]
+      .map((node) => node.textContent?.trim() ?? "")
+      .filter((text) => text !== "");
+  }
+
+  /** The submitter's Erstattung leg on its own, editable or not. */
+  function renderLeg(readOnly: boolean) {
+    useMe({ member_id: MELISSA.id, name: MELISSA.name });
+    server.use(
+      http.get(api("/api/finance/statements/39/form"), () => HttpResponse.json(FORM)),
+      http.get(api("/api/members/"), () => HttpResponse.json([MILA, MELISSA])),
+    );
+    const subject = statement() as unknown as components["schemas"]["StatementOut"];
+    return renderWithApp(<ErstattungStep statement={subject} readOnly={readOnly} />);
+  }
+
+  /** The labels on the review's rail, in order. */
+  function rail(): string[] {
+    return [...document.querySelectorAll(".etappe-label")].map(
+      (label) => label.textContent?.replace(/^\d+/, "").trim() ?? "",
+    );
+  }
+
+  it("is the submitter's own leg, with the answers where the controls were", async () => {
+    const editable = renderLeg(false);
+    await screen.findByText("Übernachtungen");
+    const asFilledIn = skeleton(editable.container);
+    expect(asFilledIn).toContain("Grundlage");
+    expect(asFilledIn).toContain("Kilometer");
+    // There is something to type into on this one, so the comparison below is
+    // between a form and its reading rather than between two readings.
+    expect(editable.container.querySelectorAll(".answer-group input").length).toBeGreaterThan(0);
+    editable.unmount();
+
+    const reading = renderLeg(true);
+    await screen.findByText("Übernachtungen");
+    // The same structure, to the label: editability is the only difference.
+    expect(skeleton(reading.container)).toEqual(asFilledIn);
+    // And that difference is total: nothing on it can be changed.
+    expect(
+      reading.container.querySelectorAll(
+        ".answer-group input, .answer-group select, .answer-group textarea, .answer-group button",
+      ),
+    ).toHaveLength(0);
+    expect(readings()).toMatchObject({ Übernachtungen: "3", "Tagegeld an": "Mila Nowak" });
+  });
+
+  it("is a leg of the review, where the submitter's flow has it", async () => {
+    openAsSigner("expenses");
+    // After the receipts, before anything is booked — and not appended under
+    // the signatures, where it used to be a layout of its own.
+    await waitFor(() => expect(rail()).toEqual(["Prüfen", "Erstattung", "Buchungen", "Freigabe"]));
+  });
+
+  it("takes the answers off the Freigabe leg", async () => {
+    openAsSigner("payout");
+    expect(await screen.findByText("Die zuständige Ressortleitung")).toBeInTheDocument();
+    expect(document.querySelector(".answer-group")).toBeNull();
+    expect(screen.queryByText("Angaben zur Abrechnung")).not.toBeInTheDocument();
+  });
+
+  it("has no Erstattung leg under rules that ask nothing", async () => {
+    openAsSigner("payout", {
+      form: () => HttpResponse.json({ statement_id: 39, inputs: [], steps: [], answers: {} }),
+    });
+    await screen.findByText("Die zuständige Ressortleitung");
+    await waitFor(() => expect(rail()).toEqual(["Prüfen", "Buchungen", "Freigabe"]));
+  });
+
+  it("reads a table without a row to add or remove", async () => {
+    openAsSigner("reimbursement");
+    const table = (await screen.findByText("Fahrten")).closest(".rows-field") as HTMLElement;
+    expect(within(table).getByText("212")).toBeInTheDocument();
+    expect(within(table).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(table).queryByText("+ Zeile hinzufügen")).not.toBeInTheDocument();
   });
 });

@@ -22,7 +22,6 @@ import {
   useToast,
   euro,
 } from "../../components/ui";
-import { AnsweredForm } from "./answers";
 import {
   ApprovalRecord,
   outstandingText,
@@ -31,13 +30,14 @@ import {
 } from "./approval";
 import { EtappenRail, type Etappe } from "./stages";
 import { payoutWords, type PayoutWords } from "./payout";
+import { ErstattungStep, reimbursementReadout, useStatementForm } from "./StatementFlow";
 import type { components } from "../../api/schema";
 
 type StatementOut = components["schemas"]["StatementOut"];
 type BillBrief = components["schemas"]["BillBrief"];
 type TransactionOut = components["schemas"]["TransactionOut"];
 
-type StageId = "expenses" | "bookings" | "payout";
+type StageId = "expenses" | "reimbursement" | "bookings" | "payout";
 
 const STATEMENTS = "/kompass/finance/statements";
 
@@ -166,23 +166,46 @@ function StatementReview({ statement }: { statement: StatementOut }) {
   // The pipeline is ordered by dependency: bookings need decided expenses, and
   // paying needs bookings that reconcile. Skipping ahead is what produced
   // half-processed statements in the old all-at-once modal.
-  const stages: StageId[] = ["expenses", "bookings", "payout"];
+  //
+  // The answers are a leg of their own, in the place the submitter's flow has
+  // them — after the receipts, before anything is booked — and it is the
+  // submitter's leg (`ErstattungStep`), read-only. They used to be appended
+  // under the signatures on the last leg, in a layout of their own, so the
+  // person signing read the statement in a shape nobody had filled it in.
+  //
+  // Whether the leg exists is asked of the rules exactly as the flow asks it:
+  // only a form known to ask nothing retires it, and never out from under
+  // somebody standing on it.
+  const requested = (params.get("stage") ?? "expenses") as StageId;
+  const formQ = useStatementForm(statement);
+  const asksNothing = formQ.data !== undefined && formQ.data.inputs.length === 0;
+  const stages: StageId[] =
+    asksNothing && requested !== "reimbursement"
+      ? ["expenses", "bookings", "payout"]
+      : ["expenses", "reimbursement", "bookings", "payout"];
   const reachable: Record<StageId, boolean> = {
     expenses: true,
+    reimbursement: true,
     bookings: true,
     payout: payable || signable,
   };
-  const requested = (params.get("stage") ?? "expenses") as StageId;
   const stage: StageId = stages.includes(requested) && reachable[requested] ? requested : "expenses";
   const goto = (next: StageId) => setParams({ stage: next });
 
   const etappen: Etappe[] = stages.map((s) => ({
     id: s,
-    label: { expenses: "Prüfen", bookings: "Buchungen", payout: "Freigabe" }[s],
+    label: {
+      expenses: "Prüfen",
+      reimbursement: "Erstattung",
+      bookings: "Buchungen",
+      payout: "Freigabe",
+    }[s],
     readout:
       s === "expenses"
         ? `${covered.length}/${statement.bills.length} · ${euro(coveredTotal)}`
-        : s === "bookings"
+        : s === "reimbursement"
+          ? reimbursementReadout(statement)
+          : s === "bookings"
           ? transactions.length === 0
             ? "keine"
             : `${transactions.length} · ${euro(txTotal)}`
@@ -288,6 +311,7 @@ function StatementReview({ statement }: { statement: StatementOut }) {
             invalidate={invalidate}
           />
         )}
+        {stage === "reimbursement" && <ErstattungStep statement={statement} readOnly />}
         {stage === "bookings" && (
           <BuchungenStage
             statement={statement}
@@ -1002,8 +1026,6 @@ function FreigabeStage({
         <p className="muted">{approvalError ?? "Freigaben werden geladen …"}</p>
       )}
 
-      <Angaben statement={statement} />
-
       <h3 className="fieldset-title">{words.heading}</h3>
       <p className="flow-lead">
         {statement.confirmed
@@ -1085,56 +1107,6 @@ function FreigabeStage({
         </label>
       )}
     </section>
-  );
-}
-
-/**
- * The statement itself, where it is signed off.
- *
- * This surface showed the bills and the bookings and **none of the answers** —
- * no Regelwerk, no travel rows, no nights, hours or Tagegeld. Under a ruleset
- * that asks for most of the statement in answers, that is a signer asked to
- * release a payout while being shown only its arithmetic, never the facts it
- * was computed from. Which is not a signature anybody can give honestly.
- *
- * It is `GET …/form` and {@link AnsweredForm}, which is how the flow renders
- * the same questions, so the signer reads them as the person filling them in
- * saw them: same declarations, same labels, same grouping into steps, no
- * controls. A second rendering here would be a second thing to keep in step
- * with the rules.
- *
- * It sits between the signatures and the money, in the open, because that is
- * the order the act has: who has to sign, what is being signed, what it pays
- * out. Behind a tab it would be a thing a signer may consult, and the defect
- * was precisely that consulting it was optional.
- *
- * A refusal says so in a line rather than taking the payout with it: the
- * signatures above and the transfers below are what this leg has always been,
- * and neither depends on this.
- */
-function Angaben({ statement }: { statement: StatementOut }) {
-  const query = useApiQuery(["finance", "statements", statement.id, "form"], () =>
-    unwrap(
-      client.GET("/api/finance/statements/{statement_id}/form", {
-        params: { path: { statement_id: statement.id } },
-      }),
-    ),
-  );
-  return (
-    <>
-      <h3 className="fieldset-title">Angaben zur Abrechnung</h3>
-      <p className="flow-lead">
-        Was die Regeln zu dieser Abrechnung gefragt haben und was geantwortet wurde — die
-        Grundlage der Beträge weiter unten.
-      </p>
-      {query.data ? (
-        <AnsweredForm form={query.data} />
-      ) : (
-        <p className="muted">
-          {query.error ? query.error.message : "Angaben werden geladen …"}
-        </p>
-      )}
-    </>
   );
 }
 

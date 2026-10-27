@@ -2769,10 +2769,16 @@ describe("review pipeline", () => {
 
   it("walks forward and back through the stages", async () => {
     const { user } = openStage("expenses", { bills: [bill()] }, [TRANSACTION]);
+    // The answers come after the receipts, where the submitter's flow has
+    // them, and before anything is booked.
     await user.click(await screen.findByRole("button", { name: "Weiter" }));
+    expect(await screen.findByRole("heading", { name: "Wer bekommt was?" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
     expect(await screen.findByRole("heading", { name: "Buchungen" })).toBeInTheDocument();
 
     const nav = within(document.querySelector(".flow-nav") as HTMLElement);
+    await user.click(nav.getByRole("button", { name: "Zurück" }));
+    expect(await screen.findByRole("heading", { name: "Wer bekommt was?" })).toBeInTheDocument();
     await user.click(nav.getByRole("button", { name: "Zurück" }));
     expect(await screen.findByRole("heading", { name: "Ausgaben prüfen" })).toBeInTheDocument();
   });

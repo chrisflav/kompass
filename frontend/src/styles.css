@@ -4289,6 +4289,12 @@ a.tab {
   cursor: pointer;
 }
 
+/* A question read rather than answered: the field's own frame, with the
+   answer where the control would be. */
+.field-readonly .field-value {
+  font-variant-numeric: tabular-nums;
+}
+
 .mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;

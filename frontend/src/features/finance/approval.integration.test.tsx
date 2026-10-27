@@ -55,6 +55,8 @@ function statement(overrides: Record<string, unknown> = {}) {
     validity: 0,
     validity_display: "Gültig",
     transaction_issues: [],
+    // The rail reads them for the Erstattung leg, which the review shows now.
+    transfers: [],
     excursion: null,
     created_by: MILA,
     submitted_by: MILA,
