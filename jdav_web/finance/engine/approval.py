@@ -161,7 +161,7 @@ def resolve_eligibility(
     if not candidates and constraint.anyone_permitted and allowed is not None:
         candidates = tuple(Member(MemberId(member_id)) for member_id in sorted(allowed))
     for member in candidates:
-        forbid = _first_forbid(member, forbids)
+        forbid = first_forbid(member, forbids)
         if forbid is not None:
             excluded.append(Exclusion(member=int(member.id), forbid=forbid))
             continue
@@ -172,7 +172,7 @@ def resolve_eligibility(
     return Eligibility(eligible=tuple(eligible), excluded=tuple(excluded))
 
 
-def _first_forbid(member: Member, forbids: Iterable[Forbid]) -> str | None:
+def first_forbid(member: Member, forbids: Iterable[Forbid]) -> str | None:
     """The name of the first forbid that applies to ``member``, or ``None``.
 
     A predicate that raises is a :class:`~kompass.rules.RuleError`, not a

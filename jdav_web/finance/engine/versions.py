@@ -40,6 +40,8 @@ from typing import Any
 from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
+from finance.rules_api import Override
+from finance.rules_api import OVERRIDE_BY_SIGNERS
 from finance.rules_api import PAYOUT_MODES
 from finance.rules_api import Ruleset
 from finance.rules_api import SELF_PAYMENT
@@ -278,6 +280,49 @@ def payout_problems(ruleset: Ruleset) -> list[str]:
     ]
 
 
+def declared_override(ruleset: Ruleset) -> Override:
+    """Whether ``ruleset`` lets a step be signed off without its signatures.
+
+    Its own :attr:`~kompass.rules.Ruleset.override`, or :data:`kompass.rules.
+    OVERRIDE_BY_SIGNERS` for one that says nothing. A declaration this cannot
+    read answers :data:`kompass.rules.NO_OVERRIDE` rather than the default:
+    the default is the permissive answer, and a section that wrote something
+    Kompass cannot read had a reason to write it. :func:`override_problems`
+    keeps such a version out of force in any case; this is the answer for the
+    statements bound to one that reached the store before it did.
+    """
+    declared = getattr(ruleset, "override", OVERRIDE_BY_SIGNERS)
+    if isinstance(declared, Override) and not override_problems(ruleset):
+        return declared
+    return Override(allowed=False)
+
+
+def override_problems(ruleset: Ruleset) -> list[str]:
+    """One message when a ruleset declares an override Kompass cannot read.
+
+    The same refusal as :func:`payout_problems`, and for the same reason:
+    this decides whether a stuck payout can be released by one person, and a
+    version Kompass cannot read that off is a version that must not decide it.
+    """
+    declared = getattr(ruleset, "override", OVERRIDE_BY_SIGNERS)
+    if not isinstance(declared, Override):
+        return [
+            f"the ruleset declares override={declared!r}, which is not an Override — "
+            "the version cannot be activated with it"
+        ]
+    if not isinstance(declared.allowed, bool) or not isinstance(declared.roles, tuple):
+        return [
+            "the ruleset's override has to be Override(allowed=<bool>, roles=<tuple of role "
+            "names>) — the version cannot be activated with it"
+        ]
+    if not all(isinstance(role, str) and role for role in declared.roles):
+        return [
+            "every role an override names has to be a role name — "
+            "the version cannot be activated with it"
+        ]
+    return []
+
+
 @dataclass(frozen=True)
 class DeclaredFields:
     """The four row fields that come from the ruleset *object* itself."""
@@ -375,9 +420,18 @@ def check_directory(directory: Path) -> tuple[Ruleset | None, list[str]]:
             mode = payout_problems(loaded)
     except Exception as broken:
         return loaded, [f"the ruleset's payout mode could not be read: {broken}"]
+    try:
+        # `override` is the sixth, read the same way: it decides whether one
+        # person may release a statement the rules have not, so a declaration
+        # Kompass cannot read keeps the version a draft.
+        with no_queries():
+            override = override_problems(loaded)
+    except Exception as broken:
+        return loaded, [f"the ruleset's override could not be read: {broken}"]
     failed = failed_cases(loaded, directory)
     problems = [
         *mode,
+        *override,
         *(f"case “{case}”: {'; '.join(messages)}" for case, messages in failed.items()),
     ]
     return loaded, problems

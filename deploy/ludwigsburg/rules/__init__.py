@@ -114,6 +114,7 @@ from kompass.rules import Field
 from kompass.rules import Forbid
 from kompass.rules import Input
 from kompass.rules import Member
+from kompass.rules import NO_OVERRIDE
 from kompass.rules import OFFICE_PAYMENT
 from kompass.rules import PARTICIPANTS
 from kompass.rules import Row
@@ -478,6 +479,17 @@ class LudwigsburgRules(Ruleset):
     #: something this instance can know, and "ausgezahlt" is therefore a word
     #: it must not use.
     payout = OFFICE_PAYMENT
+    #: No step is ever signed off without its signatures. The Finanzordnung
+    #: resolves a case it does not settle *with* the Schatzmeister or the
+    #: Vorstand: by escalating to a person who then decides, never by deciding
+    #: to go ahead without one. An override is the second of those whoever
+    #: gives it — the treasurer waiving a vacant Jugendleitung included — so
+    #: there is no role to restrict it to.
+    #:
+    #: What unsticks a statement here is a signer. Every step routes by office
+    #: (:meth:`_holders`), so a vacant office is filled under *Rollen* in the
+    #: admin, and the step it was holding up can then be signed.
+    override = NO_OVERRIDE
 
     def inputs(self, ctx: RuleContext) -> list[Input]:
         """Every answer the rules below may read, in the order to ask for them.

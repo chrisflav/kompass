@@ -30,10 +30,12 @@ from .engine import approval_states
 from .engine import bind as bind_ruleset
 from .engine import current_constraint_rows
 from .engine import evaluate_statement
+from .engine import forbid_against
 from .engine import freeze as freeze_obligations
 from .engine import fully_approved
 from .engine import materialise
 from .engine import may_sign
+from .engine import override_policy
 from .engine import result_from_rows
 from .engine import rows_exist
 from .engine import statement_params
@@ -51,6 +53,7 @@ from .rules_api import SELF_PAYMENT
 from .rules_api import SETTLEMENT_GROUP_LENGTH
 from .store import Approval
 from .store import ApprovalConstraint
+from .store import RoleAssignment
 from .store import RuleSet
 
 # Create your models here.
@@ -1086,15 +1089,31 @@ class Statement(CommonModel):
 
         The order is the order a person wants to be told about: whether the
         statement can be approved at all, then whether this step exists, then
-        whether it is being asked for, then whether anybody could sign it, and
-        last whether this particular person may. The caller checks its own
-        payload — an override has to say why — before asking any of it.
+        whether the section allows overrides at all, then whether the step is
+        being asked for, then whether anybody could sign it, and last whether
+        this particular person may. The caller checks its own payload — an
+        override has to say why — before asking any of it.
+
+        *Whether this person may* is the part that is about the override
+        rather than about the step, and it has two halves
+        (:meth:`_override_scope_refusal`): the section's own declaration of
+        who may give one (:attr:`kompass.rules.Ruleset.override`), and the
+        limit that holds in every section — an override reaches only a step
+        your signature would have counted towards. Without that limit the first
+        of two required signers could waive the second, and a rule requiring
+        two people was a rule requiring one.
         """
         if not self.submitted or self.confirmed:
             return _("Only submitted, unconfirmed statements can be approved.")
         row = self.approval_constraint_set.filter(name=name).first()
         if row is None:
             return _("This statement has no approval step called %(name)s.") % {"name": name}
+        policy = override_policy(self)
+        if not policy.allowed:
+            return _(
+                "The section's rules do not allow an approval step to be signed off "
+                "without its signatures. Ask somebody who may sign it."
+            )
         if not row.applicable:
             return _(
                 "The rules are not asking for this approval step, so there is nothing to override."
@@ -1106,6 +1125,52 @@ class Statement(CommonModel):
             )
         if member is not None and self.forbids_approval_by(name, member):
             return _("The section's rules exclude you from this approval step.")
+        return self._override_scope_refusal(name, member, policy)
+
+    def _override_scope_refusal(self, name, member, policy):
+        """Whether ``member`` is somebody this step's override may come from.
+
+        **Only a step you could have signed.** Your signature counts on a
+        step when you are in its eligible set as the gate resolves it now —
+        or, for an account with no member record, when the set is not empty,
+        which is how :func:`~finance.engine.approval.states` credits such a
+        signature. That is the bound: an override is what you can do instead
+        of the quorum, so it reaches no further than your own signature does.
+
+        **Unless the step named nobody**, which is what the override exists
+        for: a vacant office leaves its step with no group and no exclusion,
+        and nothing in Kompass can be signed in its place. There the forbids
+        are asked about you directly (:func:`finance.engine.forbid_against`),
+        because a step that named nobody recorded nobody against them — and a
+        rules failure there refuses, like a step the rules could not resolve.
+
+        **And the section's own restriction**, when it names roles: the person
+        has to hold one of them today.
+        """
+        state = next(state for state in self.live_approval_states if state.name == name)
+        named_nobody = not state.eligible and not state.excluded
+        if named_nobody:
+            if member is not None:
+                try:
+                    barred = forbid_against(self, self.rule_result, member.pk)
+                except Exception:
+                    return _(
+                        "The section's rules could not say whether they exclude you from "
+                        "this approval step, so you cannot override it."
+                    )
+                if barred is not None:
+                    return _("The section's rules exclude you from this approval step.")
+        elif member is not None and member.pk not in state.eligible:
+            return _("You may only override an approval step you could sign yourself.")
+        if policy.roles:
+            holders = RoleAssignment.roles_at()
+            if member is None or not any(
+                member.pk in holders.get(role, ()) for role in policy.roles
+            ):
+                return _(
+                    "The section's rules only let the holders of these roles override "
+                    "an approval step: %(roles)s."
+                ) % {"roles": ", ".join(policy.roles)}
         return None
 
     def approval_cannot_be_resolved(self, name):

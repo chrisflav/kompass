@@ -18561,6 +18561,11 @@
             "default": "",
             "title": "Override Reason",
             "type": "string"
+          },
+          "may_override": {
+            "default": false,
+            "title": "May Override",
+            "type": "boolean"
           }
         },
         "required": [

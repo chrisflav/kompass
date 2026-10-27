@@ -64,9 +64,11 @@ from .statements import bind
 from .statements import cents_of
 from .statements import current_constraint_rows
 from .statements import evaluate_statement
+from .statements import forbid_against
 from .statements import freeze
 from .statements import live_rows
 from .statements import materialise
+from .statements import override_policy
 from .statements import result_from_rows
 from .statements import rows_exist
 from .statements import ruleset_for
@@ -109,6 +111,7 @@ __all__ = [
     "engine_version",
     "evaluate",
     "evaluate_statement",
+    "forbid_against",
     "freeze",
     "fully_approved",
     "import_from_directory",
@@ -117,6 +120,7 @@ __all__ = [
     "manifest",
     "manifest_hash",
     "materialise",
+    "override_policy",
     "may_sign",
     "no_queries",
     "options_from",

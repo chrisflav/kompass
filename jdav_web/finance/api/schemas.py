@@ -707,6 +707,10 @@ class ApprovalConstraintOut(Schema):
     excluded: list[ExclusionOut] = []
     overridden_by: MemberBrief | None = None
     override_reason: str = ""
+    #: Whether the asking person may sign this step off without its quorum —
+    #: the override endpoint's own refusals, asked in advance, so a client
+    #: offers the override only where it would be taken.
+    may_override: bool = False
 
 
 class SignatureOut(Schema):

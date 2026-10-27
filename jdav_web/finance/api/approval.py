@@ -125,6 +125,11 @@ def approval_payload(statement: Any, member: Any = None, user: Any = None) -> di
                 ],
                 "overridden_by": (people.get(row.overridden_by_id) if row is not None else None),
                 "override_reason": row.override_reason if row is not None else "",
+                # The override endpoint's own refusals, asked in advance, so
+                # that a client offers the override exactly where it would be
+                # taken — and nowhere under rules that allow none.
+                "may_override": state.open
+                and statement.override_refusal(state.name, member) is None,
             }
         )
     return {

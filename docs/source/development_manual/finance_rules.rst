@@ -1094,6 +1094,51 @@ draft, it never applies, and the previous version goes on being in force.
 ``manage.py checkruleset`` says so before the import ever happens.
 
 
+.. _development_manual/finance_rules/override:
+
+Signing a step off without its signatures
+=========================================
+
+An **override** closes an approval step its quorum has not closed, on the
+record and with a reason. It exists for the statement that is otherwise stuck
+for ever: a step whose rules name an office nobody holds has nobody to sign it.
+
+Two limits hold in every section, whatever its rules declare:
+
+* **It reaches only a step you could have signed.** You may override a step
+  your own signature would have counted towards, and no other. Without this the
+  first of two required signers could waive the second, and a rule requiring
+  two people would be a rule requiring one.
+* **A step that named nobody is the exception**, being the case the override is
+  for. There the forbids are asked about you directly — a step with no group
+  recorded nobody against them — so whoever the statement pays still cannot
+  release it.
+
+And as before, a step that does not apply, one the rules could not resolve and
+one a forbid bars you from cannot be overridden at all.
+
+Whether the escape hatch is open is the section's own procedure, so a ruleset
+says so::
+
+    from kompass.rules import NO_OVERRIDE, Override, Ruleset
+
+    class TownRules(Ruleset):
+        override = NO_OVERRIDE                             # never
+        # override = Override(roles=("kassenwart",))       # only these roles
+        # override = OVERRIDE_BY_SIGNERS                   # the default
+
+**The default keeps the override** a section always had, within the two limits.
+A section that resolves a stuck statement by escalating to a person rather than
+by deciding to proceed declares :data:`~kompass.rules.NO_OVERRIDE`, and then
+unsticks a statement by giving its step a signer — for rules that route by
+office, by filling the office under *Rollen*. With roles named, the person also
+has to hold one of them on the day.
+
+Like :ref:`the payout mode <development_manual/finance_rules/payout>`, it is
+hashed into the version and a statement is bound to it, and a declaration
+Kompass cannot read keeps the version a draft.
+
+
 .. _development_manual/finance_rules/signer_sight:
 
 What a signer your rules name may read

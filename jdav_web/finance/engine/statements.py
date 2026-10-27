@@ -36,6 +36,8 @@ from finance.parties import PARTICIPANTS
 from finance.parties import SECTION
 from finance.rules_api import Member
 from finance.rules_api import MemberId
+from finance.rules_api import NO_OVERRIDE
+from finance.rules_api import Override
 from finance.rules_api import Participants
 from finance.rules_api import RuleContext
 from finance.rules_api import Ruleset
@@ -49,6 +51,7 @@ from finance.store import RoleAssignment
 from finance.store import RuleSet
 from members.models import Member as MemberModel
 
+from .approval import first_forbid
 from .approval import PERMISSION_EXCLUSION
 from .approval import resolve_eligibility
 from .context import build_context
@@ -61,6 +64,7 @@ from .guard import no_queries
 from .loader import manifest
 from .versions import active_version
 from .versions import decimal_params
+from .versions import declared_override
 from .versions import ruleset_from_sources
 from .versions import version_hash
 
@@ -775,6 +779,51 @@ def _constraint_rows(
         )
         for position, row in enumerate(resolve_constraints(statement, result))
     ]
+
+
+def override_policy(statement: Any) -> Override:
+    """Whether the rules ``statement`` is settled against may be overridden.
+
+    The declaration of the ruleset that answers for the statement — its own
+    snapshot where that loads (:func:`ruleset_for`) — read inside the query
+    guard, because an attribute of a section's ruleset can be a ``property``.
+    Rules whose declaration cannot be read are rules that do not say a stuck
+    payout may be released by one person, so the answer is then
+    :data:`~kompass.rules.NO_OVERRIDE`: refusing leaves the statement waiting
+    for a signature, which is the safe direction.
+    """
+    try:
+        ruleset = ruleset_for(statement)
+        with no_queries():
+            return declared_override(ruleset)
+    except Exception as problem:
+        logger.warning(
+            "statement %s: the rules' override could not be read (%s: %s); refusing overrides",
+            statement.pk,
+            type(problem).__name__,
+            problem,
+        )
+        return NO_OVERRIDE
+
+
+def forbid_against(statement: Any, result: Result, member_id: int) -> str | None:
+    """The forbid of ``statement``'s rules that bars ``member_id``, or ``None``.
+
+    Asked of the rules directly, for the one case the record cannot answer: a
+    step that named nobody. A forbid is recorded only against somebody a
+    constraint named, so a step whose group is empty has no exclusion on it to
+    read — and an override of that step is precisely where the person a forbid
+    was written against, the one this statement pays, would otherwise get in.
+
+    ``result`` is the statement's own resolution, the transfers the forbids
+    are routed by. Raises when the rules cannot say, and the caller refuses:
+    a forbid that cannot be evaluated is not a forbid that does not apply.
+    """
+    ruleset = ruleset_for(statement)
+    context = statement_context(statement, ruleset, actors=True)
+    with no_queries():
+        _constraints, forbids = ruleset.approval(context, list(result.transfers))
+        return first_forbid(Member(MemberId(member_id)), forbids)
 
 
 #: What a fallback row says instead of a resolution, because there was none.

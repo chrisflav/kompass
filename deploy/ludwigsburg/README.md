@@ -152,6 +152,7 @@ much as a decision — see reading 11 below.
 | Über 1.000 € zusätzlich der Schatzmeister | Q1 § 1.2 | `approval`, constraint 2 |
 | Befangenheit: wer bezahlt wird, gibt nicht frei | Q1 § 1.2, lines 2–3 | `approval`, `Forbid` |
 | Mit LJP immer Jugendleitung **und** Schatzmeister, unabhängig vom Betrag | Q1 § 2.4, **Q4 Sonderabsprache 1** | `approval`, constraints 3–4 |
+| Unklare Fälle mit Schatzmeister oder Vorstand klären — keine Freigabe ohne Unterschrift | Q1 § 1.0 | `override = NO_OVERRIDE` |
 
 **The 1.000-€ threshold is read against the statement's total** — everything
 the section pays out to people on this statement, which is what Kompass settles

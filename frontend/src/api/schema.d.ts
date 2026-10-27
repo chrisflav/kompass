@@ -7199,6 +7199,11 @@ export interface components {
              * @default
              */
             override_reason: string;
+            /**
+             * May Override
+             * @default false
+             */
+            may_override: boolean;
         };
         /**
          * ExclusionOut

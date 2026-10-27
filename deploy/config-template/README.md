@@ -212,6 +212,13 @@ page has the rest:
   booking — because in that arrangement the paper is the only thing the person
   making the transfers ever sees. No wording is true in both, so say which one
   your section is even though one of them is the default.
+- **Whether a step may be signed off without its signatures is a declaration
+  too.** An override only ever reaches a step the person could have signed —
+  or one that named nobody, a vacant office, which is what it is for. The
+  default, `override = OVERRIDE_BY_SIGNERS`, leaves that open;
+  `override = NO_OVERRIDE` closes it, for a section that unsticks a statement
+  by giving the step a signer rather than by proceeding without one; and
+  `Override(roles=("kassenwart",))` keeps it for the holders of those roles.
 - **The import whitelist is a lint, not a sandbox.** Whoever can write this
   repository already holds the instance's database password, so executing
   Python from here grants no new privilege. What the whitelist catches is the

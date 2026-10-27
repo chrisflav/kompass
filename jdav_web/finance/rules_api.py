@@ -135,6 +135,48 @@ OFFICE_PAYMENT: Final[PayoutMode] = "office"
 #: (:func:`finance.engine.versions.payout_problems`).
 PAYOUT_MODES: Final = (SELF_PAYMENT, OFFICE_PAYMENT)
 
+
+@dataclass(frozen=True)
+class Override:
+    """Whether a step may be signed off without its signatures, and by whom.
+
+    An override closes a step that its quorum has not closed, on the record
+    and with a reason. What it is *for* is the statement that is otherwise
+    stuck for ever: a step whose rules name somebody who does not exist — a
+    vacant office — has nobody to sign it, and nothing in Kompass can fill the
+    office in its place.
+
+    Two limits hold whatever a section declares, because without them the
+    override undoes the rules it sits beside. It reaches only a step the person
+    could have **signed**: the first signer of a two-signature rule cannot
+    waive the second, which would make the four-eyes rule one pair of eyes. A
+    step that names nobody at all is the exception, being the case the
+    override exists for, and nobody a forbid excludes may give one there
+    either. And it never reaches a step that does not apply, one the rules
+    could not resolve, or one a forbid bars the person from.
+
+    Whether that remaining escape hatch is open is the section's own
+    procedure, which is why it is declared here rather than configured: some
+    sections resolve a stuck statement by deciding to proceed, others only by
+    escalating to a person who then signs.
+    """
+
+    #: Whether these rules may be overridden at all.
+    allowed: bool = True
+    #: Who may give one, as role names :meth:`RuleContext.role_holders` reads.
+    #: Empty means anybody the two limits above let through; otherwise the
+    #: person must also hold one of these roles when they give it.
+    roles: tuple[str, ...] = ()
+
+
+#: :attr:`Ruleset.override`: whoever could sign the step may waive it. The
+#: default, and what Kompass has always allowed, narrowed by the two limits.
+OVERRIDE_BY_SIGNERS: Final = Override()
+
+#: :attr:`Ruleset.override`: these rules are never signed off without their
+#: signatures. A stuck statement is unstuck by giving its step a signer.
+NO_OVERRIDE: Final = Override(allowed=False)
+
 MemberId = NewType("MemberId", int)
 """A member's primary key.
 
@@ -1233,6 +1275,14 @@ class Ruleset(ABC):
     #: The default is :data:`SELF_PAYMENT` — what Kompass has always done — so
     #: a ruleset that says nothing goes on behaving exactly as it did.
     payout: PayoutMode = SELF_PAYMENT
+    #: Whether a step may be signed off without its signatures, and by whom —
+    #: see :class:`Override`. Bound with the version, like :attr:`payout`: a
+    #: statement is overridable under the rules it was created under.
+    #:
+    #: The default is :data:`OVERRIDE_BY_SIGNERS`, so a ruleset that says
+    #: nothing keeps the override it always had, within the two limits that
+    #: apply to every section.
+    override: Override = OVERRIDE_BY_SIGNERS
 
     @abstractmethod
     def inputs(self, ctx: RuleContext) -> list[Input]:
@@ -1351,8 +1401,10 @@ __all__ = [
     "CENT",
     "CONTEXT_VERSION",
     "LJP",
+    "NO_OVERRIDE",
     "OFFICE_PAYMENT",
     "OPTION_SOURCES",
+    "OVERRIDE_BY_SIGNERS",
     "PARTICIPANTS",
     "PAYOUT_MODES",
     "SECTION",
@@ -1372,6 +1424,7 @@ __all__ = [
     "LJPGoal",
     "Member",
     "MemberId",
+    "Override",
     "Params",
     "Participant",
     "Participants",
