@@ -22,9 +22,9 @@ from logindata.models import TwoFactorElevation
 from logindata.models import TwoFactorSetup
 from logindata.models import WebAuthnCredential
 from logindata.rights import MEMBER_RIGHTS
+from members.models import Group as MemberGroup
 from members.models import MALE
 from members.models import Member
-from members.models import MemberGroup
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
 from oauth2_provider.models import get_refresh_token_model
