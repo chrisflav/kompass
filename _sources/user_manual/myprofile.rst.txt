@@ -24,3 +24,62 @@ Du kannst über die allgemeinen Informationen der Teilnehmer\*in-Detailansicht h
 - Im Reiter "Notfallkontakte" kannst du Personen hinterlegen, die im Notfall kontaktiert werden sollen.
 
 Diese und allen weiteren Informationen in deinem Profil solltest du immer aktuell halten.
+
+.. _user_manual/two_factor:
+
+Zwei-Faktor-Authentifizierung
+-----------------------------
+
+Mit einem zweiten Faktor ist dein Konto auch dann geschützt, wenn jemand dein Passwort kennt:
+Nach dem Passwort fragt Kompass zusätzlich nach einem Code aus einer Authenticator-App oder nach
+einem Sicherheitsschlüssel. Die Einstellungen findest du im Menü unter deinem Namen bei
+"Zwei-Faktor-Authentifizierung". Ob du sie nutzt, entscheidest du selbst.
+
+Bevor die Seite deine Faktoren zeigt, bestätigst du, dass du es bist: solange du noch keinen
+zweiten Faktor hast, mit deinem Passwort, danach mit einem deiner Faktoren (Code aus der App,
+Sicherheitsschlüssel oder Wiederherstellungscode), die Standardmethode zuerst. Die Bestätigung gilt zehn Minuten, dann fragt
+die Seite erneut.
+
+Über "Faktor hinzufügen" wählst du, was du einrichten willst:
+
+- **Authenticator-App** (z.B. Aegis, Google Authenticator, Microsoft Authenticator, 2FAS): Gib
+  der App einen Namen, scanne den QR-Code mit der App (oder tippe den angezeigten Schlüssel ab)
+  und gib zur Bestätigung den Code ein, den die App anzeigt.
+- **Sicherheitsschlüssel oder Passkey** (z.B. ein YubiKey, dein Smartphone oder der
+  Fingerabdrucksensor deines Laptops): Gib einen Namen ein und folge dann den Anweisungen deines
+  Browsers. Kann der Schlüssel dich selbst prüfen (per PIN oder Fingerabdruck), wird er als
+  **Passkey** eingerichtet und angezeigt. Mit einem Passkey kannst du dich auf der Anmeldeseite
+  über "Mit Passkey anmelden" auch ganz ohne Benutzername und Passwort anmelden. Ein Schlüssel
+  ohne diese Prüfung dient nur als zweiter Faktor nach dem Passwort; Kompass sagt dir das beim
+  Hinzufügen.
+
+Du kannst mehrere Apps und Schlüssel einrichten, sie umbenennen und wieder entfernen.
+
+**Standardmethode:** Über "Als Standard festlegen" oder die Auswahl "Bei der Anmeldung zuerst"
+legst du fest, was Kompass nach dem Passwort zuerst anbietet: einen bestimmten
+Sicherheitsschlüssel, einen beliebigen oder die Authenticator-App. Ein Sicherheitsschlüssel wird
+dann gleich abgefragt, für die App steht der Cursor im Codefeld; alle anderen Wege findest du
+unter "Andere Methode verwenden". Ohne Festlegung kommt ein Sicherheitsschlüssel vor der App.
+Klappt die Abfrage des Schlüssels nicht, fragt Kompass nicht von selbst erneut, sondern bietet
+"Erneut versuchen" und die anderen Wege an. Dasselbe gilt für die Bestätigung vor dieser Seite.
+
+**Wiederherstellungscodes:** Wenn du deinen ersten zweiten Faktor einrichtest, zeigt Kompass dir
+zehn Wiederherstellungscodes an — nur dieses eine Mal. Bewahre sie sicher auf, etwa ausgedruckt
+oder in einem Passwortmanager. Hast du keinen deiner Faktoren zur Hand, meldest du dich nach dem
+Passwort mit einem dieser Codes an; jeder Code gilt nur einmal. Unter "Neue Codes erzeugen"
+bekommst du jederzeit zehn neue, die alten verlieren dann ihre Gültigkeit.
+
+Hast du alle Faktoren und alle Codes verloren, kann eine Person mit dem Recht, Benutzerkonten zu
+bearbeiten, deine Zwei-Faktor-Authentifizierung in der Benutzerverwaltung zurücksetzen. Danach
+genügt wieder dein Passwort, und du kannst neue Faktoren einrichten.
+
+Wird ein Faktor entfernt oder deine Zwei-Faktor-Authentifizierung zurückgesetzt, bekommst du
+eine E-Mail. Warst du das nicht, melde dich bitte sofort.
+
+.. note::
+   Nach fünf Fehlversuchen sperrt Kompass die Anmeldung mit zweitem Faktor für 15 Minuten, bei
+   weiteren Fehlversuchen jedes Mal doppelt so lang (höchstens einen Tag). Bei der ersten Sperre
+   bekommst du eine E-Mail.
+
+   Meldet sich deine Sektion über einen externen Identitätsanbieter (OIDC) an, verwaltet dieser
+   die Zwei-Faktor-Authentifizierung, nicht Kompass.
