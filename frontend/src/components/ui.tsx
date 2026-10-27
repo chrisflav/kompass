@@ -577,6 +577,16 @@ export function euro(value: number | null | undefined): string {
   })} €`;
 }
 
+/** Render a quantity that is not money as a German number, e.g. ``0,5`` or ``12,25``.
+ *
+ * The counterpart of {@link euro} for a figure that only happens to take a
+ * decimal point — the days a trip lasted. Ludwigsburg's duration was declared
+ * as money for want of this, and read „5,00 €“. No currency, no padding to two
+ * places, and as many places as the answer has, up to the four the API takes. */
+export function decimal(value: number | string | null | undefined): string {
+  return (Number(value) || 0).toLocaleString("de-DE", { maximumFractionDigits: 4 });
+}
+
 /** Render an ISO date (``YYYY-MM-DD``) as a German date, tolerating null.
  *
  * Dates used to be shown raw in material, Termine and the CMS while members and

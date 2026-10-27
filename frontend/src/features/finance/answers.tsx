@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 
-import { Button, euro, Field, MultiSelect, Select } from "../../components/ui";
+import { Button, decimal, euro, Field, MultiSelect, Select } from "../../components/ui";
 import type { components } from "../../api/schema";
 
 type InputDeclarationOut = components["schemas"]["InputDeclarationOut"];
@@ -19,7 +19,7 @@ type StatementFormOut = components["schemas"]["StatementFormOut"];
 // resolved, and this renders whatever comes back: a section whose rules ask
 // something else gets asked it without a line changing here.
 //
-// All eight types get the control they want. `choice` was the exception — it
+// All nine types get the control they want. `choice` was the exception — it
 // got a free-text input, because `Input.options` carried `Member`s and a
 // declaration had no way to name a list of non-member alternatives (taxis
 // #573) — and it is not any more: a declaration carries its own `choices`, and
@@ -53,7 +53,10 @@ export type Answers = Record<string, unknown>;
  * removing a row waits for the same pause, which nobody sees: the row appears
  * at once and only the save is deferred.
  */
-export const TYPED_INTO = new Set(["money", "int", "text", "rows"]);
+export const TYPED_INTO = new Set(["money", "decimal", "int", "text", "rows"]);
+
+/** Each number type's resolution, as the `step` of its input. */
+const NUMBER_STEP: Record<string, string> = { money: "0.01", decimal: "any", int: "1" };
 
 /**
  * What rendering one answer needs to know — which a question and a cell of a
@@ -154,6 +157,10 @@ export function answerText(asked: Asked, value: unknown): string {
   }
   if (asked.type === "money") {
     return euro(Number(value));
+  }
+  if (asked.type === "decimal") {
+    // A quantity, not an amount: „0,5“ days, never „0,50 €“.
+    return blank(value) ? "—" : decimal(String(value));
   }
   if (asked.type === "choice") {
     const chosen = asked.choices.find((choice) => choice.value === String(value ?? ""));
@@ -562,13 +569,17 @@ function control(
       />
     );
   }
-  if (asked.type === "money" || asked.type === "int") {
+  if (asked.type === "money" || asked.type === "decimal" || asked.type === "int") {
+    // The step is the type's resolution: the cent for money, none at all for a
+    // decimal — which the API holds to no cent, so the browser must not either
+    // — and the unit for a whole number.
+    const step = NUMBER_STEP[asked.type];
     return (
       <input
         type="number"
-        step={asked.type === "money" ? "0.01" : "1"}
+        step={step}
         max={asked.max ?? undefined}
-        inputMode={asked.type === "money" ? "decimal" : "numeric"}
+        inputMode={asked.type === "int" ? "numeric" : "decimal"}
         aria-label={ariaLabel}
         value={blank(value) ? "" : String(value)}
         onChange={(e) => onChange(e.target.value)}

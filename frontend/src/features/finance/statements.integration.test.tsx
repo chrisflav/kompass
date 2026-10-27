@@ -1120,6 +1120,52 @@ describe("submission flow — Erstattung", () => {
     expect(screen.getByDisplayValue("2")).toBeInTheDocument();
   });
 
+  it("reads a quantity that is not money as a number, never as euros", async () => {
+    // Ludwigsburg's duration was declared as money for want of this type, and
+    // the form and the signer read „5,00 €“ for five days.
+    openForm({
+      inputs: [
+        declaration({ key: "duration", label: "Dauer in Tagen", type: "decimal", derived: true }),
+        declaration({ key: "half", label: "Halbe Tage", type: "decimal", derived: true }),
+        declaration({ key: "km", label: "Kilometer", type: "decimal" }),
+      ],
+      answers: { duration: "5", half: "0.5", km: "12.125" },
+    });
+
+    const readout = (await screen.findByText("Dauer in Tagen")).closest(".readout") as HTMLElement;
+    expect(within(readout).getByText("5")).toBeInTheDocument();
+    expect(within(readout).getByText("0,5")).toBeInTheDocument();
+    expect(within(readout).queryByText(/€/)).toBeNull();
+    // Asked rather than derived, it is typed into — at no resolution, because
+    // the API holds it to no cent and the browser must not refuse a third place.
+    const asked = screen.getByDisplayValue("12.125");
+    expect(asked).toHaveAttribute("type", "number");
+    expect(asked).toHaveAttribute("step", "any");
+    expect(asked).toHaveAttribute("inputmode", "decimal");
+  });
+
+  it("waits for a pause before sending a quantity, and sends it as typed", async () => {
+    // Typed into like money, so a keystroke must not be a request — and the
+    // value goes out exactly as it was typed, three places and all.
+    const bodies: unknown[] = [];
+    server.use(
+      http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm({
+      inputs: [declaration({ key: "km", label: "Kilometer", type: "decimal" })],
+      answers: { km: "" },
+    });
+
+    const field = await screen.findByLabelText("Kilometer");
+    await user.type(field, "0.125");
+    expect(bodies).toHaveLength(0);
+    await waitFor(() => expect(bodies).toHaveLength(1), { timeout: 2000 });
+    expect(bodies[0]).toEqual({ inputs: { km: "0.125" } });
+  });
+
   it("reads a derived answer in every shape a stored one comes in", async () => {
     // `/form` hands a derived value over in the shape `Statement.inputs` holds
     // it — money as text, a person as an id, a set of people as a list of ids —

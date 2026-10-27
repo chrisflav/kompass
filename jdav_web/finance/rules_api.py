@@ -184,11 +184,28 @@ The only identity a rule ever sees. Names, addresses and bank details are
 resolved by the engine after evaluation, so that a ruleset cannot leak them.
 """
 
-InputType = Literal["money", "int", "bool", "text", "choice", "member", "member_set", "rows"]
+InputType = Literal[
+    "money", "decimal", "int", "bool", "text", "choice", "member", "member_set", "rows"
+]
 """The widget vocabulary an :class:`Input` is rendered with.
 
-This is presentation, not rule structure: ``money`` and ``int`` are both
-numbers, and the difference is the field the person is shown.
+Three of them are numbers, and which one is a statement about what the number
+*is*, because that decides how it is entered, checked and shown:
+
+``money``
+    An amount in euros: whole cents, never negative, shown with the currency.
+    The engine computes in cents, so a third decimal place is refused rather
+    than silently dropped.
+``decimal``
+    A quantity that is not money and need not be whole — a trip that lasted
+    half a day, a distance to the tenth of a kilometre. Read with
+    :meth:`Inputs.decimal`, shown as a plain number, and **not** held to the
+    cent: ``0.25`` days is an answer, and nothing rounds it. Do not reach for
+    ``money`` for such a figure because it happens to take a decimal point:
+    it is shown as an amount in euros, refused past two places and refused
+    below zero.
+``int``
+    A whole number, with an optional :attr:`Input.max`.
 
 ``rows`` is the one entry that is not a widget but a *shape*: a table whose
 rows repeat, each row a little form over the cells :attr:`Input.fields`
@@ -196,7 +213,16 @@ declares. Every cell's own type comes from this same list, which is what lets
 one validation path serve a question and a cell alike.
 """
 
-CELL_TYPES: Final = ("money", "int", "bool", "text", "choice", "member", "member_set")
+CELL_TYPES: Final = (
+    "money",
+    "decimal",
+    "int",
+    "bool",
+    "text",
+    "choice",
+    "member",
+    "member_set",
+)
 """The types a cell of a ``rows`` question may have — :data:`InputType` minus
 ``rows`` itself.
 
@@ -392,8 +418,8 @@ class Inputs:
 
     ``ctx.inputs.night_cost`` reads the same answer untyped, for a quick look.
     A key that happens to be named like one of the accessors — ``money``,
-    ``member``, ``members``, ``number``, ``flag``, ``text``, ``raw``,
-    ``rows``, ``declared`` — is readable through those and through
+    ``decimal``, ``member``, ``members``, ``number``, ``flag``, ``text``,
+    ``raw``, ``rows``, ``declared`` — is readable through those and through
     :meth:`raw`, but not as an attribute, where the method wins.
     """
 
@@ -412,8 +438,8 @@ class Inputs:
     def raw(self, key: str) -> object:
         """The answer to ``key``, untyped.
 
-        Prefer :meth:`money`, :meth:`member`, :meth:`members`, :meth:`number`,
-        :meth:`flag` or :meth:`text`, which say what they expect.
+        Prefer :meth:`money`, :meth:`decimal`, :meth:`member`, :meth:`members`,
+        :meth:`number`, :meth:`flag` or :meth:`text`, which say what they expect.
         """
         try:
             return self._values[key]
@@ -437,6 +463,15 @@ class Inputs:
     def money(self, key: str) -> Decimal:
         """A money answer, as a :class:`~decimal.Decimal`."""
         value = self._typed(key, Decimal, "a money value")
+        assert isinstance(value, Decimal)
+        return value
+
+    def decimal(self, key: str) -> Decimal:
+        """A ``decimal`` answer: a quantity that is not money, as a :class:`~decimal.Decimal`.
+
+        Exactly as precise as it was given — nothing here rounds it to cents.
+        """
+        value = self._typed(key, Decimal, "a decimal number")
         assert isinstance(value, Decimal)
         return value
 
@@ -958,8 +993,8 @@ class Input:
     options: tuple[Member, ...] = ()
     #: For ``member_set``, ``int`` and ``rows``, and for **those three only**:
     #: the largest acceptable count or value. It is ignored on every other type
-    #: — ``money`` included, which is worth knowing because an amount is the
-    #: other thing one would expect a ceiling on. A money answer is bounded by
+    #: — ``money`` and ``decimal`` included, which is worth knowing because an
+    #: amount is the other thing one would expect a ceiling on. A money answer is bounded by
     #: the resolution and ceiling of the field itself
     #: (``finance.inputs.MONEY_MAX``) and not by this; a section wanting its
     #: own maximum writes a :class:`Check`.

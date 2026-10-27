@@ -107,6 +107,18 @@ MONEY_PLACES = 2
 MONEY_DIGITS = 7
 MONEY_MAX = Decimal(10 ** (MONEY_DIGITS - MONEY_PLACES)) - Decimal("0.01")
 
+#: How precisely a ``decimal`` answer may be given, and how large it may be.
+#:
+#: Not the cent, which is the whole point of the type: a quantity that is not
+#: money has no reason to stop at two places, and the money rules — whole
+#: cents, nothing below zero — are about the euro, not about the decimal
+#: point. Four places is a quarter of a day as ``0.25`` with room to spare, and
+#: the ceiling is :func:`form_field`'s own, for the reason ``MONEY_DIGITS`` is.
+#: A section that wants a narrower range writes a :class:`~kompass.rules.Check`.
+DECIMAL_PLACES = 4
+DECIMAL_DIGITS = 9
+DECIMAL_MAX = Decimal(10 ** (DECIMAL_DIGITS - DECIMAL_PLACES)) - Decimal("0.0001")
+
 
 def row_key(key: str, index: int) -> str:
     """``"reisen[1]"`` — the error key for one whole row of a table.
@@ -527,6 +539,12 @@ def form_field(declaration: Input) -> Any:
         return forms.DecimalField(
             decimal_places=MONEY_PLACES, max_digits=MONEY_DIGITS, min_value=0, **common
         )
+    if declaration.type == "decimal":
+        # The bound `_clean_decimal` enforces, and no `min_value`: a quantity
+        # that is not money may be below zero.
+        return forms.DecimalField(
+            decimal_places=DECIMAL_PLACES, max_digits=DECIMAL_DIGITS, **common
+        )
     if declaration.type == "int":
         return forms.IntegerField(max_value=declaration.max, **common)
     if declaration.type == "choice":
@@ -668,8 +686,8 @@ def clean_value(
     """One answer, checked against one declaration and converted.
 
     Public because it is the whole of the widget vocabulary in one place:
-    ``money`` becomes a non-negative ``Decimal``, ``int`` a bounded whole
-    number, ``member`` and ``member_set`` ids from the declaration's own
+    ``money`` becomes a non-negative ``Decimal`` in whole cents, ``decimal`` a
+    ``Decimal`` held to no cent, ``int`` a bounded whole number, ``member`` and ``member_set`` ids from the declaration's own
     options, ``choice`` one of the declaration's own choices, ``bool`` a flag,
     and anything else text.
 
@@ -707,6 +725,8 @@ def clean_value(
         return _clean_members(declaration, value, about_an_excursion=about_an_excursion)
     if declaration.type == "money":
         return _clean_money(declaration, value)
+    if declaration.type == "decimal":
+        return _clean_decimal(declaration, value)
     if declaration.type == "int":
         return _clean_int(declaration, value)
     if declaration.type == "choice":
@@ -970,6 +990,44 @@ def _clean_money(declaration: Input, value: Any) -> Decimal:
             % {"label": str(declaration.label), "max": str(MONEY_MAX)}
         )
     return amount
+
+
+def _clean_decimal(declaration: Input, value: Any) -> Decimal:
+    """A quantity that is not money: any sign, up to :data:`DECIMAL_PLACES` places.
+
+    The refusals of :func:`_clean_money` that are about *numbers* and none of
+    those that are about *euros*. A value that is not a number, or not a
+    finite one, is refused for the same reasons and by the same means; a
+    negative one is not, because nothing about a decimal makes it a payment
+    in the wrong direction; and a third or fourth place is an answer rather
+    than a fraction of a cent.
+    """
+    try:
+        number = Decimal(str(value if value is not None else 0))
+    except InvalidOperation:
+        raise ValidationError(
+            _("%(label)s is not a number.") % {"label": str(declaration.label)}
+        ) from None
+    if not number.is_finite():
+        raise ValidationError(_("%(label)s is not a number.") % {"label": str(declaration.label)})
+    # The exponent rather than `normalize()`, and `copy_abs()` rather than
+    # `abs()`, for the reason `_clean_money` gives: both of the others apply
+    # the decimal context, and `abs(Decimal("1E+1000000"))` raises `Overflow`
+    # — a 500 for a string anybody can send. Neither of these uses a context.
+    places = max(0, -int(number.as_tuple().exponent))
+    if places > DECIMAL_PLACES or number.copy_abs() > DECIMAL_MAX:
+        raise ValidationError(
+            _(
+                "%(label)s has to be a number with at most %(places)s decimal places, "
+                "no larger than %(max)s either way."
+            )
+            % {
+                "label": str(declaration.label),
+                "places": str(DECIMAL_PLACES),
+                "max": str(DECIMAL_MAX),
+            }
+        )
+    return number
 
 
 def _clean_int(declaration: Input, value: Any) -> int:

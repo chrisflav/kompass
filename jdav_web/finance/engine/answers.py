@@ -94,6 +94,9 @@ from finance.rules_api import Row
 #: pays per row pays nothing for any of the three.
 EMPTY: dict[str, object] = {
     "money": Decimal("0.00"),
+    # Not `0.00`: that is the cent, and a quantity that is not money has no
+    # resolution of its own to state.
+    "decimal": Decimal("0"),
     "int": 0,
     "bool": False,
     "text": "",
@@ -209,7 +212,7 @@ def coerce_input(declaration: Input, value: Any) -> object:
 
     The other half of :func:`finance.inputs.clean_value`: that one takes what a
     client sent and makes it storable, this one takes what was stored and makes
-    it readable by a rule. The vocabulary is the same eight types, and an
+    it readable by a rule. The vocabulary is the same nine types, and an
     unanswered question reads as its type's empty value — ``0.00`` for money,
     ``None`` for a person, ``()`` for a set of them — because
     :class:`kompass.rules.Inputs` promises exactly that.
@@ -332,7 +335,12 @@ def _fitted(declaration: Input, value: Any) -> object:
         return tuple(Member(MemberId(pk)) for pk in sorted({int(pk) for pk in value or ()}))
     if declaration.type == "member":
         return None if value is None else Member(MemberId(int(value)))
-    if declaration.type == "money":
+    if declaration.type in ("money", "decimal"):
+        # Through `str`, so a float that reached the JSON is read as what it
+        # prints as rather than as its binary expansion — and quantised for
+        # neither: an answer is held to the cent where it is *given*
+        # (`finance.inputs.clean_value`), and a `decimal` is not held to it at
+        # all, so `0.25` days reads as `0.25`.
         return Decimal(str(value if value is not None else 0))
     if declaration.type == "int":
         return int(value if value is not None else 0)

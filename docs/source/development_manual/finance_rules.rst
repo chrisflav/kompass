@@ -354,9 +354,13 @@ reimbursement.
 The widget vocabulary
 ---------------------
 
-:attr:`~kompass.rules.Input.type` is presentation, not rule structure —
-``money`` and ``int`` are both numbers, and the difference is the field the
-person is shown.
+:attr:`~kompass.rules.Input.type` is presentation, not rule structure — but
+which of the three number types a figure is says what the figure *is*, and
+that decides how it is entered, checked and shown. ``money`` is an amount in
+euros, held to the cent. A quantity that is not money and need not be whole —
+the days a trip lasted, kilometres to the tenth — is a ``decimal``: declared
+as ``money`` it would read „5,00 €“ on the form and to the signer, and a
+quarter day would be refused for not being a whole cent.
 
 .. list-table::
    :header-rows: 1
@@ -367,7 +371,13 @@ person is shown.
      - What it is, and what it reads as unanswered
    * - ``money``
      - :meth:`~kompass.rules.Inputs.money`
-     - An amount, as a :class:`~decimal.Decimal`. Unanswered: ``0.00``.
+     - An amount in euros, as a :class:`~decimal.Decimal`: whole cents, never
+       negative. Unanswered: ``0.00``.
+   * - ``decimal``
+     - :meth:`~kompass.rules.Inputs.decimal`
+     - A quantity that is not money, as a :class:`~decimal.Decimal`, exactly as
+       precise as it was given — up to four places, of either sign, and never
+       rounded to the cent. Unanswered: ``0``.
    * - ``int``
      - :meth:`~kompass.rules.Inputs.number`
      - A whole number; :attr:`~kompass.rules.Input.max` is its largest
@@ -585,9 +595,9 @@ stands the statement does not resolve and no money moves. It is deliberately
 not a truncation: paying three of five quietly is a figure no page explains.
 
 ``max`` means a count for a ``member_set`` and a ceiling for an ``int``, **and
-nothing at all for any other type** — ``money`` included, which is the other
-one you would expect a ceiling on. A money answer is bounded only by the
-field's own resolution and ceiling; a section wanting its own maximum writes a
+nothing at all for any other type** — ``money`` and ``decimal`` included,
+which are the others you would expect a ceiling on. Either is bounded only by
+the field's own resolution and ceiling; a section wanting its own maximum writes a
 :class:`~kompass.rules.Check`, where the sentence is its own too.
 
 A party-valued ``source`` should be stated **together with** an
@@ -1582,7 +1592,7 @@ What a ruleset returns
    :members:
 
 .. py:data:: InputType
-   :value: Literal["money", "int", "bool", "text", "choice", "member", "member_set", "rows"]
+   :value: Literal["money", "decimal", "int", "bool", "text", "choice", "member", "member_set", "rows"]
 
    The widget vocabulary an :class:`Input` is rendered with. It is
    presentation, not rule structure: see
@@ -1591,7 +1601,7 @@ What a ruleset returns
    than a widget — see :ref:`development_manual/finance_rules/rows`.
 
 .. py:data:: CELL_TYPES
-   :value: ("money", "int", "bool", "text", "choice", "member", "member_set")
+   :value: ("money", "decimal", "int", "bool", "text", "choice", "member", "member_set")
 
    The types a :class:`Field` — a cell of a ``rows`` question — may have:
    :data:`InputType` without ``rows``, because there is no table inside a

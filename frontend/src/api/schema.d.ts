@@ -6936,8 +6936,10 @@ export interface components {
          *
          *     Derived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks
          *     for something else gets a different form without anybody editing the API.
-         *     ``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,
-         *     ``choice``, ``member``, ``member_set``, ``rows``. ``options`` is the domain a
+         *     ``type`` is the widget vocabulary — ``money``, ``decimal``, ``int``,
+         *     ``bool``, ``text``, ``choice``, ``member``, ``member_set``, ``rows``. A
+         *     ``decimal`` is a quantity that is not money: shown as a plain number, and
+         *     not held to the cent. ``options`` is the domain a
          *     party-valued answer may be picked from, resolved to names here because the
          *     rules themselves never see them; ``choices`` is the same thing for a
          *     ``choice``.

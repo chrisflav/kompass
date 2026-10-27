@@ -610,7 +610,10 @@ class LudwigsburgRules(Ruleset):
             Input(
                 "duration",
                 "Dauer in Tagen",
-                "money",
+                # A number of days that need not be whole — Kompass counts a
+                # trip in half days — and not an amount: as "money" it was
+                # shown as „5,00 €“ on the form and to the signer.
+                "decimal",
                 required=False,
                 step="Tagegeld",
                 source="excursion.duration",
@@ -836,7 +839,7 @@ class LudwigsburgRules(Ruleset):
             return []
         country = ctx.inputs.text("country")
         nights = ctx.inputs.number("nights")
-        amount = cents(per_diem(country, nights, ctx.inputs.money("duration")))
+        amount = cents(per_diem(country, nights, ctx.inputs.decimal("duration")))
         if amount == ZERO:
             return []
         return [

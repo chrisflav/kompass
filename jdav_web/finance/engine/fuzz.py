@@ -157,6 +157,11 @@ def random_answer(rng: random.Random, declaration: Input) -> Any:
     """An answer to one declared question, inside the domain it declared."""
     if declaration.type == "money":
         return Decimal(rng.randint(0, 50000)) / 100
+    if declaration.type == "decimal":
+        # Past the cent on purpose, and below zero, because both are in the
+        # domain: a rule that quantises a duration as if it were money, or
+        # assumes it cannot be negative, meets the value that says so here.
+        return Decimal(rng.randint(-2000, 20000)) / 1000
     if declaration.type == "int":
         return rng.randint(0, declaration.max if declaration.max is not None else 10)
     if declaration.type == "bool":

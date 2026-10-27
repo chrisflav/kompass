@@ -16,6 +16,7 @@ from .models import *
 from .override import *
 from .parity import *
 from .payout import *
+from .quantities import *
 from .refreeze import *
 from .rules import *
 from .store import *
