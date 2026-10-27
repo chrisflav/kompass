@@ -4,13 +4,15 @@ import { AccessTokensList } from "./AccessTokens";
 import { FeedbackDetailPage, FeedbackList } from "./Feedback";
 import { PermissionGroupDetailPage, PermissionGroupsList } from "./PermissionGroups";
 import { RegistrationPasswordsList } from "./RegistrationPasswords";
+import { TwoFactorPage } from "./TwoFactor";
 import { UserDetailPage, UsersList } from "./Users";
 
 // The `logindata` app: Django users, permission groups and the shared
 // registration password. Previously the only admin area with no SPA counterpart,
 // which forced administrators back into /kompass for these three models.
 // Plus the feedback inbox, whose submissions arrive from the button in the site
-// chrome — public visitors included, and one's own personal access tokens.
+// chrome — public visitors included, one's own personal access tokens and
+// one's own second factors.
 export const adminRoutes = (
   <>
     <Route path="users" element={<UsersList />} />
@@ -25,5 +27,6 @@ export const adminRoutes = (
     <Route path="feedback/:id" element={<FeedbackDetailPage />} />
 
     <Route path="tokens" element={<AccessTokensList />} />
+    <Route path="security" element={<TwoFactorPage />} />
   </>
 );

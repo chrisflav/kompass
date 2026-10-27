@@ -79,12 +79,15 @@ class PersonalTokenCreated(PersonalTokenOut):
     token: str
 
 
-def _require_session(request):
-    """Refuse any bearer token but one the frontend obtained by signing in."""
+def require_session(request, message=None):
+    """Refuse any bearer token but one the frontend obtained by signing in.
+
+    ``message`` says what cannot be managed otherwise; access tokens by default.
+    """
     access_token = getattr(request, "access_token", None)
     application = access_token.application if access_token is not None else None
     if application is None or application.client_id != settings.FRONTEND_OAUTH_CLIENT_ID:
-        raise Forbidden(_("Access tokens can only be managed after signing in."))
+        raise Forbidden(message or _("Access tokens can only be managed after signing in."))
 
 
 def _owner(user):
@@ -115,7 +118,7 @@ def _visible_tokens(request):
 @router.get("/tokens", response=list[PersonalTokenOut])
 def list_tokens(request):
     """The personal access tokens the requesting user manages, newest first."""
-    _require_session(request)
+    require_session(request)
     return [_out(t) for t in _visible_tokens(request)]
 
 
@@ -123,7 +126,7 @@ def list_tokens(request):
 def create_token(request, payload: PersonalTokenIn):
     """Create a token for the requesting user; the answer is the only time it is shown."""
     authorize(request, "logindata.create_personalaccesstoken")
-    _require_session(request)
+    require_session(request)
     name = payload.name.strip()
     if not name:
         raise ValidationError({"name": [_("Give the token a name.")]})
@@ -157,7 +160,7 @@ def create_token(request, payload: PersonalTokenIn):
 @router.delete("/tokens/{token_id}", response={204: None})
 def revoke_token(request, token_id: int):
     """Revoke a token the requesting user manages; it stops working at once."""
-    _require_session(request)
+    require_session(request)
     personal = get_object_or_404(_visible_tokens(request), pk=token_id)
     # Deleting the access token takes the personal row with it (CASCADE).
     personal.access_token.delete()

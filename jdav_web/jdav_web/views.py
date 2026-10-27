@@ -9,8 +9,12 @@ from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.http import HttpResponse
+from django.http import HttpResponseRedirect
 from django.shortcuts import render
+from django.urls import reverse
 from django.views.static import serve
+from logindata import two_factor
+from logindata.login_views import begin_second_step
 from startpage.models import Link
 
 
@@ -36,6 +40,15 @@ class BuiltinLoginView(LoginView):
         if settings.OIDC_ENABLED:
             raise Http404("No local login form where an identity provider is configured.")
         return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        # The password alone does not log in a user with a second factor: the
+        # session only notes them as half way, and the second step logs them in.
+        user = form.get_user()
+        if two_factor.required_for(user):
+            begin_second_step(self.request, user, self.get_success_url())
+            return HttpResponseRedirect(reverse("login-two-factor"))
+        return super().form_valid(form)
 
 
 def superuser_only(view):

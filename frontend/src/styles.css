@@ -717,6 +717,43 @@ a.btn {
   user-select: all;
 }
 
+/* A new authenticator app's QR code: on white whatever the theme, so every
+   camera reads it. */
+.qr-code {
+  align-self: center;
+  line-height: 0;
+  background: #fff;
+  padding: 0.5rem;
+  border-radius: var(--radius);
+}
+
+/* Recovery codes, shown once: two columns of monospace, each selectable. */
+.recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.35rem 1rem;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  list-style: none;
+  font-family: var(--font-mono);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.recovery-codes code {
+  user-select: all;
+}
+
+/* A factor's name with its badges: "Passkey" where it signs in alone, and
+   "Standard" for the one the login offers first. */
+.factor-name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 /* Recovered admin fieldset description, shown above a detail section. */
 .fieldset-help {
   margin: 0 0 0.9rem;

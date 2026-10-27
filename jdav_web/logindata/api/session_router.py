@@ -64,7 +64,9 @@ def logout(request):
     The token is revoked even when it has expired: knowing it is all it takes
     to end it, and its refresh token would otherwise stay usable. A personal
     access token is left alone: it belongs to a script, not to the browser
-    signing out, and is ended from the token list instead.
+    signing out, and is ended from the token list instead. A confirmation for
+    the second-factor settings goes with the revoked token, which it cascades
+    from.
     """
     access_token = _presented_token(request)
     if access_token is not None and getattr(access_token, "personal", None) is None:

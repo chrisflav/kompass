@@ -1,0 +1,10 @@
+{% load i18n %}
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="method" value="totp">
+  <label>{% translate "Code from your authenticator app" %}
+    <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code"
+           pattern="[0-9 ]*" maxlength="8" required{% if focus %} autofocus{% endif %}>
+  </label>
+  <button type="submit"{% if secondary %} class="secondary"{% endif %}>{% translate "Confirm" %}</button>
+</form>

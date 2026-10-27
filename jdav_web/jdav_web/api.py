@@ -74,6 +74,7 @@ def _register_routers():
     from logindata.api.router import router as logindata_router
     from logindata.api.session_router import router as logindata_session_router
     from logindata.api.tokens_router import router as logindata_tokens_router
+    from logindata.api.two_factor_router import router as logindata_two_factor_router
     from ludwigsburgalpin.api.documents import router as ludwigsburgalpin_documents_router
     from ludwigsburgalpin.api.public import router as ludwigsburgalpin_public_router
     from ludwigsburgalpin.api.router import router as ludwigsburgalpin_router
@@ -122,6 +123,7 @@ def _register_routers():
     api.add_router("/logindata", logindata_router, tags=["logindata", "public"])
     api.add_router("/logindata", logindata_admin_router, tags=["logindata"])
     api.add_router("/logindata", logindata_tokens_router, tags=["logindata"])
+    api.add_router("/logindata", logindata_two_factor_router, tags=["logindata"])
     api.add_router("/logindata", logindata_session_router, tags=["logindata"])
     api.add_router(
         "/ludwigsburgalpin/public",

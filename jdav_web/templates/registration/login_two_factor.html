@@ -1,0 +1,35 @@
+{% extends "registration/login_base.html" %}
+{% load i18n %}
+{% block content %}
+    <p class="sub">{% translate "Confirm it is you with your second factor." %}</p>
+    {% if error %}
+      <p class="errors">{{ error }}</p>
+    {% endif %}
+    <p class="errors" data-webauthn-error hidden>{% translate "The security key did not respond. Please try again." %}</p>
+    {% translate "Use security key" as use_key %}
+    {% if preferred == "webauthn" %}
+      {% include "registration/_two_factor_key_form.html" with key=preferred_key autostart=autostart label=use_key secondary=False %}
+    {% else %}
+      {% include "registration/_two_factor_totp_form.html" with focus=True secondary=False %}
+    {% endif %}
+    <details data-alternatives{% if method and method != preferred %} open{% endif %}>
+      <summary>{% translate "Use another method" %}</summary>
+      {% if preferred == "webauthn" and has_totp %}
+        {% include "registration/_two_factor_totp_form.html" with focus=False secondary=True %}
+      {% endif %}
+      {% if preferred == "totp" and has_keys %}
+        {% include "registration/_two_factor_key_form.html" with key=None autostart=False label=use_key secondary=True %}
+      {% elif preferred_key and other_keys %}
+        {% translate "Use another security key" as use_other_key %}
+        {% include "registration/_two_factor_key_form.html" with key=None autostart=False label=use_other_key secondary=True %}
+      {% endif %}
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="method" value="recovery">
+        <label>{% translate "Recovery code" %}
+          <input type="text" name="code" autocomplete="off" spellcheck="false" required>
+        </label>
+        <button type="submit" class="secondary">{% translate "Confirm with a recovery code" %}</button>
+      </form>
+    </details>
+{% endblock %}

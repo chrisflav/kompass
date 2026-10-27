@@ -11660,6 +11660,44 @@
         ]
       }
     },
+    "/api/logindata/users/{user_id}/reset-two-factor": {
+      "post": {
+        "operationId": "logindata_api_admin_router_reset_two_factor",
+        "summary": "Reset Two Factor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginUserOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Remove every second factor of a user who lost theirs; they sign in with the password.\n\nThe same permission and the same guard as setting their password, which is\nwhat this is the counterpart of (``credential_refusal``): no one weakens the\nlogin of an account with rights they lack themselves, a superuser's or one\nwith rights through its member record included.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
     "/api/logindata/permission-groups": {
       "get": {
         "operationId": "logindata_api_admin_router_list_permission_groups",
@@ -12109,6 +12147,412 @@
         ]
       }
     },
+    "/api/logindata/two-factor": {
+      "get": {
+        "operationId": "logindata_api_two_factor_router_two_factor_status",
+        "summary": "Two Factor Status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorStatus"
+                }
+              }
+            }
+          }
+        },
+        "description": "What the requesting user can confirm with, and their factors once confirmed.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/two-factor/confirm/options": {
+      "post": {
+        "operationId": "logindata_api_two_factor_router_confirm_options",
+        "summary": "Confirm Options",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "key_id",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Key Id"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmOptions"
+                }
+              }
+            }
+          }
+        },
+        "description": "Request options for confirming with one of the user's security keys, or with ``key_id``.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/two-factor/confirm": {
+      "post": {
+        "operationId": "logindata_api_two_factor_router_confirm",
+        "summary": "Confirm",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Elevated"
+                }
+              }
+            }
+          }
+        },
+        "description": "Confirm who is signed in; the sign-in may then manage factors for ten minutes.",
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/two-factor/totp/setup": {
+      "post": {
+        "operationId": "logindata_api_two_factor_router_start_totp",
+        "summary": "Start Totp",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TOTPSetup"
+                }
+              }
+            }
+          }
+        },
+        "description": "Start adding an authenticator app: hand out a new secret.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/two-factor/totp": {
+      "post": {
+        "operationId": "logindata_api_two_factor_router_confirm_totp",
+        "summary": "Confirm Totp",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorAdded"
+                }
+              }
+            }
+          }
+        },
+        "description": "Save the authenticator app once it produced a valid code.",
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TOTPConfirmIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/two-factor/webauthn/setup": {
+      "post": {
+        "operationId": "logindata_api_two_factor_router_start_webauthn",
+        "summary": "Start Webauthn",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthnSetup"
+                }
+              }
+            }
+          }
+        },
+        "description": "Start adding a security key: hand out the creation options.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/two-factor/webauthn": {
+      "post": {
+        "operationId": "logindata_api_two_factor_router_confirm_webauthn",
+        "summary": "Confirm Webauthn",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorAdded"
+                }
+              }
+            }
+          }
+        },
+        "description": "Verify the browser's answer to the creation options and save the key.",
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAuthnConfirmIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/two-factor/{kind}/{factor_id}": {
+      "patch": {
+        "operationId": "logindata_api_two_factor_router_rename_factor",
+        "summary": "Rename Factor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "schema": {
+              "enum": [
+                "totp",
+                "webauthn"
+              ],
+              "title": "Kind",
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "path",
+            "name": "factor_id",
+            "schema": {
+              "title": "Factor Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/two-factor/default": {
+      "put": {
+        "operationId": "logindata_api_two_factor_router_set_default",
+        "summary": "Set Default",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Choose the factor the login offers first, or none.",
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefaultIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/two-factor/{kind}/{factor_id}/remove": {
+      "post": {
+        "operationId": "logindata_api_two_factor_router_remove_factor",
+        "summary": "Remove Factor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "schema": {
+              "enum": [
+                "totp",
+                "webauthn"
+              ],
+              "title": "Kind",
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "path",
+            "name": "factor_id",
+            "schema": {
+              "title": "Factor Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Remove a factor; the recovery codes go with the last one.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/two-factor/recovery-codes": {
+      "post": {
+        "operationId": "logindata_api_two_factor_router_regenerate_recovery_codes",
+        "summary": "Regenerate Recovery Codes",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryCodesOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Replace the recovery codes with new ones; the old ones stop working.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
     "/api/logindata/csrf": {
       "get": {
         "operationId": "logindata_api_session_router_csrf",
@@ -12142,7 +12586,7 @@
             "description": "No Content"
           }
         },
-        "description": "Revoke the token the request names and end the browser's session.\n\nThe token is revoked even when it has expired: knowing it is all it takes\nto end it, and its refresh token would otherwise stay usable. A personal\naccess token is left alone: it belongs to a script, not to the browser\nsigning out, and is ended from the token list instead.",
+        "description": "Revoke the token the request names and end the browser's session.\n\nThe token is revoked even when it has expired: knowing it is all it takes\nto end it, and its refresh token would otherwise stay usable. A personal\naccess token is left alone: it belongs to a script, not to the browser\nsigning out, and is ended from the token list instead. A confirmation for\nthe second-factor settings goes with the revoked token, which it cascades\nfrom.",
         "tags": [
           "logindata"
         ],
@@ -25336,6 +25780,11 @@
               }
             ],
             "title": "Member Name"
+          },
+          "two_factor_enabled": {
+            "default": false,
+            "title": "Two Factor Enabled",
+            "type": "boolean"
           }
         },
         "required": [
@@ -25733,6 +26182,442 @@
           "name"
         ],
         "title": "PersonalTokenIn",
+        "type": "object"
+      },
+      "FactorOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "totp",
+              "webauthn"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "created": {
+            "format": "date-time",
+            "title": "Created",
+            "type": "string"
+          },
+          "last_used": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used"
+          },
+          "passwordless": {
+            "title": "Passwordless",
+            "type": "boolean"
+          },
+          "default": {
+            "type": "boolean",
+            "title": "Default"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "created",
+          "last_used",
+          "passwordless",
+          "default"
+        ],
+        "title": "FactorOut",
+        "type": "object"
+      },
+      "TwoFactorStatus": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "has_totp": {
+            "title": "Has Totp",
+            "type": "boolean"
+          },
+          "has_webauthn": {
+            "title": "Has Webauthn",
+            "type": "boolean"
+          },
+          "elevated_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elevated Until"
+          },
+          "preferred_method": {
+            "anyOf": [
+              {
+                "enum": [
+                  "totp",
+                  "webauthn"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Method"
+          },
+          "preferred_key_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Key Id"
+          },
+          "factors": {
+            "items": {
+              "$ref": "#/components/schemas/FactorOut"
+            },
+            "title": "Factors",
+            "type": "array"
+          },
+          "recovery_codes_remaining": {
+            "title": "Recovery Codes Remaining",
+            "type": "integer"
+          },
+          "default_method": {
+            "anyOf": [
+              {
+                "enum": [
+                  "totp",
+                  "webauthn"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Method"
+          },
+          "default_key_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Key Id"
+          }
+        },
+        "required": [
+          "available",
+          "enabled",
+          "has_totp",
+          "has_webauthn",
+          "elevated_until",
+          "preferred_method",
+          "preferred_key_id",
+          "factors",
+          "recovery_codes_remaining",
+          "default_method",
+          "default_key_id"
+        ],
+        "title": "TwoFactorStatus",
+        "type": "object"
+      },
+      "ConfirmOptions": {
+        "description": "The ``publicKey`` options for ``navigator.credentials.get``.",
+        "properties": {
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "options",
+          "state"
+        ],
+        "title": "ConfirmOptions",
+        "type": "object"
+      },
+      "Elevated": {
+        "properties": {
+          "elevated_until": {
+            "format": "date-time",
+            "title": "Elevated Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "elevated_until"
+        ],
+        "title": "Elevated",
+        "type": "object"
+      },
+      "ConfirmIn": {
+        "description": "One proof of who is signed in: the password only where there is no factor.\n\n``credential`` answers the options of ``/two-factor/confirm/options``, whose\n``state`` comes with it.",
+        "properties": {
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "recovery_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovery Code"
+          },
+          "credential": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credential"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "title": "ConfirmIn",
+        "type": "object"
+      },
+      "TOTPSetup": {
+        "description": "A new secret, to show as a QR code and as text; ``state`` confirms it.",
+        "properties": {
+          "secret": {
+            "title": "Secret",
+            "type": "string"
+          },
+          "uri": {
+            "title": "Uri",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret",
+          "uri",
+          "state"
+        ],
+        "title": "TOTPSetup",
+        "type": "object"
+      },
+      "FactorAdded": {
+        "properties": {
+          "factor": {
+            "$ref": "#/components/schemas/FactorOut"
+          },
+          "recovery_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recovery Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "factor",
+          "recovery_codes"
+        ],
+        "title": "FactorAdded",
+        "type": "object"
+      },
+      "TOTPConfirmIn": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "code",
+          "state"
+        ],
+        "title": "TOTPConfirmIn",
+        "type": "object"
+      },
+      "WebAuthnSetup": {
+        "description": "The ``publicKey`` options for ``navigator.credentials.create``.",
+        "properties": {
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "options",
+          "state"
+        ],
+        "title": "WebAuthnSetup",
+        "type": "object"
+      },
+      "WebAuthnConfirmIn": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "credential": {
+            "additionalProperties": true,
+            "title": "Credential",
+            "type": "object"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "credential",
+          "state"
+        ],
+        "title": "WebAuthnConfirmIn",
+        "type": "object"
+      },
+      "RenameIn": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "RenameIn",
+        "type": "object"
+      },
+      "DefaultIn": {
+        "description": "The default factor: ``null`` for none; for a security key, one or (``null``) any.",
+        "properties": {
+          "method": {
+            "anyOf": [
+              {
+                "enum": [
+                  "totp",
+                  "webauthn"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "key_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Id"
+          }
+        },
+        "title": "DefaultIn",
+        "type": "object"
+      },
+      "RecoveryCodesOut": {
+        "properties": {
+          "codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "codes"
+        ],
+        "title": "RecoveryCodesOut",
         "type": "object"
       },
       "CsrfOut": {

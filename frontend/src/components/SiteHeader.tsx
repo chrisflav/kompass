@@ -223,7 +223,7 @@ function NavArea({ area, activePath }: { area: NavArea; activePath: string }) {
 /** Personal access tokens are offered to those who may create one. */
 const TOKENS_PERMISSION = "logindata.create_personalaccesstoken";
 
-/** The signed-in user's menu: name → profile, access tokens, plus logout. */
+/** The signed-in user's menu: name → profile, sign-in security, access tokens, plus logout. */
 function UserMenu({ memberId, name }: { memberId: number | null; name: string }) {
   const logout = useLogout();
   const { can } = usePermissions();
@@ -252,6 +252,9 @@ function UserMenu({ memberId, name }: { memberId: number | null; name: string })
           ) : (
             <span className="nav-drop-item muted">Kein Teilnehmenden-Profil</span>
           )}
+          <Link to="/kompass/security" className="nav-drop-item">
+            Zwei-Faktor-Authentifizierung
+          </Link>
           {can(TOKENS_PERMISSION) && (
             <Link to="/kompass/tokens" className="nav-drop-item">
               Zugangstokens
@@ -529,6 +532,9 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
                   Mein Profil
                 </NavLink>
               )}
+              <NavLink to="/kompass/security" className="drawer-item">
+                Zwei-Faktor-Authentifizierung
+              </NavLink>
               {can(TOKENS_PERMISSION) && (
                 <NavLink to="/kompass/tokens" className="drawer-item">
                   Zugangstokens

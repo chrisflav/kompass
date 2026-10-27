@@ -4346,6 +4346,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/logindata/users/{user_id}/reset-two-factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Two Factor
+         * @description Remove every second factor of a user who lost theirs; they sign in with the password.
+         *
+         *     The same permission and the same guard as setting their password, which is
+         *     what this is the counterpart of (``credential_refusal``): no one weakens the
+         *     login of an account with rights they lack themselves, a superuser's or one
+         *     with rights through its member record included.
+         */
+        post: operations["logindata_api_admin_router_reset_two_factor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/logindata/permission-groups": {
         parameters: {
             query?: never;
@@ -4486,6 +4511,223 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/logindata/two-factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Two Factor Status
+         * @description What the requesting user can confirm with, and their factors once confirmed.
+         */
+        get: operations["logindata_api_two_factor_router_two_factor_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/two-factor/confirm/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Options
+         * @description Request options for confirming with one of the user's security keys, or with ``key_id``.
+         */
+        post: operations["logindata_api_two_factor_router_confirm_options"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/two-factor/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm
+         * @description Confirm who is signed in; the sign-in may then manage factors for ten minutes.
+         */
+        post: operations["logindata_api_two_factor_router_confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/two-factor/totp/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Totp
+         * @description Start adding an authenticator app: hand out a new secret.
+         */
+        post: operations["logindata_api_two_factor_router_start_totp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/two-factor/totp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Totp
+         * @description Save the authenticator app once it produced a valid code.
+         */
+        post: operations["logindata_api_two_factor_router_confirm_totp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/two-factor/webauthn/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Webauthn
+         * @description Start adding a security key: hand out the creation options.
+         */
+        post: operations["logindata_api_two_factor_router_start_webauthn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/two-factor/webauthn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Webauthn
+         * @description Verify the browser's answer to the creation options and save the key.
+         */
+        post: operations["logindata_api_two_factor_router_confirm_webauthn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/two-factor/{kind}/{factor_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Rename Factor */
+        patch: operations["logindata_api_two_factor_router_rename_factor"];
+        trace?: never;
+    };
+    "/api/logindata/two-factor/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Default
+         * @description Choose the factor the login offers first, or none.
+         */
+        put: operations["logindata_api_two_factor_router_set_default"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/two-factor/{kind}/{factor_id}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove Factor
+         * @description Remove a factor; the recovery codes go with the last one.
+         */
+        post: operations["logindata_api_two_factor_router_remove_factor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/two-factor/recovery-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate Recovery Codes
+         * @description Replace the recovery codes with new ones; the old ones stop working.
+         */
+        post: operations["logindata_api_two_factor_router_regenerate_recovery_codes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/logindata/csrf": {
         parameters: {
             query?: never;
@@ -4525,7 +4767,9 @@ export interface paths {
          *     The token is revoked even when it has expired: knowing it is all it takes
          *     to end it, and its refresh token would otherwise stay usable. A personal
          *     access token is left alone: it belongs to a script, not to the browser
-         *     signing out, and is ended from the token list instead.
+         *     signing out, and is ended from the token list instead. A confirmation for
+         *     the second-factor settings goes with the revoked token, which it cascades
+         *     from.
          */
         post: operations["logindata_api_session_router_logout"];
         delete?: never;
@@ -9747,6 +9991,11 @@ export interface components {
             member_id?: number | null;
             /** Member Name */
             member_name?: string | null;
+            /**
+             * Two Factor Enabled
+             * @default false
+             */
+            two_factor_enabled: boolean;
         };
         /**
          * LoginUserCreate
@@ -9896,6 +10145,165 @@ export interface components {
             days: number | null;
             /** User Id */
             user_id?: number | null;
+        };
+        /** FactorOut */
+        FactorOut: {
+            /** Id */
+            id: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "totp" | "webauthn";
+            /** Name */
+            name: string;
+            /**
+             * Created
+             * Format: date-time
+             */
+            created: string;
+            /** Last Used */
+            last_used: string | null;
+            /** Passwordless */
+            passwordless: boolean;
+            /** Default */
+            default: boolean;
+        };
+        /** TwoFactorStatus */
+        TwoFactorStatus: {
+            /** Available */
+            available: boolean;
+            /** Enabled */
+            enabled: boolean;
+            /** Has Totp */
+            has_totp: boolean;
+            /** Has Webauthn */
+            has_webauthn: boolean;
+            /** Elevated Until */
+            elevated_until: string | null;
+            /** Preferred Method */
+            preferred_method: ("totp" | "webauthn") | null;
+            /** Preferred Key Id */
+            preferred_key_id: number | null;
+            /** Factors */
+            factors: components["schemas"]["FactorOut"][];
+            /** Recovery Codes Remaining */
+            recovery_codes_remaining: number;
+            /** Default Method */
+            default_method: ("totp" | "webauthn") | null;
+            /** Default Key Id */
+            default_key_id: number | null;
+        };
+        /**
+         * ConfirmOptions
+         * @description The ``publicKey`` options for ``navigator.credentials.get``.
+         */
+        ConfirmOptions: {
+            /** Options */
+            options: {
+                [key: string]: unknown;
+            };
+            /** State */
+            state: string;
+        };
+        /** Elevated */
+        Elevated: {
+            /**
+             * Elevated Until
+             * Format: date-time
+             */
+            elevated_until: string;
+        };
+        /**
+         * ConfirmIn
+         * @description One proof of who is signed in: the password only where there is no factor.
+         *
+         *     ``credential`` answers the options of ``/two-factor/confirm/options``, whose
+         *     ``state`` comes with it.
+         */
+        ConfirmIn: {
+            /** Password */
+            password?: string | null;
+            /** Code */
+            code?: string | null;
+            /** Recovery Code */
+            recovery_code?: string | null;
+            /** Credential */
+            credential?: {
+                [key: string]: unknown;
+            } | null;
+            /** State */
+            state?: string | null;
+        };
+        /**
+         * TOTPSetup
+         * @description A new secret, to show as a QR code and as text; ``state`` confirms it.
+         */
+        TOTPSetup: {
+            /** Secret */
+            secret: string;
+            /** Uri */
+            uri: string;
+            /** State */
+            state: string;
+        };
+        /** FactorAdded */
+        FactorAdded: {
+            factor: components["schemas"]["FactorOut"];
+            /** Recovery Codes */
+            recovery_codes: string[];
+        };
+        /** TOTPConfirmIn */
+        TOTPConfirmIn: {
+            /** Name */
+            name: string;
+            /** Code */
+            code: string;
+            /** State */
+            state: string;
+        };
+        /**
+         * WebAuthnSetup
+         * @description The ``publicKey`` options for ``navigator.credentials.create``.
+         */
+        WebAuthnSetup: {
+            /** Options */
+            options: {
+                [key: string]: unknown;
+            };
+            /** State */
+            state: string;
+        };
+        /** WebAuthnConfirmIn */
+        WebAuthnConfirmIn: {
+            /** Name */
+            name: string;
+            /** Credential */
+            credential: {
+                [key: string]: unknown;
+            };
+            /** State */
+            state: string;
+        };
+        /** RenameIn */
+        RenameIn: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * DefaultIn
+         * @description The default factor: ``null`` for none; for a security key, one or (``null``) any.
+         */
+        DefaultIn: {
+            /** Method */
+            method?: ("totp" | "webauthn") | null;
+            /** Key Id */
+            key_id?: number | null;
+        };
+        /** RecoveryCodesOut */
+        RecoveryCodesOut: {
+            /** Codes */
+            codes: string[];
         };
         /** CsrfOut */
         CsrfOut: {
@@ -16939,6 +17347,28 @@ export interface operations {
             };
         };
     };
+    logindata_api_admin_router_reset_two_factor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginUserOut"];
+                };
+            };
+        };
+    };
     logindata_api_admin_router_list_permission_groups: {
         parameters: {
             query?: never;
@@ -17222,6 +17652,250 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    logindata_api_two_factor_router_two_factor_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TwoFactorStatus"];
+                };
+            };
+        };
+    };
+    logindata_api_two_factor_router_confirm_options: {
+        parameters: {
+            query?: {
+                key_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmOptions"];
+                };
+            };
+        };
+    };
+    logindata_api_two_factor_router_confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Elevated"];
+                };
+            };
+        };
+    };
+    logindata_api_two_factor_router_start_totp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TOTPSetup"];
+                };
+            };
+        };
+    };
+    logindata_api_two_factor_router_confirm_totp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TOTPConfirmIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactorAdded"];
+                };
+            };
+        };
+    };
+    logindata_api_two_factor_router_start_webauthn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebAuthnSetup"];
+                };
+            };
+        };
+    };
+    logindata_api_two_factor_router_confirm_webauthn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebAuthnConfirmIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactorAdded"];
+                };
+            };
+        };
+    };
+    logindata_api_two_factor_router_rename_factor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "totp" | "webauthn";
+                factor_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactorOut"];
+                };
+            };
+        };
+    };
+    logindata_api_two_factor_router_set_default: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DefaultIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    logindata_api_two_factor_router_remove_factor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "totp" | "webauthn";
+                factor_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    logindata_api_two_factor_router_regenerate_recovery_codes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodesOut"];
+                };
             };
         };
     };

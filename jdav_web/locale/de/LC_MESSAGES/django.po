@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-25 18:39+0100\n"
+"POT-Creation-Date: 2026-10-25 22:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -132,6 +132,10 @@ msgstr ""
 msgid "You cannot grant Kompass access without having it yourself."
 msgstr "Du kannst keinen Kompass-Zugang vergeben, ohne ihn selbst zu haben."
 
+msgid "The two-factor authentication of your Kompass login was reset"
+msgstr ""
+"Die Zwei-Faktor-Authentifizierung deines Kompass-Kontos wurde zurückgesetzt"
+
 msgid "You cannot delete your own account."
 msgstr "Du kannst dein eigenes Konto nicht löschen."
 
@@ -156,8 +160,68 @@ msgstr "Wähle eine der angebotenen Gültigkeitsdauern."
 msgid "Only superusers can create tokens for other accounts."
 msgstr "Nur Superuser können Tokens für andere Konten erstellen."
 
+msgid ""
+"Two-factor authentication can only be managed after signing in to Kompass."
+msgstr ""
+"Die Zwei-Faktor-Anmeldung lässt sich nur nach einer Anmeldung in Kompass "
+"verwalten."
+
+msgid "Two-factor authentication is handled by your identity provider."
+msgstr "Die Zwei-Faktor-Authentifizierung übernimmt dein Identitätsanbieter."
+
+msgid "Please confirm it is you first."
+msgstr "Bitte bestätige zuerst, dass du es bist."
+
+msgid "Please confirm with one of your second factors."
+msgstr "Bitte bestätige mit einem deiner zweiten Faktoren."
+
+msgid "This setup has expired. Please start again."
+msgstr "Die Einrichtung ist abgelaufen. Bitte beginne von vorn."
+
+msgid "Give it a name."
+msgstr "Gib einen Namen an."
+
+msgid "At most 100 characters."
+msgstr "Höchstens 100 Zeichen."
+
+msgid "You have no security key."
+msgstr "Du hast keinen Sicherheitsschlüssel."
+
+msgid "Too many failed attempts. Please wait a few minutes and try again."
+msgstr ""
+"Zu viele Fehlversuche. Bitte warte ein paar Minuten und versuche es dann "
+"erneut."
+
+msgid "That did not work. Please try again."
+msgstr "Das hat nicht geklappt. Bitte versuche es erneut."
+
+msgid "The code is not correct. Please try again."
+msgstr "Der Code ist nicht korrekt. Bitte versuche es erneut."
+
+msgid "The security key could not be registered."
+msgstr "Der Sicherheitsschlüssel konnte nicht registriert werden."
+
+msgid "You have no authenticator app."
+msgstr "Du hast keine Authenticator-App."
+
+msgid "A second factor was removed from your Kompass login"
+msgstr "Von deinem Kompass-Konto wurde ein zweiter Faktor entfernt"
+
+msgid "Set up a second factor first."
+msgstr "Richte zuerst einen zweiten Faktor ein."
+
 msgid "Authentication"
 msgstr "Authentifizierung"
+
+msgid "Signing in with this security key did not work."
+msgstr "Die Anmeldung mit diesem Sicherheitsschlüssel hat nicht geklappt."
+
+msgid ""
+"Your authenticator app cannot be checked at the moment. Please use a "
+"security key or a recovery code."
+msgstr ""
+"Deine Authenticator-App kann gerade nicht geprüft werden. Bitte verwende "
+"einen Sicherheitsschlüssel oder einen Wiederherstellungscode."
 
 msgid "Permission group"
 msgstr "Berechtigungsgruppe"
@@ -200,6 +264,21 @@ msgstr "Persönliche Zugangstokens"
 
 msgid "Can create personal access tokens"
 msgstr "Kann persönliche Zugangstokens erstellen"
+
+msgid "last used"
+msgstr "zuletzt benutzt"
+
+msgid "Authenticator app"
+msgstr "Authenticator-App"
+
+msgid "Authenticator apps"
+msgstr "Authenticator-Apps"
+
+msgid "Security key"
+msgstr "Sicherheitsschlüssel"
+
+msgid "Security keys"
+msgstr "Sicherheitsschlüssel"
 
 msgid "Only a superuser may change a superuser account."
 msgstr ""
@@ -290,6 +369,9 @@ msgstr ""
 msgid "You successfully set your login data. You can now proceed to"
 msgstr ""
 "Du hast deine Zugangsdaten erfolgreich festgelegt. Du kannst nun weiter zum"
+
+msgid "Your Kompass login was locked"
+msgstr "Die Anmeldung in deinem Kompass-Konto wurde gesperrt"
 
 msgid "Documentation"
 msgstr "Dokumentation"
@@ -460,8 +542,14 @@ msgstr "Zu Gruppe einladen"
 msgid "Add another %(verbose_name)s"
 msgstr "%(verbose_name)s hinzufügen"
 
-msgid "Sign in"
-msgstr "Anmelden"
+msgid "Try again"
+msgstr "Erneut versuchen"
+
+msgid "Code from your authenticator app"
+msgstr "Code aus deiner Authenticator-App"
+
+msgid "Confirm"
+msgstr "Bestätigen"
 
 msgid "Please sign in to continue."
 msgstr "Bitte melde dich an, um fortzufahren."
@@ -469,3 +557,38 @@ msgstr "Bitte melde dich an, um fortzufahren."
 msgid "Your username and password did not match. Please try again."
 msgstr ""
 "Benutzername und Passwort passen nicht zusammen. Bitte versuche es erneut."
+
+msgid "The security key did not respond. Please try again."
+msgstr ""
+"Der Sicherheitsschlüssel hat nicht geantwortet. Bitte versuche es erneut."
+
+msgid "Sign in"
+msgstr "Anmelden"
+
+msgid "or"
+msgstr "oder"
+
+msgid "Sign in with a passkey"
+msgstr "Mit Passkey anmelden"
+
+msgid "Without a password, with a security key set up as a passkey."
+msgstr ""
+"Ohne Passwort, mit einem als Passkey eingerichteten Sicherheitsschlüssel."
+
+msgid "Confirm it is you with your second factor."
+msgstr "Bestätige mit deinem zweiten Faktor, dass du es bist."
+
+msgid "Use security key"
+msgstr "Sicherheitsschlüssel verwenden"
+
+msgid "Use another method"
+msgstr "Andere Methode verwenden"
+
+msgid "Use another security key"
+msgstr "Anderen Sicherheitsschlüssel verwenden"
+
+msgid "Recovery code"
+msgstr "Wiederherstellungscode"
+
+msgid "Confirm with a recovery code"
+msgstr "Mit Wiederherstellungscode bestätigen"

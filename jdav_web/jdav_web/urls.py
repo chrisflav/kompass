@@ -17,12 +17,12 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.i18n import i18n_patterns
 from django.contrib import admin
-from django.contrib.admin.views.decorators import staff_member_required
 from django.urls import include
 from django.urls import path
 from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 from django.views.generic.base import RedirectView
+from logindata import login_views
 from oauth2_provider import urls as oauth2_urls
 from oauth2_provider import views as oauth2_views
 
@@ -64,6 +64,20 @@ urlpatterns += [
 # where a locale redirect would land on that app's router instead of here.
 urlpatterns += [
     path("accounts/login/", BuiltinLoginView.as_view(), name="login"),
+    # The second step after the password, and the passwordless login with a
+    # passkey (see logindata.login_views); 404 where OIDC is configured.
+    path("accounts/login/two-factor/", login_views.login_two_factor, name="login-two-factor"),
+    path(
+        "accounts/login/two-factor/options/",
+        login_views.login_two_factor_options,
+        name="login-two-factor-options",
+    ),
+    path("accounts/login/passkey/", login_views.passkey_login, name="login-passkey"),
+    path(
+        "accounts/login/passkey/options/",
+        login_views.passkey_options,
+        name="login-passkey-options",
+    ),
 ]
 
 # The back-channel OAuth2 endpoints, reachable without a language prefix.
@@ -88,8 +102,11 @@ urlpatterns += [
     path("o/introspect/", oauth2_views.IntrospectTokenView.as_view()),
 ]
 
+# The admin's own password form would be a way around the second factor (and,
+# with OIDC, around the provider), so it only ever sends people to LOGIN_URL.
+admin.site.login = login_views.admin_login
+
 if settings.OIDC_ENABLED:
-    admin.site.login = staff_member_required(admin.site.login, login_url=settings.LOGIN_URL)
     urlpatterns += i18n_patterns(
         re_path(r"^oidc/", include("mozilla_django_oidc.urls")),
     )

@@ -17,6 +17,80 @@ which is mounted outside the language prefixes so it stays reachable on whatever
 domain the frontend is served from. See
 :ref:`development_manual/deployment` for registering the application.
 
+Two-factor authentication
+-------------------------
+
+Where Kompass checks passwords itself (OIDC is off), every user can add second
+factors from the frontend: authenticator apps (TOTP), WebAuthn security keys and
+passkeys, and ten one-time recovery codes. It is optional for everyone.
+
+A user with a second factor who gives the right password at ``/accounts/login/``
+is not logged in yet. The session only notes the account, the password hash's
+fingerprint and a five-minute deadline, and ``/accounts/login/two-factor/``
+calls ``login()`` once a factor checks out. ``/o/authorize/`` therefore never
+sees a half-authenticated session. A passkey (a discoverable credential created
+with user verification) also logs in on its own from the login page's "Mit
+Sicherheitsschlüssel anmelden" button. The admin's own login form under
+``/kompass`` is replaced by a redirect to ``/accounts/login/``, and the OAuth2
+*password* grant is refused for accounts with a second factor, so neither is a
+way around it.
+
+Attempts are counted per account before they are checked: every five of them
+without a successful second factor lock the second step, first for fifteen
+minutes, then twice as long each further time, up to a day. Attempts to confirm
+the frontend's 2FA settings count too. The first lock is mailed to the user, once
+until a second factor succeeds again. Adding the first factor revokes the
+account's other OAuth2 tokens (not the session doing it, nor personal access
+tokens): a token obtained with the password alone does not outlive it.
+
+The frontend's 2FA settings first confirm who is signed in
+(``POST /api/logindata/two-factor/confirm``): with a second factor where the
+account has one, with the password where it has none. That elevates the access
+token it was made with, and only it, for ten minutes; every endpoint that shows
+or changes factors requires the elevation.
+
+TOTP secrets are stored encrypted with a key derived from ``SECRET_KEY``. When
+rotating it, keep the old key in Django's ``SECRET_KEY_FALLBACKS``, or every
+authenticator app has to be set up again; Kompass logs an error for each app it
+can no longer decrypt, and does not count those logins against the user.
+Recovery codes are stored hashed. Personal access tokens are unaffected: they
+are created after signing in.
+
+An account's factors can be removed by anyone with ``auth.change_user`` (a
+superuser's only by a superuser) from the user's page in the frontend. Each such
+reset is logged as a warning by ``logindata.api.admin_router``. The user is
+mailed when a factor is removed or reset. The mails' texts can be changed in
+``texts.toml`` as ``two_factor_locked``, ``two_factor_removed`` (with
+``{factor}``) and ``two_factor_reset``, each with ``{name}``.
+
+Configuration
+^^^^^^^^^^^^^
+
+WebAuthn ties a security key to a *relying party ID*, a domain, and accepts it
+only on the listed origins. Each origin must be that domain or a subdomain of
+it. The defaults usually fit:
+
+.. code-block:: toml
+
+    [two_factor]
+    # Default: the host part of [django] host.
+    webauthn_rp_id = 'jdav-town.de'
+    # Default: "<protocol>://<host>", [django] frontend_base_url and
+    # [django] csrf_trusted_origins, i.e. every origin serving /accounts/login/.
+    webauthn_origins = ['https://jdav-town.de', 'https://neu.jdav-town.de']
+    # The name a browser shows when creating a key, and the issuer in
+    # authenticator apps. Default: "Kompass".
+    webauthn_rp_name = 'Kompass JDAV Town'
+
+In the production setup the frontend and ``/accounts/`` share one origin, so a
+key registered in the frontend's settings works on its login page. If the
+frontend runs on a subdomain of ``host`` (``neu.jdav-town.de`` next to
+``jdav-town.de``), the default relying party ID covers both. If it runs on an
+unrelated domain, set ``webauthn_rp_id`` to the frontend's domain: keys then
+only work there, and the old interface's login falls back to the other factors.
+
+Changing ``webauthn_rp_id`` later invalidates every registered security key.
+
 Using Kompass as an OAuth2 Provider
 -----------------------------------
 

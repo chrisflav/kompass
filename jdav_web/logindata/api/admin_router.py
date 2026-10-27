@@ -21,14 +21,18 @@ left alone, and a permission (directly on a group, or through a group a user
 is added to) can only be handed out by someone who holds it.
 """
 
+import logging
+
 from contrib.api.perms import authorize
 from contrib.api.perms import Forbidden
+from django.conf import settings
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
+from logindata import two_factor
 from logindata.models import AuthGroup
 from logindata.models import LoginDatum
 from logindata.models import RegistrationPassword
@@ -51,6 +55,8 @@ from .admin_schemas import RegistrationPasswordOut
 from .admin_schemas import SetPasswordIn
 
 router = Router()
+
+logger = logging.getLogger(__name__)
 
 
 def _raise_form_errors(form):
@@ -75,6 +81,7 @@ def _user_payload(user):
         "groups": [_group_brief(g) for g in user.groups.all()],
         "member_id": member.pk if member else None,
         "member_name": member.name if member else None,
+        "two_factor_enabled": two_factor.enabled_for(user),
     }
 
 
@@ -199,6 +206,36 @@ def set_user_password(request, user_id: int, payload: SetPasswordIn):
     if not form.is_valid():
         _raise_form_errors(form)
     form.save()
+    return _user_payload(user)
+
+
+@router.post("/users/{user_id}/reset-two-factor", response=LoginUserOut)
+def reset_two_factor(request, user_id: int):
+    """Remove every second factor of a user who lost theirs; they sign in with the password.
+
+    The same permission and the same guard as setting their password, which is
+    what this is the counterpart of (``credential_refusal``): no one weakens the
+    login of an account with rights they lack themselves, a superuser's or one
+    with rights through its member record included.
+    """
+    authorize(request, "auth.change_user")
+    user = get_object_or_404(LoginDatum, pk=user_id)
+    refusal = credential_refusal(request.user, user)
+    if refusal:
+        raise Forbidden(refusal)
+    two_factor.remove_all(user)
+    two_factor.notify(
+        user,
+        _("The two-factor authentication of your Kompass login was reset"),
+        settings.TWO_FACTOR_RESET_TEXT,
+    )
+    logger.warning(
+        "Two-factor authentication of %s (id %s) reset by %s (id %s).",
+        user.username,
+        user.pk,
+        request.user.username,
+        request.user.pk,
+    )
     return _user_payload(user)
 
 

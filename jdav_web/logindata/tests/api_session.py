@@ -9,6 +9,7 @@ from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
 from logindata.models import PersonalAccessToken
+from logindata.models import TwoFactorElevation
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
 from oauth2_provider.models import get_refresh_token_model
@@ -78,6 +79,16 @@ class LogoutApiTestCase(TestCase):
         self.assertEqual(r.status_code, 204, r.content)
         self.assertFalse(AccessToken.objects.filter(pk=self.token.pk).exists())
         self.assertSignedOut()
+
+    def test_ends_the_two_factor_confirmation_with_it(self):
+        TwoFactorElevation.objects.create(
+            access_token=self.token, expires=timezone.now() + datetime.timedelta(minutes=10)
+        )
+        RefreshToken.objects.create(
+            user=self.user, application=self.frontend, token="refresh", access_token=self.token
+        )
+        self.assertEqual(self.logout("frontend-token").status_code, 204)
+        self.assertFalse(TwoFactorElevation.objects.exists())
 
     def test_ends_the_refresh_token_with_it(self):
         refresh = RefreshToken.objects.create(

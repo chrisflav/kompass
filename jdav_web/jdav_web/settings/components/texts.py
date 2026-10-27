@@ -297,6 +297,49 @@ Deine JDAV {SEKTION}""".format(SEKTION=SEKTION, RESPONSIBLE_MAIL=RESPONSIBLE_MAI
 )
 
 
+TWO_FACTOR_LOCKED_TEXT = get_text(
+    "two_factor_locked",
+    default="""Hallo {{name}},
+
+für dein Kompass-Konto gab es zu viele fehlgeschlagene Anmelde- oder Bestätigungsversuche.
+Die Anmeldung mit zweitem Faktor ist deshalb vorübergehend gesperrt.
+
+Warst du das nicht, ändere bitte so bald wie möglich dein Passwort und wende dich an
+{RESPONSIBLE_MAIL}.
+
+Viele Grüße
+Deine JDAV {SEKTION}""".format(SEKTION=SEKTION, RESPONSIBLE_MAIL=RESPONSIBLE_MAIL),
+)
+
+
+TWO_FACTOR_REMOVED_TEXT = get_text(
+    "two_factor_removed",
+    default="""Hallo {{name}},
+
+von deinem Kompass-Konto wurde der zweite Faktor „{{factor}}“ entfernt.
+
+Warst du das nicht, wende dich bitte sofort an {RESPONSIBLE_MAIL}.
+
+Viele Grüße
+Deine JDAV {SEKTION}""".format(SEKTION=SEKTION, RESPONSIBLE_MAIL=RESPONSIBLE_MAIL),
+)
+
+
+TWO_FACTOR_RESET_TEXT = get_text(
+    "two_factor_reset",
+    default="""Hallo {{name}},
+
+die Zwei-Faktor-Authentifizierung deines Kompass-Kontos wurde zurückgesetzt: Alle zweiten
+Faktoren und Wiederherstellungscodes wurden entfernt, und zur Anmeldung genügt wieder dein
+Passwort. Richte am besten gleich wieder einen zweiten Faktor ein.
+
+Hast du das nicht veranlasst, wende dich bitte sofort an {RESPONSIBLE_MAIL}.
+
+Viele Grüße
+Deine JDAV {SEKTION}""".format(SEKTION=SEKTION, RESPONSIBLE_MAIL=RESPONSIBLE_MAIL),
+)
+
+
 UPLOAD_REGISTRATION_FORM_TEXT = get_text(
     "upload_registration_form",
     default="""Hallo {{name}},

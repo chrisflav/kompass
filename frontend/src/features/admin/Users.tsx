@@ -271,6 +271,22 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
     },
   );
 
+  // For someone who lost their second factor: they sign in with the password
+  // alone again, and can set up a new one.
+  const resetTwoFactor = useApiMutation(
+    () =>
+      unwrap(
+        client.POST("/api/logindata/users/{user_id}/reset-two-factor", {
+          params: { path: { user_id: user.id } },
+        }),
+      ),
+    {
+      invalidate: [["auth", "users", user.id]],
+      onSuccess: () => toast.success("Zwei-Faktor-Authentifizierung zurückgesetzt."),
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
   const checkbox = (key: "is_active" | "is_staff" | "is_superuser") => (
     <input
       type="checkbox"
@@ -328,6 +344,35 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
           onChange={(group_ids) => setForm({ ...form, group_ids })}
           placeholder="Rechtegruppe hinzufügen"
         />
+      ),
+    },
+    {
+      label: "Zwei-Faktor-Authentifizierung",
+      value: user.two_factor_enabled ? (
+        <span className="row-actions inline-actions">
+          <Badge tone="success">eingerichtet</Badge>
+          {can("auth.change_user") && (
+            <Button
+              type="button"
+              variant="ghost"
+              busy={resetTwoFactor.isPending}
+              onClick={async () => {
+                if (
+                  await confirm({
+                    message: `Alle zweiten Faktoren und Wiederherstellungscodes von „${user.username}“ entfernen? Danach genügt wieder das Passwort zur Anmeldung.`,
+                    danger: true,
+                    confirmLabel: "Zurücksetzen",
+                  })
+                )
+                  resetTwoFactor.mutate(undefined);
+              }}
+            >
+              Zurücksetzen
+            </Button>
+          )}
+        </span>
+      ) : (
+        "nicht eingerichtet"
       ),
     },
     { label: "Angelegt am", value: user.date_joined ? formatDate(user.date_joined) : "—" },
