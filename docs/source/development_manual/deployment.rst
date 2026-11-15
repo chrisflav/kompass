@@ -218,6 +218,43 @@ We assume that all instructions are executed as ``root`` or with ``sudo``.
       We recommend to initialize a ``git`` repository in the ``config`` folder to version control any changes
       to the local configuration.
 
+   .. note::
+      To keep passwords and keys out of the ``config`` folder (and thus out of possible VCS, put
+      them in a separate TOML file and point ``KOMPASS_SECRETS_FILE`` at it. Its tables are merged
+      over ``settings.toml`` key by key, so it only needs the values it overrides:
+
+      .. code-block:: toml
+
+         [django]
+         secret_key = '...'
+
+         [database]
+         password = '...'
+
+         [mail]
+         password = '...'
+
+      The same goes for ``[oidc] rp_client_secret`` and ``[oauth] oidc_rsa_private_key``. A relative
+      path is taken relative to ``KOMPASS_CONFIG_DIR_PATH``. Unlike ``settings.toml``, a secrets file
+      that is configured but missing stops Kompass from starting, rather than letting it run with
+      the default secret key. With docker secrets, add to every kompass service in
+      ``docker-compose.yaml`` (the ``x-kompass`` block covers all of them):
+
+      .. code-block:: yaml
+
+         x-kompass:
+             &kompass
+             environment:
+               - DJANGO_SETTINGS_MODULE=jdav_web.settings
+               - KOMPASS_CONFIG_DIR_PATH=/app/config/
+               - KOMPASS_SECRETS_FILE=/run/secrets/kompass_secrets
+             secrets:
+               - kompass_secrets
+
+         secrets:
+           kompass_secrets:
+             file: ./secrets.toml
+
 6. Run the container in background mode: If everything is working, you can cancel the
    ``docker compose up --build`` command from above and run
 
