@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import tempfile
 from datetime import timedelta
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -18,7 +19,9 @@ from oauth2_provider.models import get_application_model
 from oauth2_provider.models import get_grant_model
 from startpage.models import Link
 
+from jdav_web.settings import _load_secrets
 from jdav_web.settings import _load_toml
+from jdav_web.settings import _merge
 from jdav_web.settings import as_bool
 from jdav_web.views import custom_admin_view
 from jdav_web.views import custom_app_index
@@ -32,6 +35,43 @@ Grant = get_grant_model()
 class LoadTomlTestCase(TestCase):
     def test_returns_empty_dict_for_missing_file(self):
         self.assertEqual(_load_toml("/nonexistent/path/settings.toml"), {})
+
+
+class MergeTestCase(TestCase):
+    def test_tables_are_merged_key_by_key(self):
+        base = {"django": {"secret_key": "x", "host": "a"}, "section": {"name": "Town"}}
+        override = {"django": {"secret_key": "y"}, "database": {"password": "p"}}
+        self.assertEqual(
+            _merge(base, override),
+            {
+                "django": {"secret_key": "y", "host": "a"},
+                "section": {"name": "Town"},
+                "database": {"password": "p"},
+            },
+        )
+
+    def test_base_is_not_modified(self):
+        base = {"django": {"secret_key": "x"}}
+        _merge(base, {"django": {"secret_key": "y"}})
+        self.assertEqual(base, {"django": {"secret_key": "x"}})
+
+    def test_non_table_replaces_table(self):
+        self.assertEqual(_merge({"a": {"b": 1}}, {"a": 2}), {"a": 2})
+
+
+class LoadSecretsTestCase(TestCase):
+    def test_unset_loads_nothing(self):
+        self.assertEqual(_load_secrets(""), {})
+
+    def test_missing_file_is_an_error(self):
+        with self.assertRaises(FileNotFoundError):
+            _load_secrets("/nonexistent/path/secrets.toml")
+
+    def test_reads_the_file(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".toml") as f:
+            f.write("[database]\npassword = 'p'\n")
+            f.flush()
+            self.assertEqual(_load_secrets(f.name), {"database": {"password": "p"}})
 
 
 class AsBoolTestCase(TestCase):

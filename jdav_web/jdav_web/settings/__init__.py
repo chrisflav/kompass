@@ -18,6 +18,9 @@ from split_settings.tools import include
 CONFIG_DIR_PATH = os.environ.get("KOMPASS_CONFIG_DIR_PATH", "")
 SETTINGS_FILE = os.environ.get("KOMPASS_SETTINGS_FILE", "settings.toml")
 TEXTS_FILE = os.environ.get("KOMPASS_TEXTS_FILE", "texts.toml")
+# Optional: a second TOML file laid over the settings, so that passwords and keys
+# can live outside the config directory, e.g. in a docker secret.
+SECRETS_FILE = os.environ.get("KOMPASS_SECRETS_FILE", "")
 
 
 def _load_toml(path):
@@ -27,7 +30,37 @@ def _load_toml(path):
     return {}
 
 
-config = _load_toml(os.path.join(CONFIG_DIR_PATH, SETTINGS_FILE))
+def _merge(base, override):
+    """
+    Merge `override` into a copy of `base`: tables are merged key by key,
+    every other value in `override` replaces the one in `base`.
+    """
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _load_secrets(path):
+    """
+    Load the secrets file. Unlike the settings, a secrets file that was asked
+    for but is missing is an error: running on the defaults instead would mean
+    running with the default secret key.
+    """
+    if not path:
+        return {}
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"KOMPASS_SECRETS_FILE is set, but {path} does not exist")
+    return _load_toml(path)
+
+
+config = _merge(
+    _load_toml(os.path.join(CONFIG_DIR_PATH, SETTINGS_FILE)),
+    _load_secrets(SECRETS_FILE and os.path.join(CONFIG_DIR_PATH, SECRETS_FILE)),
+)
 texts = _load_toml(os.path.join(CONFIG_DIR_PATH, TEXTS_FILE))
 
 
