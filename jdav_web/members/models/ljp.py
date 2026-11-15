@@ -53,6 +53,30 @@ class LJPProposal(CommonModel):
         blank=True,
         default="",
     )
+    methods = models.TextField(
+        verbose_name=_("Methods"),
+        help_text=_(
+            "Describe the methods used in the seminar. Which didactic and methodical approaches were applied?"
+        ),
+        blank=True,
+        default="",
+    )
+    pedagogical_goals = models.TextField(
+        verbose_name=_("Pedagogical goals"),
+        help_text=_(
+            "Describe the pedagogical goals of the seminar. Which educational objectives were pursued and how were they implemented?"
+        ),
+        blank=True,
+        default="",
+    )
+    alpine_goals = models.TextField(
+        verbose_name=_("Alpine sports goals"),
+        help_text=_(
+            "Describe the alpine sports goals of the seminar. Which alpine sports content was taught and what skill level was aimed for?"
+        ),
+        blank=True,
+        default="",
+    )
 
     NOT_BW_CONTENT, NOT_BW_ROOMS, NOT_BW_CLOSE_BORDER, NOT_BW_ECONOMIC = 1, 2, 3, 4
     NOT_BW_REASONS = [
